@@ -1,0 +1,38 @@
+# Primary crate settings
+[package]
+name = "awesome-sails"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+counter.workspace = true
+ping-pong.workspace = true
+
+# Workspace settings
+[workspace]
+resolver = "2"
+members = [".", "services/*", "utils"]
+
+[workspace.dependencies]
+# Local packages
+counter = { package = "awesome-sails-counter", path = "services/counter" }
+ping-pong = { package = "awesome-sails-ping-pong", path = "services/ping-pong" }
+utils = { package = "awesome-sails-utils", path = "utils" }
+
+# Sails packages
+sails-rs = "0.4.0"
+
+# General packages
+log = "0.4.22"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Gear Technologies"]
+edition = "2021"
+license = "GPL-3.0"
+homepage = "https://gear-tech.io"
+repository = "https://github.com/gear-tech/awesome-sails"
