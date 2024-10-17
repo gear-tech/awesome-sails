@@ -13,4 +13,3 @@ sails-rs.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true
-sails-rs = { workspace = true, features = ["gtest"] }
