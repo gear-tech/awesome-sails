@@ -25,9 +25,11 @@ ping-pong = { package = "awesome-sails-ping-pong", path = "services/ping-pong" }
 vft-service = { package = "awesome-sails-vft-service", path = "services/vft-service" }
 utils = { package = "awesome-sails-utils", path = "utils" }
 
-# Sails packages
+# Gear packages
 gstd = "=1.6.2"
-sails-rs = "=0.6.1"
+
+# Sails packages
+sails-rs = "=0.6.2"
 
 # General packages
 env_logger = "0.11"
