@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 counter.workspace = true
 ping-pong.workspace = true
+vft-service.workspace = true
 
 # Workspace settings
 [workspace]
@@ -21,13 +22,17 @@ members = [".", "services/*", "utils"]
 # Local packages
 counter = { package = "awesome-sails-counter", path = "services/counter" }
 ping-pong = { package = "awesome-sails-ping-pong", path = "services/ping-pong" }
+vft-service = { package = "awesome-sails-vft-service", path = "services/vft-service" }
 utils = { package = "awesome-sails-utils", path = "utils" }
 
+# Gear packages
+gstd = "=1.6.2"
+
 # Sails packages
-sails-rs = "0.4.0"
+sails-rs = "=0.6.2"
 
 # General packages
-log = "0.4.22"
+env_logger = "0.11"
 
 [workspace.package]
 version = "0.1.0"

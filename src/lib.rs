@@ -20,3 +20,4 @@
 
 pub use counter::Service as CounterService;
 pub use ping_pong::Service as PingPongService;
+pub use vft_service::Service as VftService;
