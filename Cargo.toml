@@ -1,0 +1,25 @@
+[package]
+name = "awesome-sails"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[workspace]
+resolver = "3"
+
+members = [
+    ".",
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Gear Technologies"]
+edition = "2024"
+homepage = "https://gear-tech.io"
+license = "GPL-3.0"
+repository = "https://github.com/gear-tech/gear"
+rust-version = "1.85"
