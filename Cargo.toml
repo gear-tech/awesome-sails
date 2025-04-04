@@ -8,12 +8,20 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[dependencies]
+# Sails dependencies
+sails-rs.workspace = true
+
+# External dependencies
+derive_more = { workspace = true, features = ["as_ref", "deref", "display", "from", "into"] }
+thiserror.workspace = true
+
 [workspace]
 resolver = "3"
 
-members = [
-    ".",
-]
+default-members = ["."]
+
+members = ["."]
 
 [workspace.package]
 version = "0.1.0"
@@ -23,3 +31,19 @@ homepage = "https://gear-tech.io"
 license = "GPL-3.0"
 repository = "https://github.com/gear-tech/gear"
 rust-version = "1.85"
+
+[workspace.dependencies]
+# Sails dependencies
+sails-client-gen = { version = "=0.7.3", default-features = false }
+sails-idl-gen = { version = "=0.7.3", default-features = false }
+sails-rs = { version = "=0.7.3", default-features = false }
+
+# External dependencies
+derive_more = { version = "2.0.1", default-features = false }
+mockall = { version = "=0.12", default-features = false }
+thiserror = { version = "=2.0.12", default-features = false}
+tokio = { version = "=1.41", default-features = false }
+
+# Local dependencies
+awesome = { package = "awesome-sails", path = ".", default-features = false }
+awesome-sails = { path = ".", default-features = false }

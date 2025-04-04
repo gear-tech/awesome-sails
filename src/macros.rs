@@ -16,15 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome sails set of useful utilities and primitives.
+//! Awesome macros definition module.
 
-#![no_std]
+#[macro_export]
+macro_rules! bail {
+    ($err: expr) => {
+        return Err($err.into());
+    };
+}
 
-pub mod error;
-pub mod event;
-pub mod map;
-pub mod math;
-pub mod pause;
-pub mod storage;
+#[macro_export]
+macro_rules! ensure {
+    ($cond: expr, $err:expr) => {
+        if !$cond {
+            return Err($err.into());
+        }
+    };
+}
 
-mod macros;
+#[macro_export]
+macro_rules! ok_if {
+    ($cond: expr) => {
+        $crate::ok_if!($cond, ());
+    };
+    ($cond: expr, $ok: expr) => {
+        if $cond {
+            return Ok($ok.into());
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! unwrap_infallible {
+    ($res: expr) => {
+        match $res {
+            Ok(r) => r,
+            Err(e) => match e {}, // Unreachable pattern
+        }
+    };
+}
