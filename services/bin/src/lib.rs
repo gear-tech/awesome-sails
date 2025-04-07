@@ -16,14 +16,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome sails set of useful utilities and primitives.
+//! Awesome sails services binary for testing.
 
 #![no_std]
 
-pub mod error;
-pub mod event;
-pub mod macros;
-pub mod map;
-pub mod math;
-pub mod pause;
-pub mod storage;
+#[cfg(target_arch = "wasm32")]
+pub use awesome_sails_services::test::wasm::*;
+
+#[cfg(feature = "wasm-binary")]
+#[cfg(not(target_arch = "wasm32"))]
+pub use code::WASM_BINARY_OPT as WASM_BINARY;
+
+#[cfg(feature = "wasm-binary")]
+#[cfg(not(target_arch = "wasm32"))]
+pub mod client {
+    include!(concat!(env!("OUT_DIR"), "/awesome_client.rs"));
+}
+
+#[cfg(feature = "wasm-binary")]
+#[cfg(not(target_arch = "wasm32"))]
+mod code {
+    include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+}

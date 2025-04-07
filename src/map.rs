@@ -33,7 +33,7 @@ pub struct ShardedMap<K, V> {
 impl<K, V> ShardedMap<K, V> {
     /// Creates new sharded map with given capacities for underlying shards.
     ///
-    /// Capacities must be 0b1 [1], 0b11 [3] or 0b111 [7] with any amount of trailing zeroes [14, 28, 56 ...].
+    /// Capacities must be [0b1] (1), [0b11] (3) or [0b111] (7) with any amount of trailing zeroes (14, 28, 56 ...).
     pub fn try_new(mut capacities: Vec<usize>) -> Result<Self, ShardedMapError> {
         ensure!(
             capacities.iter().all(|&c| Self::is_valid_capacity(c)),
@@ -119,6 +119,25 @@ impl<K, V> ShardedMap<K, V> {
             });
 
         idx.is_some_and(|i| i != self.shards.len() - 1)
+    }
+
+    /// Clears all shards in the map.
+    pub fn clear_shards(&mut self) {
+        self.shards.iter_mut().for_each(|(map, _)| map.clear());
+    }
+
+    /// Tries to appends a new shard to the map.
+    ///
+    /// It will require upcoming allocation (see [`Self::alloc_next_shard`]).
+    pub fn try_append_shard(&mut self, capacity: usize) -> Result<(), ShardedMapError> {
+        ensure!(
+            Self::is_valid_capacity(capacity),
+            ShardedMapError::InvalidCapacity
+        );
+
+        self.shards.push((HashMap::new(), capacity));
+
+        Ok(())
     }
 
     /// Helper function to `find_map` shards.
@@ -269,7 +288,9 @@ impl ShardIdx {
 }
 
 /// Error type for ShardedMap operations.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
+)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum ShardedMapError {

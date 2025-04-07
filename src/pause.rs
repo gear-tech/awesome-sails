@@ -117,7 +117,9 @@ impl Pause {
 }
 
 /// Error type for the `Pausable` storage.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
+)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum PausableError<E: error::Error> {
@@ -128,3 +130,19 @@ pub enum PausableError<E: error::Error> {
     #[error("storage error: {0}")]
     Storage(#[from] E),
 }
+
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
+)]
+#[codec(crate = sails_rs::scale_codec)]
+#[error("enabled pause error")]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct PausedError;
+
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
+)]
+#[codec(crate = sails_rs::scale_codec)]
+#[error("disabled pause error")]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct UnpausedError;

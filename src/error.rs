@@ -18,21 +18,35 @@
 
 //! Awesome errors definition module.
 
+use core::fmt;
 use sails_rs::{
     Decode, Encode, TypeInfo,
     string::{String, ToString},
 };
 
 /// Error type for the `awesome-sails` library.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo, derive_more::Display)]
+#[derive(Clone, Decode, Encode, TypeInfo, derive_more::Display)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 #[display("{}", _0)]
 pub struct Error(String);
 
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Error {
+    /// Creates a new [`Self`] instance with the given message.
+    pub fn new(message: impl ToString) -> Self {
+        Self(message.to_string())
+    }
+}
+
 impl<E: core::error::Error> From<E> for Error {
     fn from(err: E) -> Self {
-        Error(err.to_string())
+        Self::new(err)
     }
 }
 

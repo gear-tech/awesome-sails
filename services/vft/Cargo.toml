@@ -1,0 +1,22 @@
+[package]
+name = "awesome-sails-vft-service"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Sails dependencies.
+sails-rs = { workspace = true, features = ["gstd"] }
+
+# Local dependencies.
+awesome-sails.workspace = true
+awesome-sails-vft-service-utils.workspace = true
+
+[features]
+test = [
+    "awesome-sails-vft-service-utils/test",
+]

@@ -50,6 +50,14 @@ pub trait Storage {
         &self,
         f: impl FnOnce(&mut Self::Item) -> Self::Item,
     ) -> Result<Self::Item, Self::Error>;
+
+    /// Takes the item from the storage and returns it, replacing it with a default value.
+    fn take(&self) -> Result<Self::Item, Self::Error>
+    where
+        Self::Item: Default,
+    {
+        self.replace(Default::default())
+    }
 }
 
 impl<T> Storage for RefCell<T> {

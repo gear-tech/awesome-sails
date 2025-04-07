@@ -18,9 +18,11 @@
 
 //! Awesome math module.
 
-use crate::ensure;
+use crate::{ensure, impl_non_zero_conversion};
 use core::cmp::Ordering;
-use sails_rs::{ActorId, Decode, Encode, H160, H256, TypeInfo, U256};
+use sails_rs::{ActorId, Decode, Encode, H160, H256, TypeInfo};
+
+pub use sails_rs::U256;
 
 macro_rules! for_primitives {
     ($macro:ident) => {
@@ -30,13 +32,35 @@ macro_rules! for_primitives {
     };
 }
 
+/// Aggregation trait for math operations from the module.
+pub trait Math:
+    Max + Min + One + Zero + CheckedMath + PartialEq + From<NonZero<Self>> + TryInto<NonZero<Self>>
+{
+}
+
+impl<
+    T: Max + Min + One + Zero + CheckedMath + PartialEq + From<NonZero<Self>> + TryInto<NonZero<Self>>,
+> Math for T
+{
+}
+
 /// A trait that defines checked math operations for a type.
 pub trait CheckedMath: Sized {
     /// Performs checked addition.
     fn checked_add(self, rhs: Self) -> Option<Self>;
 
+    /// Performs checked addition and returns an error if overflow occurs.
+    fn checked_add_err(self, rhs: Self) -> Result<Self, OverflowError> {
+        self.checked_add(rhs).ok_or(OverflowError)
+    }
+
     /// Performs checked subtraction.
     fn checked_sub(self, rhs: Self) -> Option<Self>;
+
+    /// Performs checked subtraction and returns an error if underflow occurs.
+    fn checked_sub_err(self, rhs: Self) -> Result<Self, UnderflowError> {
+        self.checked_sub(rhs).ok_or(UnderflowError)
+    }
 }
 
 macro_rules! impl_checked_math {
@@ -172,7 +196,7 @@ impl One for U256 {
 impl One for ActorId {
     const ONE: Self = {
         let mut bytes = [0; 32];
-        bytes[31] = 1;
+        bytes[12] = 1;
         Self::new(bytes)
     };
 }
@@ -180,7 +204,7 @@ impl One for ActorId {
 impl One for H256 {
     const ONE: Self = {
         let mut bytes = [0; 32];
-        bytes[31] = 1;
+        bytes[0] = 1;
         H256(bytes)
     };
 }
@@ -188,7 +212,7 @@ impl One for H256 {
 impl One for H160 {
     const ONE: Self = {
         let mut bytes = [0; 20];
-        bytes[19] = 1;
+        bytes[0] = 1;
         H160(bytes)
     };
 }
@@ -239,6 +263,8 @@ impl Zero for H160 {
 /// stored in little-endian order.
 ///
 /// It is useful for representing fixed-size numeric values in a compact manner.
+///
+/// NOTE: there's useful impl_math_for_small_le_bytes_wrap! macro for deriving wrappers.
 #[derive(
     Clone,
     Copy,
@@ -263,9 +289,32 @@ impl<const N: usize> LeBytes<N> {
         Self(bytes)
     }
 
+    /// Tries to convert a given `LeBytes` instance to another `LeBytes` instance.
+    pub fn try_convert_from<const M: usize>(value: LeBytes<M>) -> Result<Self, OverflowError> {
+        let mut me = [0; N];
+
+        if M <= N {
+            me[..M].copy_from_slice(&value.0);
+            return Ok(Self(me));
+        }
+
+        let (to_copy, to_strip) = value.0.split_at(N);
+
+        ensure!(to_strip.iter().all(|&b| b == 0), OverflowError);
+
+        me.copy_from_slice(to_copy);
+
+        Ok(Self(me))
+    }
+
     /// Returns the inner byte array.
     pub fn as_bytes(&self) -> &[u8; N] {
         &self.0
+    }
+
+    /// Tries to convert self into another `LeBytes` instance.
+    pub fn try_convert_into<const M: usize>(self) -> Result<LeBytes<M>, OverflowError> {
+        LeBytes::<M>::try_convert_from(self)
     }
 }
 
@@ -287,48 +336,38 @@ impl<const N: usize> Ord for LeBytes<N> {
     }
 }
 
+impl<const N: usize> TryFrom<u128> for LeBytes<N> {
+    type Error = OverflowError;
+
+    fn try_from(value: u128) -> Result<Self, Self::Error> {
+        Self::try_convert_from(LeBytes(value.to_le_bytes()))
+    }
+}
+
+impl<const N: usize> TryInto<u128> for LeBytes<N> {
+    type Error = OverflowError;
+
+    fn try_into(self) -> Result<u128, Self::Error> {
+        LeBytes::<16>::try_convert_from(self).map(|LeBytes(b)| u128::from_le_bytes(b))
+    }
+}
+
 impl<const N: usize> TryFrom<U256> for LeBytes<N> {
     type Error = OverflowError;
 
     fn try_from(value: U256) -> Result<Self, Self::Error> {
-        let mut me = [0; N];
-
-        let Some(split_at) = 32usize.checked_sub(N) else {
-            value.to_little_endian(&mut me[N - 32..]);
-            return Ok(Self(me));
-        };
-
         let mut bytes = [0; 32];
         value.to_little_endian(&mut bytes);
 
-        let (to_strip, to_copy) = bytes.split_at(split_at);
-
-        ensure!(to_strip.iter().all(|&b| b == 0), OverflowError);
-
-        me.copy_from_slice(to_copy);
-
-        Ok(Self(me))
+        Self::try_convert_from(LeBytes(bytes))
     }
 }
 
 impl<const N: usize> TryInto<U256> for LeBytes<N> {
     type Error = OverflowError;
 
-    fn try_into(mut self) -> Result<U256, Self::Error> {
-        let mut bytes = [0; 32];
-
-        let Some(split_at) = N.checked_sub(32) else {
-            bytes[32 - N..].copy_from_slice(&self.0);
-            return Ok(U256::from_little_endian(&bytes));
-        };
-
-        let (to_strip, to_copy) = self.0.split_at_mut(split_at);
-
-        ensure!(to_strip.iter().all(|&b| b == 0), OverflowError);
-
-        bytes.copy_from_slice(to_copy);
-
-        Ok(U256::from_little_endian(&bytes))
+    fn try_into(self) -> Result<U256, Self::Error> {
+        LeBytes::<32>::try_convert_from(self).map(|LeBytes(b)| U256::from_little_endian(&b))
     }
 }
 
@@ -406,12 +445,12 @@ impl<const N: usize> Zero for LeBytes<N> {
 pub struct NonZero<T>(T);
 
 impl<T: Zero + PartialEq> NonZero<T> {
-    /// Creates a new `NonZero` instance if the value is non-zero.
+    /// Creates a new [`NonZero`] instance if the value is non-zero.
     pub fn try_new(value: T) -> Result<Self, ZeroError> {
         (!value.is_zero()).then_some(Self(value)).ok_or(ZeroError)
     }
 
-    /// Tries to sum up two `NonZero` values.
+    /// Tries to sum up two [`NonZero`] values.
     pub fn try_add(self, rhs: Self) -> Result<Self, MathError>
     where
         T: CheckedMath,
@@ -420,7 +459,7 @@ impl<T: Zero + PartialEq> NonZero<T> {
         Self::try_new(res).map_err(Into::into)
     }
 
-    /// Tries to subtract two `NonZero` values.
+    /// Tries to subtract two [`NonZero`] values.
     pub fn try_sub(self, rhs: Self) -> Result<Self, MathError>
     where
         T: CheckedMath,
@@ -431,19 +470,60 @@ impl<T: Zero + PartialEq> NonZero<T> {
 }
 
 impl<T> NonZero<T> {
-    /// Converts the `NonZero` instance back into its inner value.
+    /// Converts the [`NonZero`] instance back into its inner value.
     pub fn into_inner(self) -> T {
         self.0
     }
 
-    /// Converts the `NonZero` instance into a new `NonZero` instance of a different type.
-    pub fn cast<U: From<T>>(self) -> NonZero<U> {
+    /// Converts the [`NonZero`] instance into another convertible from inner type.
+    pub fn cast<U: From<T>>(self) -> U {
+        U::from(self.0)
+    }
+
+    /// Tries to converts the [`NonZero`] instance into another convertible from inner type.
+    pub fn try_cast<U: TryFrom<T>>(self) -> Result<U, U::Error> {
+        U::try_from(self.0)
+    }
+
+    /// Converts the [`NonZero`] instance into a new [`NonZero`] instance of a different type.
+    pub fn non_zero_cast<U: From<T>>(self) -> NonZero<U> {
         NonZero(U::from(self.0))
     }
 }
 
+impl<T: PartialEq> PartialEq<T> for NonZero<T> {
+    fn eq(&self, other: &T) -> bool {
+        self.0.eq(other)
+    }
+}
+
+impl<T: PartialOrd> PartialOrd<T> for NonZero<T> {
+    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
+
+for_primitives!(impl_non_zero_conversion);
+impl_non_zero_conversion!(ActorId, H256, H160, U256);
+
+impl<const N: usize> TryFrom<LeBytes<N>> for NonZero<LeBytes<N>> {
+    type Error = ZeroError;
+
+    fn try_from(value: LeBytes<N>) -> Result<Self, Self::Error> {
+        NonZero::try_new(value)
+    }
+}
+
+impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
+    fn from(value: NonZero<LeBytes<N>>) -> Self {
+        value.into_inner()
+    }
+}
+
 /// Arbitrary error type for math errors.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
+)]
 #[codec(crate = sails_rs::scale_codec)]
 #[error(transparent)]
 #[scale_info(crate = sails_rs::scale_info)]
@@ -457,21 +537,57 @@ pub enum MathError {
 }
 
 /// Arbitrary error type for math overflows.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Decode,
+    Encode,
+    TypeInfo,
+    thiserror::Error,
+)]
 #[codec(crate = sails_rs::scale_codec)]
 #[error("mathematical overflow")]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct OverflowError;
 
 /// Arbitrary error type for math underflows.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Decode,
+    Encode,
+    TypeInfo,
+    thiserror::Error,
+)]
 #[codec(crate = sails_rs::scale_codec)]
 #[error("mathematical underflow")]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct UnderflowError;
 
 /// Arbitrary error type for zeroes.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Decode,
+    Encode,
+    TypeInfo,
+    thiserror::Error,
+)]
 #[codec(crate = sails_rs::scale_codec)]
 #[error("zero error")]
 #[scale_info(crate = sails_rs::scale_info)]
