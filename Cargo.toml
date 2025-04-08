@@ -1,0 +1,88 @@
+[package]
+name = "awesome-sails"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Sails dependencies
+sails-rs.workspace = true
+
+# External dependencies
+derive_more = { workspace = true, features = ["as_ref", "deref", "display", "from", "into"] }
+thiserror.workspace = true
+
+[workspace]
+resolver = "3"
+
+default-members = ["."]
+
+members = [
+    ## `awesome-sails`
+    ".",
+    ## `awesome-sails` services [and binary for testing]
+    "services",
+    "services/bin",
+    ### `vft` service
+    "services/vft",
+    "services/vft/utils",
+    ### `vft-admin` service
+    "services/vft-admin",
+    ### `vft-extension` service
+    "services/vft-extension",
+    ### `vft-metadata` service
+    "services/vft-metadata",
+    ### `vft-native-exchange` service
+    "services/vft-native-exchange",
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Gear Technologies"]
+edition = "2024"
+homepage = "https://gear-tech.io"
+license = "GPL-3.0"
+repository = "https://github.com/gear-tech/gear"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# Sails dependencies
+sails-client-gen = { version = "=0.7.3", default-features = false }
+sails-idl-gen = { version = "=0.7.3", default-features = false }
+sails-rs = { version = "=0.7.3", default-features = false }
+
+# External dependencies
+derive_more = { version = "2.0.1", default-features = false }
+futures = { version = "=0.3.31", default-features = false }
+mockall = { version = "=0.12", default-features = false }
+thiserror = { version = "=2.0.12", default-features = false}
+tokio = { version = "=1.41", default-features = false }
+
+# Local dependencies
+## `awesome-sails`
+awesome = { package = "awesome-sails", path = ".", default-features = false }
+awesome-sails = { path = ".", default-features = false }
+
+## `awesome-sails` services
+awesome-sails-services = { path = "services", default-features = false }
+test-bin = { path = "services/bin", default-features = false }
+
+### `vft` service
+awesome-sails-vft-service = { path = "services/vft", default-features = false }
+awesome-sails-vft-service-utils = { path = "services/vft/utils", default-features = false }
+
+### `vft-admin` service
+awesome-sails-vft-admin-service = { path = "services/vft-admin", default-features = false }
+
+### `vft-extension` service
+awesome-sails-vft-extension-service = { path = "services/vft-extension", default-features = false }
+
+### `vft-metadata` service
+awesome-sails-vft-metadata-service = { path = "services/vft-metadata", default-features = false }
+
+### `vft-native-exchange` service
+awesome-sails-vft-native-exchange-service = { path = "services/vft-native-exchange", default-features = false }

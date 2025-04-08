@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+  pull_request:
+    branches: [ master ]
+
+env:
+  BINARYEN_VERSION: version_111
+  CARGO_TERM_COLOR: always
+
+jobs:
+  main:
+    name: Main CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            components: rustfmt
+
+      - name: Set up Rust for wasm
+        run: rustup component add rust-src --toolchain stable
+
+      - name: Install wasm-opt
+        run: |
+          sudo wget -c https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz -O - | sudo tar -xz -C .
+          sudo cp binaryen-$BINARYEN_VERSION/bin/wasm-opt /usr/bin/
+
+      - name: Check formatting
+        run: cargo +nightly fmt --all -- --check
+
+      - name: Check clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace
