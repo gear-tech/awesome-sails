@@ -22,31 +22,28 @@
 
 #![no_std]
 
-use awesome_sails::{
-    error::Error, event::Emitter, math::Zero, ok_if, pause::Pausable, storage::Storage,
-};
+use awesome_sails::{error::Error, math::Zero, ok_if, storage::Storage};
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowances, Balance, Balances},
 };
-use core::cell::RefCell;
 use sails_rs::{ActorId, U256, gstd::msg, prelude::*};
 
 /// Awesome VFT-Native-Exchange service itself.
-pub struct Service<'a, A = Pausable<RefCell<Allowances>>, B = Pausable<RefCell<Balances>>> {
-    balances: &'a B,
-    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+pub struct Service<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> {
+    balances: B,
+    vft: vft::ServiceExposure<vft::Service<A, B>>,
 }
 
-impl<'a, A, B> Service<'a, A, B> {
+impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<A, B> {
     /// Constructor for [`Self`].
-    pub fn new(balances: &'a B, vft: vft::ServiceExposure<vft::Service<'a, A, B>>) -> Self {
+    pub fn new(balances: B, vft: vft::ServiceExposure<vft::Service<A, B>>) -> Self {
         Self { balances, vft }
     }
 }
 
 #[service]
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
+impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<A, B> {
     #[export(unwrap_result)]
     pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
         ok_if!(value.is_zero());
@@ -57,11 +54,11 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             .get_mut()?
             .burn(from.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
-        self.vft.emit(vft::Event::Transfer {
+        self.vft.emit_event(vft::Event::Transfer {
             from,
             to: ActorId::zero(),
             value,
-        })?;
+        });
 
         Ok(CommandReply::new(()).with_value(value.as_u128()))
     }
@@ -74,11 +71,11 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
 
         ok_if!(value.is_zero());
 
-        self.vft.emit(vft::Event::Transfer {
+        self.vft.emit_event(vft::Event::Transfer {
             from,
             to: ActorId::zero(),
             value: value.into(),
-        })?;
+        });
 
         Ok(CommandReply::new(()).with_value(value.into()))
     }
@@ -95,11 +92,11 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             .get_mut()?
             .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
-        self.vft.emit(vft::Event::Transfer {
+        self.vft.emit_event(vft::Event::Transfer {
             from: ActorId::zero(),
             to,
             value,
-        })?;
+        });
 
         Ok(())
     }

@@ -24,14 +24,11 @@
 
 use awesome_sails::{
     error::Error,
-    event::Emitter,
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::Pausable,
     storage::Storage,
 };
 use awesome_sails_vft_service_utils::{Allowance, Allowances, Balance, Balances};
-use core::cell::RefCell;
 use sails_rs::{
     gstd::{exec, msg},
     prelude::*,
@@ -41,16 +38,16 @@ use sails_rs::{
 pub use awesome_sails_vft_service_utils as utils;
 
 /// Awesome VFT service itself.
-pub struct Service<'a, A = Pausable<RefCell<Allowances>>, B = Pausable<RefCell<Balances>>> {
+pub struct Service<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> {
     // Allowances storage.
-    allowances: &'a A,
+    allowances: A,
     // Balances storage.
-    balances: &'a B,
+    balances: B,
 }
 
-impl<'a, A, B> Service<'a, A, B> {
+impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<A, B> {
     /// Constructor for [`Self`].
-    pub fn new(allowances: &'a A, balances: &'a B) -> Self {
+    pub fn new(allowances: A, balances: B) -> Self {
         Self {
             allowances,
             balances,
@@ -59,7 +56,7 @@ impl<'a, A, B> Service<'a, A, B> {
 }
 
 #[service(events = Event)]
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
+impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<A, B> {
     #[export(unwrap_result)]
     pub fn approve(&mut self, spender: ActorId, value: U256) -> Result<bool, Error> {
         let owner = msg::source();
@@ -79,11 +76,11 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
         let changed = previous.map(NonZero::cast).unwrap_or(U256::ZERO) != value;
 
         if changed {
-            self.emit(Event::Approval {
+            self.emit_event(Event::Approval {
                 owner,
                 spender,
                 value,
-            })?;
+            });
         }
 
         Ok(changed)
@@ -101,7 +98,7 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             Balance::try_from(value)?.try_into()?,
         )?;
 
-        self.emit(Event::Transfer { from, to, value })?;
+        self.emit_event(Event::Transfer { from, to, value });
 
         Ok(true)
     }
@@ -134,7 +131,7 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
 
         self.balances.get_mut()?.transfer(_from, to, _value)?;
 
-        self.emit(Event::Transfer { from, to, value })?;
+        self.emit_event(Event::Transfer { from, to, value });
 
         Ok(true)
     }
@@ -181,24 +178,4 @@ pub enum Event {
         to: ActorId,
         value: U256,
     },
-}
-
-/* TODO: DELETE CODE BELOW ONCE APPROPRIATE SAILS CHANGES APPLIED */
-
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Emitter for Service<'_, A, B> {
-    type Event = Event;
-
-    fn notify(&mut self, event: Self::Event) -> Result<(), sails_rs::errors::Error> {
-        self.notify_on(event)
-    }
-}
-
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Emitter
-    for ServiceExposure<Service<'_, A, B>>
-{
-    type Event = Event;
-
-    fn notify(&mut self, event: Self::Event) -> Result<(), sails_rs::errors::Error> {
-        self.inner.notify_on(event)
-    }
 }

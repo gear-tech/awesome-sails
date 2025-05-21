@@ -28,14 +28,14 @@ use awesome_sails::{
     event::Emitter,
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::{Pausable, Pause, UnpausedError},
+    pause::{PausableError, Pause},
     storage::{InfallibleStorage, Storage},
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowance, Allowances, Balance, Balances},
 };
-use core::cell::RefCell;
+use core::convert::Infallible;
 use sails_rs::{
     ActorId, U256,
     gstd::{exec, msg},
@@ -50,25 +50,27 @@ pub mod utils {
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,
-    S = RefCell<Authorities>,
-    A = Pausable<RefCell<Allowances>>,
-    B = Pausable<RefCell<Balances>>,
+    S: Storage<Item = Authorities>,
+    A: Storage<Item = Allowances>,
+    B: Storage<Item = Balances>,
 > {
-    authorities: &'a S,
-    allowances: &'a A,
-    balances: &'a B,
+    authorities: S,
+    allowances: A,
+    balances: B,
     pause: &'a Pause,
-    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+    vft: vft::ServiceExposure<vft::Service<A, B>>,
 }
 
-impl<'a, S, A, B> Service<'a, S, A, B> {
+impl<'a, S: Storage<Item = Authorities>, A: Storage<Item = Allowances>, B: Storage<Item = Balances>>
+    Service<'a, S, A, B>
+{
     /// Constructor for [`Self`].
     pub fn new(
-        authorities: &'a S,
-        allowances: &'a A,
-        balances: &'a B,
+        authorities: S,
+        allowances: A,
+        balances: B,
         pause: &'a Pause,
-        vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+        vft: vft::ServiceExposure<vft::Service<A, B>>,
     ) -> Self {
         Self {
             authorities,
@@ -133,11 +135,11 @@ impl<
         let changed = previous.map(NonZero::cast).unwrap_or(U256::ZERO) != value;
 
         if changed {
-            self.vft.emit(vft::Event::Approval {
+            self.vft.emit_event(vft::Event::Approval {
                 owner,
                 spender,
                 value,
-            })?;
+            });
         }
 
         Ok(changed)
@@ -153,11 +155,11 @@ impl<
 
         self.emit(Event::BurnerTookPlace)?;
 
-        self.vft.emit(vft::Event::Transfer {
+        self.vft.emit_event(vft::Event::Transfer {
             from,
             to: ActorId::zero(),
             value,
-        })?;
+        });
 
         Ok(())
     }
@@ -165,7 +167,9 @@ impl<
     #[export(unwrap_result)]
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
         ensure!(msg::source() == self.admin(), BadOrigin);
-        ensure!(self.is_paused(), UnpausedError);
+        // TODO: error
+        ensure!(self.is_paused(), PausableError::<Infallible>::Paused);
+        // TODO: check ensure
         ensure!(inheritor.is_zero(), BadInput);
 
         self.emit(Event::Exited(inheritor))?;
@@ -185,11 +189,11 @@ impl<
 
         self.emit(Event::MinterTookPlace)?;
 
-        self.vft.emit(vft::Event::Transfer {
+        self.vft.emit_event(vft::Event::Transfer {
             from: ActorId::zero(),
             to,
             value,
-        })?;
+        });
 
         Ok(())
     }
@@ -396,6 +400,6 @@ impl<
     type Event = Event;
 
     fn notify(&mut self, event: Self::Event) -> Result<(), sails_rs::errors::Error> {
-        self.notify_on(event)
+        self.emit_event(event)
     }
 }

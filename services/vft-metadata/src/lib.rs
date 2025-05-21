@@ -23,31 +23,31 @@
 #![no_std]
 
 use awesome_sails::storage::InfallibleStorage;
-use core::cell::{Ref, RefCell};
+use core::ops::Deref;
 use sails_rs::prelude::*;
 
 /// Awesome VFT-Metadata service itself.
-pub struct Service<'a, M = RefCell<Metadata>> {
+pub struct Service<M: InfallibleStorage<Item = Metadata>> {
     // Metadata storage.
-    metadata: &'a M,
+    metadata: M,
 }
 
-impl<'a, M> Service<'a, M> {
+impl<M: InfallibleStorage<Item = Metadata>> Service<M> {
     /// Constructor for [`Self`].
-    pub fn new(metadata: &'a M) -> Self {
+    pub fn new(metadata: M) -> Self {
         Self { metadata }
     }
 }
 
-impl<'a, M: InfallibleStorage<Item = Metadata>> Service<'a, M> {
+impl<M: InfallibleStorage<Item = Metadata>> Service<M> {
     /// Returns a reference to the [`Metadata`].
-    pub fn metadata(&self) -> Ref<'a, Metadata> {
+    pub fn metadata(&self) -> impl Deref<Target = Metadata> {
         self.metadata.get()
     }
 }
 
 #[service]
-impl<M: InfallibleStorage<Item = Metadata>> Service<'_, M> {
+impl<M: InfallibleStorage<Item = Metadata>> Service<M> {
     /// Returns the name of the VFT.
     pub fn name(&self) -> String {
         self.metadata().name().into()

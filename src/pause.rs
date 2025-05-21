@@ -18,63 +18,58 @@
 
 //! Awesome pausable storage primitive.
 
-use crate::{ensure, storage::Storage};
-use core::{
-    cell::{Ref, RefCell, RefMut},
-    error,
-    ops::Deref,
+use crate::{
+    ensure,
+    storage::{Storage, StorageRef},
 };
-use sails_rs::{Decode, Encode, TypeInfo, rc::Rc};
+use core::{
+    cell::Cell,
+    error,
+    ops::{Deref, DerefMut},
+};
+use sails_rs::{Decode, Encode, TypeInfo};
 
 /// Wrapper for Storage trait implementor in order to provide pause functionality.
-pub struct Pausable<S: Storage> {
-    pause: Pause,
+pub struct Pausable<'a, S: Storage> {
+    pause: &'a Pause,
     storage: S,
 }
 
-impl<S: Storage> Pausable<S> {
-    /// Creates a new `Pausable` instance linked to a `Pause` instance.
-    pub fn new(pause: &Pause, storage: S) -> Self {
-        Self {
-            pause: pause.clone(),
-            storage,
-        }
-    }
+pub type PausableRef<'a, T> = Pausable<'a, StorageRef<'a, T>>;
 
-    /// Creates a new `Pausable` instance with a default storage value.
-    pub fn default(pause: &Pause) -> Self
-    where
-        S: Default,
-    {
-        Self::new(pause, Default::default())
+impl<'a, S: Storage> Pausable<'a, S> {
+    /// Creates a new `Pausable` instance linked to a `Pause` instance.
+    pub fn from(pause: &'a Pause, storage: S) -> Self {
+        Self { pause, storage }
     }
 }
 
-impl<S: Storage> Storage for Pausable<S>
+impl<S> Storage for Pausable<'_, S>
 where
-    S::Error: 'static,
+    S: Storage,
+    S::Error: error::Error + 'static,
 {
     type Item = S::Item;
     type Error = PausableError<S::Error>;
 
-    fn get(&self) -> Result<Ref<'_, Self::Item>, Self::Error> {
+    fn get(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
         self.storage.get().map_err(Into::into)
     }
 
-    fn get_mut(&self) -> Result<RefMut<'_, Self::Item>, Self::Error> {
+    fn get_mut(&mut self) -> Result<impl DerefMut<Target = Self::Item>, Self::Error> {
         ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.get_mut().map_err(Into::into)
     }
 
-    fn replace(&self, value: Self::Item) -> Result<Self::Item, Self::Error> {
+    fn replace(&mut self, value: Self::Item) -> Result<Self::Item, Self::Error> {
         ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace(value).map_err(Into::into)
     }
 
     fn replace_with(
-        &self,
+        &mut self,
         f: impl FnOnce(&mut Self::Item) -> Self::Item,
     ) -> Result<Self::Item, Self::Error> {
         ensure!(!self.pause.is_paused(), PausableError::Paused);
@@ -87,32 +82,32 @@ where
 /// Struct representing a pause switch.
 ///
 /// This struct is used to create a pausable storage instance.
-#[derive(Clone, Debug, Default)]
-pub struct Pause(Rc<RefCell<bool>>);
+#[derive(Debug, Default)]
+pub struct Pause(Cell<bool>);
 
 impl Pause {
     /// Creates a new `Pause` instance.
     pub fn new(paused: bool) -> Self {
-        Self(Rc::new(RefCell::new(paused)))
+        Self(Cell::new(paused))
     }
 
     /// Switches pause on.
     ///
     /// Returns bool indicating if state was changed.
     pub fn pause(&self) -> bool {
-        !self.0.deref().replace(true)
+        !self.0.replace(true)
     }
 
     /// Switches pause off.
     ///
     /// Returns bool indicating if state was changed.
     pub fn resume(&self) -> bool {
-        self.0.deref().replace(false)
+        self.0.replace(false)
     }
 
     /// Returns bool indicating if pause is on.
     pub fn is_paused(&self) -> bool {
-        *(self.0.deref().borrow())
+        self.0.get()
     }
 }
 
@@ -130,19 +125,3 @@ pub enum PausableError<E: error::Error> {
     #[error("storage error: {0}")]
     Storage(#[from] E),
 }
-
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
-)]
-#[codec(crate = sails_rs::scale_codec)]
-#[error("enabled pause error")]
-#[scale_info(crate = sails_rs::scale_info)]
-pub struct PausedError;
-
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
-)]
-#[codec(crate = sails_rs::scale_codec)]
-#[error("disabled pause error")]
-#[scale_info(crate = sails_rs::scale_info)]
-pub struct UnpausedError;

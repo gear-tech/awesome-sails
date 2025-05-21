@@ -13,7 +13,13 @@ rust-version.workspace = true
 sails-rs.workspace = true
 
 # External dependencies
-derive_more = { workspace = true, features = ["as_ref", "deref", "display", "from", "into"] }
+derive_more = { workspace = true, features = [
+    "as_ref",
+    "deref",
+    "display",
+    "from",
+    "into",
+] }
 thiserror.workspace = true
 
 [workspace]
@@ -51,15 +57,15 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 # Sails dependencies
-sails-client-gen = { version = "=0.7.3", default-features = false }
-sails-idl-gen = { version = "=0.7.3", default-features = false }
-sails-rs = { version = "=0.7.3", default-features = false }
+sails-client-gen = { version = "=0.8.1" }
+sails-idl-gen = { version = "=0.8.1" }
+sails-rs = { version = "=0.8.1" }
 
 # External dependencies
 derive_more = { version = "2.0.1", default-features = false }
 futures = { version = "=0.3.31", default-features = false }
 mockall = { version = "=0.12", default-features = false }
-thiserror = { version = "=2.0.12", default-features = false}
+thiserror = { version = "=2.0.12", default-features = false }
 tokio = { version = "=1.41", default-features = false }
 
 # Local dependencies

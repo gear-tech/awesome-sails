@@ -48,18 +48,22 @@ pub mod test {
         vft_metadata::Metadata,
         *,
     };
-    use awesome_sails::{error::Error, storage::Storage};
+    use awesome_sails::{
+        error::Error,
+        pause::PausableRef,
+        storage::{Storage, StorageRef},
+    };
     use awesome_sails_vft_service::utils::{Allowance, Balance};
     use core::{cell::RefCell, ops::DerefMut};
     use sails_rs::{gstd::msg, prelude::*};
 
-    pub struct TestService<'a> {
-        allowances: &'a Pausable<RefCell<Allowances>>,
-        balances: &'a Pausable<RefCell<Balances>>,
+    pub struct TestService<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> {
+        allowances: A,
+        balances: B,
     }
 
     #[service]
-    impl TestService<'_> {
+    impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> TestService<A, B> {
         #[export(unwrap_result)]
         pub fn set(
             &mut self,
@@ -113,58 +117,71 @@ pub mod test {
 
     pub struct TestProgram {
         authorities: RefCell<Authorities>,
-        allowances: Pausable<RefCell<Allowances>>,
-        balances: Pausable<RefCell<Balances>>,
+        allowances: RefCell<Allowances>,
+        balances: RefCell<Balances>,
         metadata: RefCell<Metadata>,
         pause: Pause,
     }
+
+    type S<'a> = StorageRef<'a, Authorities>;
+    type M<'a> = StorageRef<'a, Metadata>;
+    type A<'a> = PausableRef<'a, Allowances>;
+    type B<'a> = PausableRef<'a, Balances>;
 
     #[program]
     impl TestProgram {
         // Program's constructor
         pub fn new() -> Self {
-            let pause = Pause::default();
-
             Self {
                 authorities: RefCell::new(Authorities::from_one(msg::source())),
-                allowances: Pausable::new(&pause, RefCell::new(Allowances::default())),
-                balances: Pausable::new(&pause, RefCell::new(Balances::default())),
+                allowances: RefCell::new(Allowances::default()),
+                balances: RefCell::new(Balances::default()),
                 metadata: RefCell::new(Metadata::default()),
                 pause: Pause::default(),
             }
         }
 
-        pub fn test(&self) -> TestService<'_> {
+        pub fn test(&self) -> TestService<A, B> {
             TestService {
-                allowances: &self.allowances,
-                balances: &self.balances,
+                allowances: Pausable::from(&self.pause, &self.allowances),
+                balances: Pausable::from(&self.pause, &self.balances),
             }
         }
 
-        pub fn vft(&self) -> vft::Service<'_> {
-            vft::Service::new(&self.allowances, &self.balances)
+        pub fn vft(&self) -> vft::Service<A, B> {
+            vft::Service::new(
+                Pausable::from(&self.pause, &self.allowances),
+                Pausable::from(&self.pause, &self.balances),
+            )
         }
 
-        pub fn vft_admin(&self) -> vft_admin::Service<'_> {
+        pub fn vft_admin(&self) -> vft_admin::Service<'_, S, A, B> {
             vft_admin::Service::new(
                 &self.authorities,
-                &self.allowances,
-                &self.balances,
+                Pausable::from(&self.pause, &self.allowances),
+                Pausable::from(&self.pause, &self.balances),
                 &self.pause,
                 self.vft(),
             )
         }
 
-        pub fn vft_extension(&self) -> vft_extension::Service<'_> {
-            vft_extension::Service::new(&self.allowances, &self.balances, self.vft())
+        pub fn vft_extension(&self) -> vft_extension::Service<A, B> {
+            vft_extension::Service::new(
+                Pausable::from(&self.pause, &self.allowances),
+                Pausable::from(&self.pause, &self.balances),
+                self.vft(),
+            )
         }
 
-        pub fn vft_metadata(&self) -> vft_metadata::Service<'_> {
+        pub fn vft_metadata(&self) -> vft_metadata::Service<M> {
             vft_metadata::Service::new(&self.metadata)
         }
 
-        pub fn vft_native_exchange(&self) -> vft_native_exchange::Service<'_> {
-            vft_native_exchange::Service::new(&self.balances, self.vft())
+        pub fn vft_native_exchange(&self) -> vft_native_exchange::Service<A, B> {
+            vft_native_exchange::Service::new(
+                Pausable::from(&self.pause, &self.balances),
+                self.vft(),
+            )
         }
     }
 

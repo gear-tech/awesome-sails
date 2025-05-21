@@ -25,17 +25,14 @@
 use awesome_sails::{
     ensure,
     error::Error,
-    event::Emitter,
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::Pausable,
     storage::Storage,
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowances, Balance, Balances},
 };
-use core::cell::RefCell;
 use sails_rs::{
     ActorId, U256,
     gstd::{exec, msg},
@@ -43,19 +40,15 @@ use sails_rs::{
 };
 
 /// Awesome VFT-Extension service itself.
-pub struct Service<'a, A = Pausable<RefCell<Allowances>>, B = Pausable<RefCell<Balances>>> {
-    allowances: &'a A,
-    balances: &'a B,
-    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+pub struct Service<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> {
+    allowances: A,
+    balances: B,
+    vft: vft::ServiceExposure<vft::Service<A, B>>,
 }
 
-impl<'a, A, B> Service<'a, A, B> {
+impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<A, B> {
     /// Constructor for [`Self`].
-    pub fn new(
-        allowances: &'a A,
-        balances: &'a B,
-        vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
-    ) -> Self {
+    pub fn new(allowances: A, balances: B, vft: vft::ServiceExposure<vft::Service<A, B>>) -> Self {
         Self {
             allowances,
             balances,
@@ -65,7 +58,7 @@ impl<'a, A, B> Service<'a, A, B> {
 }
 
 #[service]
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
+impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<A, B> {
     #[export(unwrap_result)]
     pub fn allocate_next_allowances_shard(&mut self) -> Result<bool, Error> {
         Ok(self.allowances.get_mut()?.allocate_next_shard())
@@ -98,11 +91,11 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
         allowances.remove(_owner, _spender);
 
         // TODO: consider if we need to emit event here.
-        self.vft.emit(vft::Event::Approval {
+        self.vft.emit_event(vft::Event::Approval {
             owner,
             spender,
             value: U256::zero(),
-        })?;
+        });
 
         Ok(true)
     }
@@ -121,7 +114,8 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
 
         ok_if!(value.is_zero(), false);
 
-        self.vft.emit(vft::Event::Transfer { from, to, value })?;
+        self.vft
+            .emit_event(vft::Event::Transfer { from, to, value });
 
         Ok(true)
     }
@@ -153,11 +147,11 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             exec::block_height(),
         )?;
 
-        self.vft.emit(vft::Event::Transfer {
+        self.vft.emit_event(vft::Event::Transfer {
             from,
             to,
             value: value.into(),
-        })?;
+        });
 
         Ok(true)
     }
