@@ -62,7 +62,10 @@ where
         self.storage.get_mut().map_err(Into::into)
     }
 
-    fn replace(&mut self, value: Self::Item) -> Result<Self::Item, Self::Error> {
+    fn replace(&mut self, value: Self::Item) -> Result<Self::Item, Self::Error>
+    where
+        S::Item: Sized,
+    {
         ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace(value).map_err(Into::into)
@@ -71,10 +74,22 @@ where
     fn replace_with(
         &mut self,
         f: impl FnOnce(&mut Self::Item) -> Self::Item,
-    ) -> Result<Self::Item, Self::Error> {
+    ) -> Result<Self::Item, Self::Error>
+    where
+        S::Item: Sized,
+    {
         ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace_with(f).map_err(Into::into)
+    }
+
+    fn take(&mut self) -> Result<Self::Item, Self::Error>
+    where
+        S::Item: Default + Sized,
+    {
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
+
+        self.storage.take().map_err(Into::into)
     }
 }
 
