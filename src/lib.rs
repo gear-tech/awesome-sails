@@ -21,7 +21,6 @@
 #![no_std]
 
 pub mod error;
-pub mod event;
 pub mod macros;
 pub mod map;
 pub mod math;

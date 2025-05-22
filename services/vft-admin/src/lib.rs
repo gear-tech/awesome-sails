@@ -24,8 +24,7 @@
 
 use awesome_sails::{
     ensure,
-    error::{BadInput, BadOrigin, Error},
-    event::Emitter,
+    error::{BadInput, BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::{Pausable, Pause, UnpausedError},
@@ -36,11 +35,7 @@ use awesome_sails_vft_service::{
     utils::{Allowance, Allowances, Balance, Balances},
 };
 use core::cell::RefCell;
-use sails_rs::{
-    ActorId, U256,
-    gstd::{exec, msg},
-    prelude::*,
-};
+use sails_rs::prelude::*;
 
 /// Re-exporting utils for easier access.
 pub mod utils {
@@ -51,8 +46,8 @@ pub mod utils {
 pub struct Service<
     'a,
     S = RefCell<Authorities>,
-    A = Pausable<RefCell<Allowances>>,
-    B = Pausable<RefCell<Balances>>,
+    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
+    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
 > {
     authorities: &'a S,
     allowances: &'a A,
@@ -61,7 +56,7 @@ pub struct Service<
     vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
-impl<'a, S, A, B> Service<'a, S, A, B> {
+impl<'a, S, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, S, A, B> {
     /// Constructor for [`Self`].
     pub fn new(
         authorities: &'a S,
@@ -89,7 +84,7 @@ impl<
 {
     #[export(unwrap_result)]
     pub fn append_allowances_shard(&mut self, capacity: u32) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.allowances
             .get_mut()?
@@ -100,7 +95,7 @@ impl<
 
     #[export(unwrap_result)]
     pub fn append_balances_shard(&mut self, capacity: u32) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.balances
             .get_mut()?
@@ -116,7 +111,7 @@ impl<
         spender: ActorId,
         value: U256,
     ) -> Result<bool, Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         ok_if!(owner == spender, false);
 
@@ -127,17 +122,19 @@ impl<
             owner.try_into()?,
             spender.try_into()?,
             approval,
-            exec::block_height(),
+            Syscall::block_height(),
         )?;
 
         let changed = previous.map(NonZero::cast).unwrap_or(U256::ZERO) != value;
 
         if changed {
-            self.vft.emit(vft::Event::Approval {
-                owner,
-                spender,
-                value,
-            })?;
+            self.vft
+                .emit_event(vft::Event::Approval {
+                    owner,
+                    spender,
+                    value,
+                })
+                .map_err(|_| EmitError)?;
         }
 
         Ok(changed)
@@ -145,37 +142,42 @@ impl<
 
     #[export(unwrap_result)]
     pub fn burn(&mut self, from: ActorId, value: U256) -> Result<(), Error> {
-        ensure!(msg::source() == self.burner(), BadOrigin);
+        ensure!(Syscall::message_source() == self.burner(), BadOrigin);
 
         self.balances
             .get_mut()?
             .burn(from.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
-        self.emit(Event::BurnerTookPlace)?;
+        self.emit_event(Event::BurnerTookPlace)
+            .map_err(|_| EmitError)?;
 
-        self.vft.emit(vft::Event::Transfer {
-            from,
-            to: ActorId::zero(),
-            value,
-        })?;
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from,
+                to: ActorId::zero(),
+                value,
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
         ensure!(self.is_paused(), UnpausedError);
+        // TODO: check ensure
         ensure!(inheritor.is_zero(), BadInput);
 
-        self.emit(Event::Exited(inheritor))?;
+        self.emit_event(Event::Exited(inheritor))
+            .map_err(|_| EmitError)?;
 
-        exec::exit(inheritor)
+        Syscall::exit(inheritor)
     }
 
     #[export(unwrap_result)]
     pub fn mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
-        ensure!(msg::source() == self.minter(), BadOrigin);
+        ensure!(Syscall::message_source() == self.minter(), BadOrigin);
 
         ok_if!(value.is_zero());
 
@@ -183,23 +185,26 @@ impl<
             .get_mut()?
             .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
-        self.emit(Event::MinterTookPlace)?;
+        self.emit_event(Event::MinterTookPlace)
+            .map_err(|_| EmitError)?;
 
-        self.vft.emit(vft::Event::Transfer {
-            from: ActorId::zero(),
-            to,
-            value,
-        })?;
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from: ActorId::zero(),
+                to,
+                value,
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn pause(&mut self) -> Result<(), Error> {
-        ensure!(msg::source() == self.pauser(), BadOrigin);
+        ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
         if self.pause.pause() {
-            self.emit(Event::Paused)?;
+            self.emit_event(Event::Paused).map_err(|_| EmitError)?;
         }
 
         Ok(())
@@ -207,10 +212,10 @@ impl<
 
     #[export(unwrap_result)]
     pub fn resume(&mut self) -> Result<(), Error> {
-        ensure!(msg::source() == self.pauser(), BadOrigin);
+        ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
         if self.pause.resume() {
-            self.emit(Event::Resumed)?;
+            self.emit_event(Event::Resumed).map_err(|_| EmitError)?;
         }
 
         Ok(())
@@ -218,68 +223,74 @@ impl<
 
     #[export(unwrap_result)]
     pub fn set_admin(&mut self, admin: ActorId) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.authorities.get_mut().admin = admin;
 
-        self.emit(Event::AdminChanged(admin))?;
+        self.emit_event(Event::AdminChanged(admin))
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn set_burner(&mut self, burner: ActorId) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.authorities.get_mut().burner = burner;
 
-        self.emit(Event::BurnerChanged(burner))?;
+        self.emit_event(Event::BurnerChanged(burner))
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn set_expiry_period(&mut self, period: u32) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.allowances.get_mut()?.set_expiry_period(period);
 
-        self.emit(Event::ExpiryPeriodChanged(period))?;
+        self.emit_event(Event::ExpiryPeriodChanged(period))
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn set_minimum_balance(&mut self, value: U256) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.balances
             .get_mut()?
             .set_minimum_balance(value.try_into()?);
 
-        self.emit(Event::MinimumBalanceChanged(value))?;
+        self.emit_event(Event::MinimumBalanceChanged(value))
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn set_minter(&mut self, minter: ActorId) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.authorities.get_mut().minter = minter;
 
-        self.emit(Event::MinterChanged(minter))?;
+        self.emit_event(Event::MinterChanged(minter))
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn set_pauser(&mut self, pauser: ActorId) -> Result<(), Error> {
-        ensure!(msg::source() == self.admin(), BadOrigin);
+        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
         self.authorities.get_mut().pauser = pauser;
 
-        self.emit(Event::PauserChanged(pauser))?;
+        self.emit_event(Event::PauserChanged(pauser))
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }
@@ -382,20 +393,5 @@ impl Authorities {
     /// This address is eligible to pause and resume.
     pub fn pauser(&self) -> ActorId {
         self.pauser
-    }
-}
-
-/* TODO: DELETE CODE BELOW ONCE APPROPRIATE SAILS CHANGES APPLIED */
-
-impl<
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> Emitter for Service<'_, S, A, B>
-{
-    type Event = Event;
-
-    fn notify(&mut self, event: Self::Event) -> Result<(), sails_rs::errors::Error> {
-        self.notify_on(event)
     }
 }

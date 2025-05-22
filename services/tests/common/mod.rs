@@ -119,10 +119,8 @@ pub async fn deploy_with_data(
 pub fn assert_str_panic(e: Error, exp: impl core::error::Error) {
     match e {
         Error::Rtl(RtlError::ReplyHasError(_, res)) => {
-            let exp = format!(
-                "Panic occurred: panicked with 'called `Result::unwrap()` on an `Err` value: {exp}'"
-            );
-            assert_eq!(res, exp);
+            let exp = format!("panicked with 'called `Result::unwrap()` on an `Err` value: {exp}'");
+            assert_eq!(String::from_utf8_lossy(res.as_slice()), exp);
         }
         _ => panic!("not an error reply"),
     }
