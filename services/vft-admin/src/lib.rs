@@ -45,7 +45,7 @@ pub mod utils {
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,
-    S = RefCell<Authorities>,
+    S: InfallibleStorage<Item = Authorities> = RefCell<Authorities>,
     A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
     B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
 > {
@@ -56,7 +56,13 @@ pub struct Service<
     vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
-impl<'a, S, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, S, A, B> {
+impl<
+    'a,
+    S: InfallibleStorage<Item = Authorities>,
+    A: Storage<Item = Allowances>,
+    B: Storage<Item = Balances>,
+> Service<'a, S, A, B>
+{
     /// Constructor for [`Self`].
     pub fn new(
         authorities: &'a S,
