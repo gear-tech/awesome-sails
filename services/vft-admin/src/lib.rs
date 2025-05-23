@@ -27,14 +27,13 @@ use awesome_sails::{
     error::{BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::{Pausable, Pause, UnpausedError},
-    storage::{InfallibleStorage, Storage},
+    pause::{PausableCell, Pause, PauseCell, UnpausedError},
+    storage::{InfallibleStorageMut, StorageCell, StorageMut},
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowance, Allowances, Balance, Balances},
 };
-use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 /// Re-exporting utils for easier access.
@@ -45,30 +44,32 @@ pub mod utils {
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,
-    S: InfallibleStorage<Item = Authorities> = RefCell<Authorities>,
-    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
-    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+    P: InfallibleStorageMut<Item = Pause>,
 > {
     authorities: &'a S,
     allowances: &'a A,
     balances: &'a B,
-    pause: &'a Pause,
+    pause: &'a P,
     vft: sails_rs::gstd::EventEmitter<vft::Event>,
 }
 
 impl<
     'a,
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> Service<'a, S, A, B>
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+    P: InfallibleStorageMut<Item = Pause>,
+> Service<'a, S, A, B, P>
 {
     /// Constructor for [`Self`].
     pub fn new(
         authorities: &'a S,
         allowances: &'a A,
         balances: &'a B,
-        pause: &'a Pause,
+        pause: &'a P,
         vft: sails_rs::gstd::EventEmitter<vft::Event>,
     ) -> Self {
         Self {
@@ -105,10 +106,11 @@ impl<
 
 #[service(events = Event)]
 impl<
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> Service<'_, S, A, B>
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+    P: InfallibleStorageMut<Item = Pause>,
+> Service<S, A, B, P>
 {
     /// Mints VFTs to the specified address.
     ///
@@ -227,7 +229,7 @@ impl<
     pub fn pause(&mut self) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
-        if self.pause.pause() {
+        if self.pause.get_mut().pause() {
             self.emit_event(Event::Paused).map_err(|_| EmitError)?;
         }
 
@@ -238,7 +240,7 @@ impl<
     pub fn resume(&mut self) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
-        if self.pause.resume() {
+        if self.pause.get_mut().resume() {
             self.emit_event(Event::Resumed).map_err(|_| EmitError)?;
         }
 
@@ -341,7 +343,7 @@ impl<
 
     #[export]
     pub fn is_paused(&self) -> bool {
-        self.pause.is_paused()
+        self.pause.get().is_paused()
     }
 }
 

@@ -27,35 +27,33 @@ use awesome_sails::{
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::Pausable,
-    storage::Storage,
+    pause::PausableCell,
+    storage::StorageMut,
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowances, Balance, Balances},
 };
-use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 /// Awesome VFT-Extension service itself.
 pub struct Service<
     'a,
-    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
-    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
 > {
     allowances: &'a A,
     balances: &'a B,
     vft: sails_rs::gstd::EventEmitter<vft::Event>,
 }
 
-impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, A, B> {
+impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'a, A, B> {
     /// Constructor for [`Self`].
     pub fn new(
         allowances: &'a A,
         balances: &'a B,
         vft: sails_rs::gstd::EventEmitter<vft::Event>,
     ) -> Self {
-        Self {
             allowances,
             balances,
             vft,
@@ -64,7 +62,7 @@ impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a,
 }
 
 #[service]
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
+impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<A, B> {
     #[export(unwrap_result)]
     pub fn allocate_next_allowances_shard(&mut self) -> Result<bool, Error> {
         Ok(self.allowances.get_mut()?.allocate_next_shard())

@@ -26,23 +26,22 @@ use awesome_sails::{
     error::{EmitError, Error},
     math::Zero,
     ok_if,
-    pause::Pausable,
-    storage::Storage,
+    pause::PausableCell,
+    storage::StorageMut,
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Balance, Balances},
 };
-use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 /// Awesome VFT-Native-Exchange service itself.
-pub struct Service<'a, B: Storage<Item = Balances> = Pausable<RefCell<Balances>>> {
+pub struct Service<'a, B: StorageMut<Item = Balances>> {
     balances: &'a B,
     vft: sails_rs::gstd::EventEmitter<vft::Event>,
 }
 
-impl<'a, B: Storage<Item = Balances>> Service<'a, B> {
+impl<'a, B: StorageMut<Item = Balances>> Service<'a, B> {
     /// Constructor for [`Self`].
     pub fn new(balances: &'a B, vft: sails_rs::gstd::EventEmitter<vft::Event>) -> Self {
         Self { balances, vft }
@@ -50,7 +49,7 @@ impl<'a, B: Storage<Item = Balances>> Service<'a, B> {
 }
 
 #[service]
-impl<B: Storage<Item = Balances>> Service<'_, B> {
+impl<B: StorageMut<Item = Balances>> Service<'_, B> {
     #[export(unwrap_result)]
     pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
         ok_if!(value.is_zero());
