@@ -21,14 +21,16 @@ mod common;
 use awesome_sails::{
     assert_ok,
     math::{Max, OverflowError, UnderflowError},
+    pause::PausableError,
 };
 use awesome_sails_vft_service::utils::{Allowance, AllowancesError, Balance, BalancesError};
 use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic};
+use core::convert::Infallible;
 use futures::StreamExt;
 use sails_rs::{U256, calls::*, events::Listener};
 use test_bin::client::{
-    Vft, VftExtension,
-    traits::{Vft as _, VftExtension as _},
+    Vft, VftAdmin, VftExtension,
+    traits::{Vft as _, VftAdmin as _, VftExtension as _},
     vft::events::{VftEvents, listener as vft_listener},
 };
 
@@ -922,5 +924,41 @@ async fn minimum_balance() {
 
         let res = vft.total_supply().recv(pid).await;
         assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
+    }
+}
+
+#[tokio::test]
+async fn pause() {
+    let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
+    let balances = Default::default();
+
+    let (remoting, pid) = common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+
+    let mut vft = Vft::new(remoting.clone());
+    let mut vft_admin = VftAdmin::new(remoting.clone());
+    let vft_extension = VftExtension::new(remoting.clone());
+
+    // Call not paused.
+    {
+        let res = vft_extension.allowance_of(ALICE, BOB).recv(pid).await;
+        assert_ok!(res, Some((U256::exp10(MAGIC), BN)));
+
+        let res = vft.allowance(ALICE, BOB).recv(pid).await;
+        assert_ok!(res, U256::exp10(MAGIC));
+    }
+
+    // Pause
+    {
+        vft_admin.pause().send_recv(pid).await.unwrap();
+
+        let paused = vft_admin.is_paused().recv(pid).await.unwrap();
+        assert!(paused);
+    }
+
+    // Call paused.
+    {
+        let res = vft.transfer(BOB, U256::exp10(10)).send_recv(pid).await;
+
+        assert_str_panic(res.unwrap_err(), PausableError::<Infallible>::Paused);
     }
 }

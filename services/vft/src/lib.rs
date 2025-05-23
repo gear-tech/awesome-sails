@@ -23,8 +23,7 @@
 #![no_std]
 
 use awesome_sails::{
-    error::Error,
-    event::Emitter,
+    error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::Pausable,
@@ -32,10 +31,7 @@ use awesome_sails::{
 };
 use awesome_sails_vft_service_utils::{Allowance, Allowances, Balance, Balances};
 use core::cell::RefCell;
-use sails_rs::{
-    gstd::{exec, msg},
-    prelude::*,
-};
+use sails_rs::prelude::*;
 
 /// Re-exporting the utils module for easier access.
 pub use awesome_sails_vft_service_utils as utils;
@@ -62,7 +58,7 @@ impl<'a, A, B> Service<'a, A, B> {
 impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
     #[export(unwrap_result)]
     pub fn approve(&mut self, spender: ActorId, value: U256) -> Result<bool, Error> {
-        let owner = msg::source();
+        let owner = Syscall::message_source();
 
         ok_if!(owner == spender, false);
 
@@ -73,17 +69,18 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             owner.try_into()?,
             spender.try_into()?,
             approval,
-            exec::block_height(),
+            Syscall::block_height(),
         )?;
 
         let changed = previous.map(NonZero::cast).unwrap_or(U256::ZERO) != value;
 
         if changed {
-            self.emit(Event::Approval {
+            self.emit_event(Event::Approval {
                 owner,
                 spender,
                 value,
-            })?;
+            })
+            .map_err(|_| EmitError)?;
         }
 
         Ok(changed)
@@ -91,7 +88,7 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
 
     #[export(unwrap_result)]
     pub fn transfer(&mut self, to: ActorId, value: U256) -> Result<bool, Error> {
-        let from = msg::source();
+        let from = Syscall::message_source();
 
         ok_if!(from == to || value.is_zero(), false);
 
@@ -101,7 +98,8 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             Balance::try_from(value)?.try_into()?,
         )?;
 
-        self.emit(Event::Transfer { from, to, value })?;
+        self.emit_event(Event::Transfer { from, to, value })
+            .map_err(|_| EmitError)?;
 
         Ok(true)
     }
@@ -113,7 +111,7 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
         to: ActorId,
         value: U256,
     ) -> Result<bool, Error> {
-        let spender = msg::source();
+        let spender = Syscall::message_source();
 
         if spender == from {
             return self.transfer(to, value);
@@ -129,12 +127,13 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             _from,
             _spender,
             _value.non_zero_cast(),
-            exec::block_height(),
+            Syscall::block_height(),
         )?;
 
         self.balances.get_mut()?.transfer(_from, to, _value)?;
 
-        self.emit(Event::Transfer { from, to, value })?;
+        self.emit_event(Event::Transfer { from, to, value })
+            .map_err(|_| EmitError)?;
 
         Ok(true)
     }
@@ -181,24 +180,4 @@ pub enum Event {
         to: ActorId,
         value: U256,
     },
-}
-
-/* TODO: DELETE CODE BELOW ONCE APPROPRIATE SAILS CHANGES APPLIED */
-
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Emitter for Service<'_, A, B> {
-    type Event = Event;
-
-    fn notify(&mut self, event: Self::Event) -> Result<(), sails_rs::errors::Error> {
-        self.notify_on(event)
-    }
-}
-
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Emitter
-    for ServiceExposure<Service<'_, A, B>>
-{
-    type Event = Event;
-
-    fn notify(&mut self, event: Self::Event) -> Result<(), sails_rs::errors::Error> {
-        self.inner.notify_on(event)
-    }
 }

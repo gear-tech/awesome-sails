@@ -24,8 +24,7 @@
 
 use awesome_sails::{
     ensure,
-    error::Error,
-    event::Emitter,
+    error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::Pausable,
@@ -36,20 +35,20 @@ use awesome_sails_vft_service::{
     utils::{Allowances, Balance, Balances},
 };
 use core::cell::RefCell;
-use sails_rs::{
-    ActorId, U256,
-    gstd::{exec, msg},
-    prelude::*,
-};
+use sails_rs::prelude::*;
 
 /// Awesome VFT-Extension service itself.
-pub struct Service<'a, A = Pausable<RefCell<Allowances>>, B = Pausable<RefCell<Balances>>> {
+pub struct Service<
+    'a,
+    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
+    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
+> {
     allowances: &'a A,
     balances: &'a B,
     vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
-impl<'a, A, B> Service<'a, A, B> {
+impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, A, B> {
     /// Constructor for [`Self`].
     pub fn new(
         allowances: &'a A,
@@ -93,23 +92,25 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             return Ok(false);
         };
 
-        ensure!(*expiry < exec::block_height(), AllowanceNotExpiredError);
+        ensure!(*expiry < Syscall::block_height(), AllowanceNotExpiredError);
 
         allowances.remove(_owner, _spender);
 
         // TODO: consider if we need to emit event here.
-        self.vft.emit(vft::Event::Approval {
-            owner,
-            spender,
-            value: U256::zero(),
-        })?;
+        self.vft
+            .emit_event(vft::Event::Approval {
+                owner,
+                spender,
+                value: U256::zero(),
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(true)
     }
 
     #[export(unwrap_result)]
     pub fn transfer_all(&mut self, to: ActorId) -> Result<bool, Error> {
-        let from = msg::source();
+        let from = Syscall::message_source();
 
         ok_if!(from == to, false);
 
@@ -121,14 +122,16 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
 
         ok_if!(value.is_zero(), false);
 
-        self.vft.emit(vft::Event::Transfer { from, to, value })?;
+        self.vft
+            .emit_event(vft::Event::Transfer { from, to, value })
+            .map_err(|_| EmitError)?;
 
         Ok(true)
     }
 
     #[export(unwrap_result)]
     pub fn transfer_all_from(&mut self, from: ActorId, to: ActorId) -> Result<bool, Error> {
-        let spender = msg::source();
+        let spender = Syscall::message_source();
 
         if spender == from {
             return self.transfer_all(to);
@@ -150,14 +153,16 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
             _from,
             _spender,
             _value.non_zero_cast(),
-            exec::block_height(),
+            Syscall::block_height(),
         )?;
 
-        self.vft.emit(vft::Event::Transfer {
-            from,
-            to,
-            value: value.into(),
-        })?;
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from,
+                to,
+                value: value.into(),
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(true)
     }

@@ -23,22 +23,30 @@
 #![no_std]
 
 use awesome_sails::{
-    error::Error, event::Emitter, math::Zero, ok_if, pause::Pausable, storage::Storage,
+    error::{EmitError, Error},
+    math::Zero,
+    ok_if,
+    pause::Pausable,
+    storage::Storage,
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowances, Balance, Balances},
 };
 use core::cell::RefCell;
-use sails_rs::{ActorId, U256, gstd::msg, prelude::*};
+use sails_rs::prelude::*;
 
 /// Awesome VFT-Native-Exchange service itself.
-pub struct Service<'a, A = Pausable<RefCell<Allowances>>, B = Pausable<RefCell<Balances>>> {
+pub struct Service<
+    'a,
+    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
+    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
+> {
     balances: &'a B,
     vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
-impl<'a, A, B> Service<'a, A, B> {
+impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, A, B> {
     /// Constructor for [`Self`].
     pub fn new(balances: &'a B, vft: vft::ServiceExposure<vft::Service<'a, A, B>>) -> Self {
         Self { balances, vft }
@@ -51,55 +59,61 @@ impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, 
     pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
         ok_if!(value.is_zero());
 
-        let from = msg::source();
+        let from = Syscall::message_source();
 
         self.balances
             .get_mut()?
             .burn(from.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
-        self.vft.emit(vft::Event::Transfer {
-            from,
-            to: ActorId::zero(),
-            value,
-        })?;
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from,
+                to: ActorId::zero(),
+                value,
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(CommandReply::new(()).with_value(value.as_u128()))
     }
 
     #[export(unwrap_result)]
     pub fn burn_all(&mut self) -> Result<CommandReply<()>, Error> {
-        let from = msg::source();
+        let from = Syscall::message_source();
 
         let value = self.balances.get_mut()?.burn_all(from.try_into()?);
 
         ok_if!(value.is_zero());
 
-        self.vft.emit(vft::Event::Transfer {
-            from,
-            to: ActorId::zero(),
-            value: value.into(),
-        })?;
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from,
+                to: ActorId::zero(),
+                value: value.into(),
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(CommandReply::new(()).with_value(value.into()))
     }
 
     #[export(unwrap_result)]
     pub fn mint(&mut self) -> Result<(), Error> {
-        let value = U256::from(msg::value());
+        let value = U256::from(Syscall::message_value());
 
         ok_if!(value.is_zero());
 
-        let to = msg::source();
+        let to = Syscall::message_source();
 
         self.balances
             .get_mut()?
             .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
-        self.vft.emit(vft::Event::Transfer {
-            from: ActorId::zero(),
-            to,
-            value,
-        })?;
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from: ActorId::zero(),
+                to,
+                value,
+            })
+            .map_err(|_| EmitError)?;
 
         Ok(())
     }

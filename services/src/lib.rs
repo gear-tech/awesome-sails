@@ -51,7 +51,7 @@ pub mod test {
     use awesome_sails::{error::Error, storage::Storage};
     use awesome_sails_vft_service::utils::{Allowance, Balance};
     use core::{cell::RefCell, ops::DerefMut};
-    use sails_rs::{gstd::msg, prelude::*};
+    use sails_rs::prelude::*;
 
     pub struct TestService<'a> {
         allowances: &'a Pausable<RefCell<Allowances>>,
@@ -126,11 +126,11 @@ pub mod test {
             let pause = Pause::default();
 
             Self {
-                authorities: RefCell::new(Authorities::from_one(msg::source())),
+                authorities: RefCell::new(Authorities::from_one(Syscall::message_source())),
                 allowances: Pausable::new(&pause, RefCell::new(Allowances::default())),
                 balances: Pausable::new(&pause, RefCell::new(Balances::default())),
                 metadata: RefCell::new(Metadata::default()),
-                pause: Pause::default(),
+                pause,
             }
         }
 

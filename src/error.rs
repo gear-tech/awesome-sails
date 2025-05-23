@@ -70,3 +70,10 @@ pub struct BadOrigin;
 #[error("incorrect message value")]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct BadValue;
+
+/// Error type for inability to emit event.
+#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[codec(crate = sails_rs::scale_codec)]
+#[error("emit event error")]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct EmitError;
