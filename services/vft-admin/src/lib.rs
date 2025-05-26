@@ -27,8 +27,8 @@ use awesome_sails::{
     error::{BadInput, BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::{PausableCell, Pause, PauseCell, UnpausedError},
-    storage::{InfallibleStorageMut, StorageCell, StorageMut},
+    pause::{PausableRef, Pause, UnpausedError},
+    storage::{InfallibleStorageMut, StorageMut, StorageRefCell},
 };
 use awesome_sails_vft_service::{
     self as vft,
@@ -43,32 +43,32 @@ pub mod utils {
 
 /// Awesome VFT-Admin service itself.
 pub struct Service<
-    S: InfallibleStorageMut<Item = Authorities> = StorageCell<Authorities>,
-    A: StorageMut<Item = Allowances> = PausableCell<Allowances>,
-    B: StorageMut<Item = Balances> = PausableCell<Balances>,
-    P: InfallibleStorageMut<Item = Pause> = PauseCell,
+    'a,
+    S: InfallibleStorageMut<Item = Authorities> = StorageRefCell<'a, Authorities>,
+    A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
+    B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
     authorities: S,
     allowances: A,
     balances: B,
-    pause: P,
-    vft: vft::ServiceExposure<vft::Service<A, B>>,
+    pause: &'a Pause,
+    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
 impl<
+    'a,
     S: InfallibleStorageMut<Item = Authorities>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
-    P: InfallibleStorageMut<Item = Pause>,
-> Service<S, A, B, P>
+> Service<'a, S, A, B>
 {
     /// Constructor for [`Self`].
     pub fn new(
         authorities: S,
         allowances: A,
         balances: B,
-        pause: P,
-        vft: vft::ServiceExposure<vft::Service<A, B>>,
+        pause: &'a Pause,
+        vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
     ) -> Self {
         Self {
             authorities,
@@ -85,8 +85,7 @@ impl<
     S: InfallibleStorageMut<Item = Authorities>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
-    P: InfallibleStorageMut<Item = Pause>,
-> Service<S, A, B, P>
+> Service<'_, S, A, B>
 {
     #[export(unwrap_result)]
     pub fn append_allowances_shard(&mut self, capacity: u32) -> Result<(), Error> {
@@ -209,7 +208,7 @@ impl<
     pub fn pause(&mut self) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
-        if self.pause.get_mut().pause() {
+        if self.pause.pause() {
             self.emit_event(Event::Paused).map_err(|_| EmitError)?;
         }
 
@@ -220,7 +219,7 @@ impl<
     pub fn resume(&mut self) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
-        if self.pause.get_mut().resume() {
+        if self.pause.resume() {
             self.emit_event(Event::Resumed).map_err(|_| EmitError)?;
         }
 
@@ -318,7 +317,7 @@ impl<
     }
 
     pub fn is_paused(&self) -> bool {
-        self.pause.get().is_paused()
+        self.pause.is_paused()
     }
 }
 

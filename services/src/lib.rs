@@ -41,26 +41,26 @@ pub use awesome_sails_vft_native_exchange_service as vft_native_exchange;
 pub mod test {
     use crate::{
         vft::utils::{Allowances, Balances},
-        vft_admin::{Authorities, utils::Pausable},
+        vft_admin::Authorities,
         vft_metadata::Metadata,
         *,
     };
     use awesome_sails::{
         error::Error,
-        pause::{PausableCell, PauseCell},
-        storage::StorageMut,
+        pause::{PausableRef, Pause},
+        storage::{StorageMut, StorageRefCell},
     };
     use awesome_sails_vft_service::utils::{Allowance, Balance};
     use core::{cell::RefCell, ops::DerefMut};
     use sails_rs::prelude::*;
 
-    pub struct TestService {
-        allowances: PausableCell<Allowances>,
-        balances: PausableCell<Balances>,
+    pub struct TestService<'a> {
+        allowances: PausableRef<'a, Allowances>,
+        balances: PausableRef<'a, Balances>,
     }
 
     #[service]
-    impl TestService {
+    impl TestService<'_> {
         #[export(unwrap_result)]
         pub fn set(
             &mut self,
@@ -114,58 +114,69 @@ pub mod test {
 
     pub struct TestProgram {
         authorities: RefCell<Authorities>,
-        allowances: PausableCell<Allowances>,
-        balances: PausableCell<Balances>,
-        metadata: RefCell<Metadata>,
-        pause: PauseCell,
+        allowances: RefCell<Allowances>,
+        balances: RefCell<Balances>,
+        metadata: Metadata,
+        pause: Pause,
+    }
+
+    impl TestProgram {
+        pub fn allowances(&self) -> PausableRef<Allowances> {
+            PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
+        }
+
+        pub fn balances(&self) -> PausableRef<Balances> {
+            PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
+        }
     }
 
     #[program]
     impl TestProgram {
         // Program's constructor
         pub fn new() -> Self {
-            let pause = PauseCell::default();
+            let pause = Pause::default();
 
             Self {
                 authorities: RefCell::new(Authorities::from_one(Syscall::message_source())),
-                allowances: Pausable::default(pause.clone()),
-                balances: Pausable::default(pause.clone()),
-                metadata: RefCell::new(Metadata::default()),
+                allowances: Default::default(),
+                balances: Default::default(),
+                metadata: Metadata::default(),
                 pause,
             }
         }
 
         pub fn test(&self) -> TestService {
             TestService {
-                allowances: self.allowances.clone(),
-                balances: self.balances.clone(),
+                allowances: self.allowances(),
+                balances: self.balances(),
             }
         }
 
         pub fn vft(&self) -> vft::Service {
-            vft::Service::new(self.allowances.clone(), self.balances.clone())
+            vft::Service::new(self.allowances(), self.balances())
         }
 
-        pub fn vft_admin(&self) -> vft_admin::Service<&RefCell<Authorities>> {
+        pub fn vft_admin(&self) -> vft_admin::Service {
             vft_admin::Service::new(
-                &self.authorities,
-                self.allowances.clone(),
-                self.balances.clone(),
-                self.pause.clone(),
+                StorageRefCell::new(&self.authorities),
+                self.allowances(),
+                self.balances(),
+                &self.pause,
                 self.vft(),
             )
         }
 
         pub fn vft_extension(&self) -> vft_extension::Service {
-            vft_extension::Service::new(self.allowances.clone(), self.balances.clone(), self.vft())
+            vft_extension::Service::new(self.allowances(), self.balances(), self.vft())
         }
 
-        pub fn vft_metadata(&self) -> vft_metadata::Service<&RefCell<Metadata>> {
+        // We can use '&T' as `InfallibleStorage<Item = T>`
+        pub fn vft_metadata(&self) -> vft_metadata::Service<&Metadata> {
             vft_metadata::Service::new(&self.metadata)
         }
 
         pub fn vft_native_exchange(&self) -> vft_native_exchange::Service {
-            vft_native_exchange::Service::new(self.balances.clone(), self.vft())
+            vft_native_exchange::Service::new(self.balances(), self.vft())
         }
     }
 

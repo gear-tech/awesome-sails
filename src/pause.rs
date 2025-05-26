@@ -20,21 +20,22 @@
 
 use crate::{
     ensure,
-    storage::{InfallibleStorage, Storage, StorageCell, StorageMut},
+    storage::{InfallibleStorage, Storage, StorageMut, StorageRefCell},
 };
 use core::{
-    error, mem,
+    cell::Cell,
+    error,
     ops::{Deref, DerefMut},
 };
 use sails_rs::{Decode, Encode, TypeInfo};
 
 /// Wrapper for Storage trait implementor in order to provide pause functionality.
-pub struct Pausable<S: StorageMut, P: InfallibleStorage<Item = Pause> = PauseCell> {
+pub struct Pausable<S: StorageMut, P: InfallibleStorage<Item = Pause>> {
     storage: S,
     pause: P,
 }
 
-pub type PausableCell<T> = Pausable<StorageCell<T>>;
+pub type PausableRef<'a, T> = Pausable<StorageRefCell<'a, T>, PauseRef<'a>>;
 
 impl<S, P> Clone for Pausable<S, P>
 where
@@ -108,37 +109,53 @@ where
     }
 }
 
+pub trait PausableStorage: StorageMut {
+    /// Returns bool indicating if pause is on.
+    fn is_paused(&self) -> bool;
+}
+
+impl<S, P> PausableStorage for Pausable<S, P>
+where
+    S: StorageMut,
+    S::Error: 'static,
+    P: InfallibleStorage<Item = Pause>,
+{
+    fn is_paused(&self) -> bool {
+        self.pause.get().is_paused()
+    }
+}
+
 /// Struct representing a pause switch.
 ///
 /// This struct is used to create a pausable storage instance.
-#[derive(Debug, Default, PartialEq, Clone, Copy)]
-pub struct Pause(bool);
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct Pause(Cell<bool>);
 
-pub type PauseCell = StorageCell<Pause>;
+pub type PauseRef<'a> = &'a Pause;
 
 impl Pause {
     /// Creates a new `Pause` instance.
     pub fn new(paused: bool) -> Self {
-        Self(paused)
+        Self(Cell::new(paused))
     }
 
     /// Switches pause on.
     ///
     /// Returns bool indicating if state was changed.
-    pub fn pause(&mut self) -> bool {
-        !mem::replace(&mut self.0, true)
+    pub fn pause(&self) -> bool {
+        !self.0.replace(true)
     }
 
     /// Switches pause off.
     ///
     /// Returns bool indicating if state was changed.
-    pub fn resume(&mut self) -> bool {
-        mem::replace(&mut self.0, false)
+    pub fn resume(&self) -> bool {
+        self.0.replace(false)
     }
 
     /// Returns bool indicating if pause is on.
     pub fn is_paused(&self) -> bool {
-        self.0
+        self.0.get()
     }
 }
 
