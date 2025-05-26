@@ -26,7 +26,7 @@ use awesome_sails::{
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::PausableCell,
+    pause::PausableRef,
     storage::StorageMut,
 };
 use awesome_sails_vft_service_utils::{Allowance, Allowances, Balance, Balances};
@@ -36,25 +36,27 @@ use sails_rs::prelude::*;
 pub use awesome_sails_vft_service_utils as utils;
 
 /// Awesome VFT service itself.
-pub struct Service<A = PausableCell<Allowances>, B = PausableCell<Balances>> {
+pub struct Service<'a, A = PausableRef<'a, Allowances>, B = PausableRef<'a, Balances>> {
     // Allowances storage.
     allowances: A,
     // Balances storage.
     balances: B,
+    _marker: core::marker::PhantomData<&'a ()>,
 }
 
-impl<A, B> Service<A, B> {
+impl<A, B> Service<'_, A, B> {
     /// Constructor for [`Self`].
     pub fn new(allowances: A, balances: B) -> Self {
         Self {
             allowances,
             balances,
+            _marker: core::marker::PhantomData,
         }
     }
 }
 
 #[service(events = Event)]
-impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<A, B> {
+impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'_, A, B> {
     #[export(unwrap_result)]
     pub fn approve(&mut self, spender: ActorId, value: U256) -> Result<bool, Error> {
         let owner = Syscall::message_source();

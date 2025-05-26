@@ -26,30 +26,38 @@ use awesome_sails::{
     error::{EmitError, Error},
     math::Zero,
     ok_if,
-    pause::PausableCell,
+    pause::PausableRef,
     storage::StorageMut,
 };
 use awesome_sails_vft_service::{
     self as vft,
-    utils::{Balance, Balances},
+    utils::{Allowances, Balance, Balances},
 };
 use sails_rs::prelude::*;
 
 /// Awesome VFT-Native-Exchange service itself.
-pub struct Service<'a, B: StorageMut<Item = Balances>> {
-    balances: &'a B,
-    vft: sails_rs::gstd::EventEmitter<vft::Event>,
+pub struct Service<'a, A, B>
+where
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+{
+    balances: B,
+    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
-impl<'a, B: StorageMut<Item = Balances>> Service<'a, B> {
+impl<'a, A, B> Service<'a, A, B>
+where
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+{
     /// Constructor for [`Self`].
-    pub fn new(balances: &'a B, vft: sails_rs::gstd::EventEmitter<vft::Event>) -> Self {
+    pub fn new(balances: B, vft: vft::ServiceExposure<vft::Service<'a, A, B>>) -> Self {
         Self { balances, vft }
     }
 }
 
 #[service]
-impl<B: StorageMut<Item = Balances>> Service<'_, B> {
+impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'a, A, B> {
     #[export(unwrap_result)]
     pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
         ok_if!(value.is_zero());

@@ -134,8 +134,14 @@ impl<S: InfallibleStorageMut> StorageMut for S {
 }
 
 // Storage trait implementations for &mut T
-//
-// Do not implement `InfallibleStorage` trait for `&T` to avoid conflicting with &RefCell<T> implementation.
+impl<T> InfallibleStorage for &T {
+    type Item = T;
+
+    fn get(&self) -> impl Deref<Target = Self::Item> {
+        *self
+    }
+}
+
 impl<T> InfallibleStorage for &mut T {
     type Item = T;
 
@@ -155,7 +161,7 @@ impl<T> InfallibleStorageMut for &mut T {
 }
 
 // Storage trait implementations for Rc<RefCell<T>>
-pub type StorageCell<T> = Rc<RefCell<T>>;
+pub type StorageRcCell<T> = Rc<RefCell<T>>;
 
 impl<T> InfallibleStorage for Rc<RefCell<T>> {
     type Item = T;
@@ -179,26 +185,53 @@ impl<T> InfallibleStorageMut for Rc<RefCell<T>> {
     }
 }
 
-// Storage trait implementations for &RefCell<T>
-impl<T> InfallibleStorage for &RefCell<T> {
-    type Item = T;
+/// A wrapper around `RefCell<T>` that provides a reference to the cell.
+///
+/// This is useful for cases where you want to pass a `RefCell<T>` around without taking ownership of it,
+/// allowing you to borrow it mutably or immutably as needed.
+pub struct StorageRefCell<'a, T>(&'a RefCell<T>);
 
-    fn get(&self) -> impl Deref<Target = Self::Item> {
-        self.borrow()
+impl<'a, T> StorageRefCell<'a, T> {
+    /// Creates a new `StorageRefCell` from a reference to a `RefCell<T>`.
+    pub fn new(cell: &'a RefCell<T>) -> Self {
+        Self(cell)
     }
 }
 
-impl<T> InfallibleStorageMut for &RefCell<T> {
+impl<T> Deref for StorageRefCell<'_, T> {
+    type Target = RefCell<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<'a, T> From<&'a RefCell<T>> for StorageRefCell<'a, T> {
+    fn from(value: &'a RefCell<T>) -> Self {
+        StorageRefCell::new(value)
+    }
+}
+
+// Storage trait implementations for StorageRefCell<'a T>
+impl<'a, T> InfallibleStorage for StorageRefCell<'a, T> {
+    type Item = T;
+
+    fn get(&self) -> impl Deref<Target = Self::Item> {
+        self.0.borrow()
+    }
+}
+
+impl<'a, T> InfallibleStorageMut for StorageRefCell<'a, T> {
     fn get_mut(&mut self) -> impl DerefMut<Target = Self::Item> {
-        self.borrow_mut()
+        self.0.borrow_mut()
     }
 
     fn replace(&mut self, value: Self::Item) -> Self::Item {
-        RefCell::replace(self, value)
+        RefCell::replace(self.0, value)
     }
 
     fn replace_with(&mut self, f: impl FnOnce(&mut Self::Item) -> Self::Item) -> Self::Item {
-        RefCell::replace_with(self, f)
+        RefCell::replace_with(self.0, f)
     }
 }
 
