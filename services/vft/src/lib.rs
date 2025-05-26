@@ -26,36 +26,37 @@ use awesome_sails::{
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::Pausable,
-    storage::Storage,
+    pause::PausableRef,
+    storage::StorageMut,
 };
 use awesome_sails_vft_service_utils::{Allowance, Allowances, Balance, Balances};
-use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 /// Re-exporting the utils module for easier access.
 pub use awesome_sails_vft_service_utils as utils;
 
 /// Awesome VFT service itself.
-pub struct Service<'a, A = Pausable<RefCell<Allowances>>, B = Pausable<RefCell<Balances>>> {
+pub struct Service<'a, A = PausableRef<'a, Allowances>, B = PausableRef<'a, Balances>> {
     // Allowances storage.
-    allowances: &'a A,
+    allowances: A,
     // Balances storage.
-    balances: &'a B,
+    balances: B,
+    _marker: core::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, A, B> Service<'a, A, B> {
+impl<A, B> Service<'_, A, B> {
     /// Constructor for [`Self`].
-    pub fn new(allowances: &'a A, balances: &'a B) -> Self {
+    pub fn new(allowances: A, balances: B) -> Self {
         Self {
             allowances,
             balances,
+            _marker: core::marker::PhantomData,
         }
     }
 }
 
 #[service(events = Event)]
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
+impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'_, A, B> {
     #[export(unwrap_result)]
     pub fn approve(&mut self, spender: ActorId, value: U256) -> Result<bool, Error> {
         let owner = Syscall::message_source();
