@@ -172,8 +172,6 @@ impl<
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.admin(), BadOrigin);
         ensure!(self.is_paused(), UnpausedError);
-        // TODO: check ensure
-        ensure!(inheritor.is_zero(), BadInput);
 
         self.emit_event(Event::Exited(inheritor))
             .map_err(|_| EmitError)?;
