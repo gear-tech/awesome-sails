@@ -24,7 +24,7 @@
 
 use awesome_sails::{
     ensure,
-    error::{BadInput, BadOrigin, EmitError, Error},
+    error::{BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::{Pausable, Pause, UnpausedError},
