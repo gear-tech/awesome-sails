@@ -27,14 +27,13 @@ use awesome_sails::{
     error::{BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
-    pause::{Pausable, Pause, UnpausedError},
-    storage::{InfallibleStorage, Storage},
+    pause::{PausableRef, Pause, UnpausedError},
+    storage::{InfallibleStorageMut, StorageMut, StorageRefCell},
 };
 use awesome_sails_vft_service::{
     self as vft,
     utils::{Allowance, Allowances, Balance, Balances},
 };
-use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 /// Re-exporting utils for easier access.
@@ -45,29 +44,29 @@ pub mod utils {
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,
-    S: InfallibleStorage<Item = Authorities> = RefCell<Authorities>,
-    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
-    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
+    S: InfallibleStorageMut<Item = Authorities> = StorageRefCell<'a, Authorities>,
+    A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
+    B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
-    authorities: &'a S,
-    allowances: &'a A,
-    balances: &'a B,
+    authorities: S,
+    allowances: A,
+    balances: B,
     pause: &'a Pause,
     vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
 }
 
 impl<
     'a,
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
 > Service<'a, S, A, B>
 {
     /// Constructor for [`Self`].
     pub fn new(
-        authorities: &'a S,
-        allowances: &'a A,
-        balances: &'a B,
+        authorities: S,
+        allowances: A,
+        balances: B,
         pause: &'a Pause,
         vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
     ) -> Self {
@@ -83,9 +82,9 @@ impl<
 
 #[service(events = Event)]
 impl<
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
 > Service<'_, S, A, B>
 {
     #[export(unwrap_result)]
