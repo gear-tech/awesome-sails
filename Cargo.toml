@@ -44,6 +44,8 @@ members = [
     "services/vft-metadata",
     ### `vft-native-exchange` service
     "services/vft-native-exchange",
+    ### `vft-native-exchange-admin` service
+    "services/vft-native-exchange-admin",
 ]
 
 [workspace.package]
@@ -92,3 +94,6 @@ awesome-sails-vft-metadata-service = { path = "services/vft-metadata", default-f
 
 ### `vft-native-exchange` service
 awesome-sails-vft-native-exchange-service = { path = "services/vft-native-exchange", default-features = false }
+
+### `vft-native-exchange-admin` service
+awesome-sails-vft-native-exchange-admin-service = { path = "services/vft-native-exchange-admin", default-features = false }
