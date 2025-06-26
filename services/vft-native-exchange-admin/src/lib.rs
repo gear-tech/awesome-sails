@@ -102,7 +102,8 @@ impl<
         self.vft_admin.burn(from, value)?;
 
         // TODO(sails): impl sync Remoting.
-        gstd::msg::send_bytes(from, [], value.as_u128())
+        // TODO: #6
+        gstd::msg::send_bytes_for_reply(from, [], value.as_u128(), 5_000_000_000)
             .map_err(|_| Error::new("failed to send value"))?;
 
         Ok(())
