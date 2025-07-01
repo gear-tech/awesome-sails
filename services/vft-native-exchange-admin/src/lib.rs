@@ -102,9 +102,11 @@ impl<
         self.vft_admin.burn(from, value)?;
 
         // TODO(sails): impl sync Remoting.
-        // TODO: #6
-        gstd::msg::send_bytes_for_reply(from, [], value.as_u128(), 5_000_000_000)
+        let message_id = gstd::msg::send_bytes(from, [], value.as_u128())
             .map_err(|_| Error::new("failed to send value"))?;
+        // TODO: #6
+        gstd::exec::reply_deposit(message_id, 5_000_000_000)
+            .map_err(|_| Error::new("failed to deposit gas for reply"))?;
 
         Ok(())
     }
