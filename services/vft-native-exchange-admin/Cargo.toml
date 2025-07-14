@@ -1,0 +1,18 @@
+[package]
+name = "awesome-sails-vft-native-exchange-admin-service"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Sails dependencies.
+sails-rs = { workspace = true, features = ["gstd"] }
+
+# Local dependencies.
+awesome-sails.workspace = true
+awesome-sails-vft-service.workspace = true
+awesome-sails-vft-admin-service.workspace = true

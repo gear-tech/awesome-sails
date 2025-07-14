@@ -79,6 +79,46 @@ impl<
             vft,
         }
     }
+
+    /// Mints VFTs to the specified address.
+    ///
+    /// # Safety
+    /// Make sure that you call mint in eligible places (called by minter, etc).
+    unsafe fn do_mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
+        ok_if!(value.is_zero());
+
+        self.balances
+            .get_mut()?
+            .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
+
+        self.vft
+            .emit_event(vft::Event::Transfer {
+                from: ActorId::zero(),
+                to,
+                value,
+            })
+            .map_err(|_| EmitError)?;
+
+        Ok(())
+    }
+}
+
+// TODO(sails): impl access to the inner service from outside.
+// TODO(sails): exposure should have only route-related fns, while service - its common ones.
+impl<
+    'a,
+    S: InfallibleStorage<Item = Authorities>,
+    A: Storage<Item = Allowances>,
+    B: Storage<Item = Balances>,
+> ServiceExposure<Service<'a, S, A, B>>
+{
+    /// Mints VFTs to the specified address.
+    ///
+    /// # Safety
+    /// Make sure that you call mint in eligible places (called by minter, etc).
+    pub unsafe fn do_mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
+        unsafe { self.inner.do_mint(to, value) }
+    }
 }
 
 #[service(events = Event)]
@@ -183,21 +223,11 @@ impl<
     pub fn mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.minter(), BadOrigin);
 
-        ok_if!(value.is_zero());
-
-        self.balances
-            .get_mut()?
-            .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
+        unsafe {
+            self.do_mint(to, value)?;
+        }
 
         self.emit_event(Event::MinterTookPlace)
-            .map_err(|_| EmitError)?;
-
-        self.vft
-            .emit_event(vft::Event::Transfer {
-                from: ActorId::zero(),
-                to,
-                value,
-            })
             .map_err(|_| EmitError)?;
 
         Ok(())

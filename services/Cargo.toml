@@ -19,6 +19,7 @@ awesome-sails-vft-admin-service = { workspace = true, optional = true }
 awesome-sails-vft-extension-service = { workspace = true, optional = true }
 awesome-sails-vft-metadata-service = { workspace = true, optional = true }
 awesome-sails-vft-native-exchange-service = { workspace = true, optional = true }
+awesome-sails-vft-native-exchange-admin-service = { workspace = true, optional = true }
 
 [dev-dependencies]
 # Sails dependencies.
@@ -42,6 +43,7 @@ all = [
     "vft-extension",
     "vft-metadata",
     "vft-native-exchange",
+    "vft-native-exchange-admin",
 ]
 
 vft = ["dep:awesome-sails-vft-service"]
@@ -49,6 +51,7 @@ vft-admin = ["dep:awesome-sails-vft-admin-service"]
 vft-extension = ["dep:awesome-sails-vft-extension-service"]
 vft-metadata = ["dep:awesome-sails-vft-metadata-service"]
 vft-native-exchange = ["dep:awesome-sails-vft-native-exchange-service"]
+vft-native-exchange-admin = ["dep:awesome-sails-vft-native-exchange-admin-service"]
 
 test = [
     "sails-rs/gstd",

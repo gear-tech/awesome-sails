@@ -349,6 +349,7 @@ dependencies = [
  "awesome-sails-vft-admin-service",
  "awesome-sails-vft-extension-service",
  "awesome-sails-vft-metadata-service",
+ "awesome-sails-vft-native-exchange-admin-service",
  "awesome-sails-vft-native-exchange-service",
  "awesome-sails-vft-service",
  "futures",
@@ -382,6 +383,16 @@ name = "awesome-sails-vft-metadata-service"
 version = "0.1.0"
 dependencies = [
  "awesome-sails",
+ "sails-rs",
+]
+
+[[package]]
+name = "awesome-sails-vft-native-exchange-admin-service"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails",
+ "awesome-sails-vft-admin-service",
+ "awesome-sails-vft-service",
  "sails-rs",
 ]
 
