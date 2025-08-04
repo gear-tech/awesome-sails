@@ -103,14 +103,12 @@ impl<
     }
 }
 
-// TODO(sails): impl access to the inner service from outside.
-// TODO(sails): exposure should have only route-related fns, while service - its common ones.
+#[service(events = Event)]
 impl<
-    'a,
     S: InfallibleStorage<Item = Authorities>,
     A: Storage<Item = Allowances>,
     B: Storage<Item = Balances>,
-> ServiceExposure<Service<'a, S, A, B>>
+> Service<'_, S, A, B>
 {
     /// Mints VFTs to the specified address.
     ///
@@ -119,15 +117,7 @@ impl<
     pub unsafe fn do_mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
         unsafe { self.inner.do_mint(to, value) }
     }
-}
 
-#[service(events = Event)]
-impl<
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> Service<'_, S, A, B>
-{
     #[export(unwrap_result)]
     pub fn append_allowances_shard(&mut self, capacity: u32) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.admin(), BadOrigin);

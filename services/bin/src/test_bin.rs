@@ -1115,6 +1115,73 @@ pub mod vft_native_exchange {
         }
     }
 }
+pub struct VftNativeExchangeAdmin<R> {
+    remoting: R,
+}
+impl<R> VftNativeExchangeAdmin<R> {
+    pub fn new(remoting: R) -> Self {
+        Self { remoting }
+    }
+}
+impl<R: Remoting + Clone> traits::VftNativeExchangeAdmin for VftNativeExchangeAdmin<R> {
+    type Args = R::Args;
+    fn burn_from(&mut self, from: ActorId, value: U256) -> impl Call<Output = (), Args = R::Args> {
+        RemotingAction::<_, vft_native_exchange_admin::io::BurnFrom>::new(
+            self.remoting.clone(),
+            (from, value),
+        )
+    }
+}
+
+pub mod vft_native_exchange_admin {
+    use super::*;
+
+    pub mod io {
+        use super::*;
+        use sails_rs::calls::ActionIo;
+        pub struct BurnFrom(());
+        impl BurnFrom {
+            #[allow(dead_code)]
+            pub fn encode_call(from: ActorId, value: U256) -> Vec<u8> {
+                <BurnFrom as ActionIo>::encode_call(&(from, value))
+            }
+        }
+        impl ActionIo for BurnFrom {
+            const ROUTE: &'static [u8] = &[
+                88, 86, 102, 116, 78, 97, 116, 105, 118, 101, 69, 120, 99, 104, 97, 110, 103, 101,
+                65, 100, 109, 105, 110, 32, 66, 117, 114, 110, 70, 114, 111, 109,
+            ];
+            type Params = (ActorId, U256);
+            type Reply = ();
+        }
+    }
+
+    #[allow(dead_code)]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub mod events {
+        use super::*;
+        use sails_rs::events::*;
+        #[derive(PartialEq, Debug, Encode, Decode)]
+        #[codec(crate = sails_rs::scale_codec)]
+        pub enum VftNativeExchangeAdminEvents {
+            FailedMint { to: ActorId, value: U256 },
+        }
+        impl EventIo for VftNativeExchangeAdminEvents {
+            const ROUTE: &'static [u8] = &[
+                88, 86, 102, 116, 78, 97, 116, 105, 118, 101, 69, 120, 99, 104, 97, 110, 103, 101,
+                65, 100, 109, 105, 110,
+            ];
+            const EVENT_NAMES: &'static [&'static [u8]] =
+                &[&[40, 70, 97, 105, 108, 101, 100, 77, 105, 110, 116]];
+            type Event = Self;
+        }
+        pub fn listener<R: Listener<Vec<u8>>>(
+            remoting: R,
+        ) -> impl Listener<VftNativeExchangeAdminEvents> {
+            RemotingListener::<_, VftNativeExchangeAdminEvents>::new(remoting)
+        }
+    }
+}
 
 pub mod traits {
     use super::*;
@@ -1258,5 +1325,15 @@ pub mod traits {
         fn burn(&mut self, value: U256) -> impl Call<Output = (), Args = Self::Args>;
         fn burn_all(&mut self) -> impl Call<Output = (), Args = Self::Args>;
         fn mint(&mut self) -> impl Call<Output = (), Args = Self::Args>;
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub trait VftNativeExchangeAdmin {
+        type Args;
+        fn burn_from(
+            &mut self,
+            from: ActorId,
+            value: U256,
+        ) -> impl Call<Output = (), Args = Self::Args>;
     }
 }
