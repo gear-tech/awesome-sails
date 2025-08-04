@@ -37,6 +37,9 @@ pub use awesome_sails_vft_metadata_service as vft_metadata;
 #[cfg(feature = "vft-native-exchange")]
 pub use awesome_sails_vft_native_exchange_service as vft_native_exchange;
 
+#[cfg(feature = "vft-native-exchange-admin")]
+pub use awesome_sails_vft_native_exchange_admin_service as vft_native_exchange_admin;
+
 #[cfg(all(feature = "all", feature = "test"))]
 pub mod test {
     use crate::{
@@ -134,6 +137,11 @@ pub mod test {
             }
         }
 
+        /// Program's reply handler.
+        pub fn handle_reply(&mut self) {
+            self.vft_native_exchange_admin().handle_reply();
+        }
+
         pub fn test(&self) -> TestService<'_> {
             TestService {
                 allowances: &self.allowances,
@@ -165,6 +173,10 @@ pub mod test {
 
         pub fn vft_native_exchange(&self) -> vft_native_exchange::Service<'_> {
             vft_native_exchange::Service::new(&self.balances, self.vft().emitter())
+        }
+
+        pub fn vft_native_exchange_admin(&self) -> vft_native_exchange_admin::Service<'_> {
+            vft_native_exchange_admin::Service::new(self.vft_admin())
         }
     }
 
