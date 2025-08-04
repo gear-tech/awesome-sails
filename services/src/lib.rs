@@ -159,12 +159,12 @@ pub mod test {
                 &self.allowances,
                 &self.balances,
                 &self.pause,
-                self.vft(),
+                self.vft().emitter(),
             )
         }
 
         pub fn vft_extension(&self) -> vft_extension::Service<'_> {
-            vft_extension::Service::new(&self.allowances, &self.balances, self.vft())
+            vft_extension::Service::new(&self.allowances, &self.balances, self.vft().emitter())
         }
 
         pub fn vft_metadata(&self) -> vft_metadata::Service<'_> {
@@ -172,7 +172,7 @@ pub mod test {
         }
 
         pub fn vft_native_exchange(&self) -> vft_native_exchange::Service<'_> {
-            vft_native_exchange::Service::new(&self.balances, self.vft())
+            vft_native_exchange::Service::new(&self.balances, self.vft().emitter())
         }
 
         pub fn vft_native_exchange_admin(&self) -> vft_native_exchange_admin::Service<'_> {

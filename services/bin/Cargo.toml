@@ -17,9 +17,7 @@ awesome-sails-services = { workspace = true, features = ["all", "test"] }
 
 [build-dependencies]
 # Sails dependencies.
-sails-client-gen.workspace = true
-sails-idl-gen.workspace = true
-sails-rs = { workspace = true, features = ["wasm-builder"] }
+sails-rs = { workspace = true, features = ["build"] }
 
 # Local dependencies.
 awesome-sails-services = { workspace = true, features = ["all", "test"] }

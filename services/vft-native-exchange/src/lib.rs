@@ -31,30 +31,26 @@ use awesome_sails::{
 };
 use awesome_sails_vft_service::{
     self as vft,
-    utils::{Allowances, Balance, Balances},
+    utils::{Balance, Balances},
 };
 use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 /// Awesome VFT-Native-Exchange service itself.
-pub struct Service<
-    'a,
-    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
-    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
-> {
+pub struct Service<'a, B: Storage<Item = Balances> = Pausable<RefCell<Balances>>> {
     balances: &'a B,
-    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+    vft: sails_rs::gstd::EventEmitter<vft::Event>,
 }
 
-impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, A, B> {
+impl<'a, B: Storage<Item = Balances>> Service<'a, B> {
     /// Constructor for [`Self`].
-    pub fn new(balances: &'a B, vft: vft::ServiceExposure<vft::Service<'a, A, B>>) -> Self {
+    pub fn new(balances: &'a B, vft: sails_rs::gstd::EventEmitter<vft::Event>) -> Self {
         Self { balances, vft }
     }
 }
 
 #[service]
-impl<A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'_, A, B> {
+impl<B: Storage<Item = Balances>> Service<'_, B> {
     #[export(unwrap_result)]
     pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
         ok_if!(value.is_zero());
