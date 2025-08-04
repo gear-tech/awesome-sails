@@ -45,7 +45,7 @@ pub struct Service<
 > {
     allowances: &'a A,
     balances: &'a B,
-    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+    vft: sails_rs::gstd::EventEmitter<vft::Event>,
 }
 
 impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a, A, B> {
@@ -53,7 +53,7 @@ impl<'a, A: Storage<Item = Allowances>, B: Storage<Item = Balances>> Service<'a,
     pub fn new(
         allowances: &'a A,
         balances: &'a B,
-        vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+        vft: sails_rs::gstd::EventEmitter<vft::Event>,
     ) -> Self {
         Self {
             allowances,

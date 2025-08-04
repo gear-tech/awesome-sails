@@ -53,7 +53,7 @@ pub struct Service<
     allowances: &'a A,
     balances: &'a B,
     pause: &'a Pause,
-    vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+    vft: sails_rs::gstd::EventEmitter<vft::Event>,
 }
 
 impl<
@@ -69,7 +69,7 @@ impl<
         allowances: &'a A,
         balances: &'a B,
         pause: &'a Pause,
-        vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
+        vft: sails_rs::gstd::EventEmitter<vft::Event>,
     ) -> Self {
         Self {
             authorities,
@@ -299,28 +299,34 @@ impl<
         Ok(())
     }
 
+    #[export]
     pub fn admin(&self) -> ActorId {
         self.authorities.get().admin()
     }
 
+    #[export]
     pub fn burner(&self) -> ActorId {
         self.authorities.get().burner()
     }
 
+    #[export]
     pub fn minter(&self) -> ActorId {
         self.authorities.get().minter()
     }
 
+    #[export]
     pub fn pauser(&self) -> ActorId {
         self.authorities.get().pauser()
     }
 
+    #[export]
     pub fn is_paused(&self) -> bool {
         self.pause.is_paused()
     }
 }
 
-#[derive(Encode, TypeInfo)]
+#[event]
+#[derive(Clone, Debug, PartialEq, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum Event {

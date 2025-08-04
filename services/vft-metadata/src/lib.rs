@@ -49,16 +49,19 @@ impl<'a, M: InfallibleStorage<Item = Metadata>> Service<'a, M> {
 #[service]
 impl<M: InfallibleStorage<Item = Metadata>> Service<'_, M> {
     /// Returns the name of the VFT.
+    #[export]
     pub fn name(&self) -> String {
         self.metadata().name().into()
     }
 
     /// Returns the symbol of the VFT.
+    #[export]
     pub fn symbol(&self) -> String {
         self.metadata().symbol().into()
     }
 
     /// Returns the number of decimals of the VFT.
+    #[export]
     pub fn decimals(&self) -> u8 {
         self.metadata().decimals()
     }

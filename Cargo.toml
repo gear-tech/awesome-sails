@@ -53,13 +53,11 @@ edition = "2024"
 homepage = "https://gear-tech.io"
 license = "GPL-3.0"
 repository = "https://github.com/gear-tech/gear"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [workspace.dependencies]
 # Sails dependencies
-sails-client-gen = { version = "=0.8.1", default-features = false }
-sails-idl-gen = { version = "=0.8.1", default-features = false }
-sails-rs = { version = "=0.8.1", default-features = false }
+sails-rs = { version = "0.9.0", default-features = false }
 
 # External dependencies
 derive_more = { version = "2.0.1", default-features = false }

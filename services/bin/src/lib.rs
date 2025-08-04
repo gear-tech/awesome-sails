@@ -30,7 +30,7 @@ pub use code::WASM_BINARY_OPT as WASM_BINARY;
 #[cfg(feature = "wasm-binary")]
 #[cfg(not(target_arch = "wasm32"))]
 pub mod client {
-    include!(concat!(env!("OUT_DIR"), "/awesome_client.rs"));
+    include!("test_bin.rs");
 }
 
 #[cfg(feature = "wasm-binary")]
