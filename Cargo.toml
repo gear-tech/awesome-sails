@@ -13,13 +13,7 @@ rust-version.workspace = true
 sails-rs.workspace = true
 
 # External dependencies
-derive_more = { workspace = true, features = [
-    "as_ref",
-    "deref",
-    "display",
-    "from",
-    "into",
-] }
+derive_more = { workspace = true, features = ["as_ref", "deref", "display", "from", "into"] }
 thiserror.workspace = true
 
 [workspace]
@@ -59,7 +53,7 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 # Sails dependencies
-sails-rs = { version = "0.9.0", default-features = false }
+sails-rs = { git = "https://github.com/gear-tech/sails", branch = "vo/bridge-unlimited-queue", version = "0.9.1", default-features = false }
 
 # External dependencies
 derive_more = { version = "2.0.1", default-features = false }
