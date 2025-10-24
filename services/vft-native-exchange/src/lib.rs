@@ -26,7 +26,6 @@ use awesome_sails::{
     error::{EmitError, Error},
     math::Zero,
     ok_if,
-    pause::PausableRef,
     storage::StorageMut,
 };
 use awesome_sails_vft_service::{

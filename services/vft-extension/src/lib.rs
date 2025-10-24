@@ -85,15 +85,17 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'
         let _owner = owner.try_into()?;
         let _spender = spender.try_into()?;
 
-        let mut allowances = self.allowances.get_mut()?;
+        {
+            let mut allowances = self.allowances.get_mut()?;
 
-        let Some((_, (_, expiry))) = (**allowances).get(&(_owner, _spender)) else {
-            return Ok(false);
-        };
+            let Some((_, (_, expiry))) = (**allowances).get(&(_owner, _spender)) else {
+                return Ok(false);
+            };
 
-        ensure!(*expiry < Syscall::block_height(), AllowanceNotExpiredError);
+            ensure!(*expiry < Syscall::block_height(), AllowanceNotExpiredError);
 
-        allowances.remove(_owner, _spender);
+            allowances.remove(_owner, _spender);
+        }
 
         // TODO: consider if we need to emit event here.
         self.vft

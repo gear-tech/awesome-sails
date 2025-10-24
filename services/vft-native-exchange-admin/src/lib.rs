@@ -25,44 +25,28 @@
 use awesome_sails::{
     error::Error,
     ok_if,
-    pause::Pausable,
-    storage::{InfallibleStorage, Storage},
 };
 use awesome_sails_vft_admin_service::{self as vft_admin, Authorities};
 use awesome_sails_vft_service::utils::{Allowances, Balances};
-use core::cell::RefCell;
 use sails_rs::{gstd, prelude::*};
+use awesome_sails::pause::PausableRef;
+use awesome_sails::storage::{StorageRefCell};
+
 
 /// Awesome VFT-Native-Exchange-Admin service itself.
-pub struct Service<
-    'a,
-    S: InfallibleStorage<Item = Authorities> = RefCell<Authorities>,
-    A: Storage<Item = Allowances> = Pausable<RefCell<Allowances>>,
-    B: Storage<Item = Balances> = Pausable<RefCell<Balances>>,
-> {
-    vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, S, A, B>>,
+pub struct Service<'a> {
+    vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, StorageRefCell<'a, Authorities>, PausableRef<'a, Allowances>, PausableRef<'a, Balances>>>,
 }
 
-impl<
-    'a,
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> Service<'a, S, A, B>
-{
+impl<'a> Service<'a> {
     /// Constructor for [`Self`].
-    pub fn new(vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, S, A, B>>) -> Self {
+    pub fn new(vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, StorageRefCell<'a, Authorities>, PausableRef<'a, Allowances>, PausableRef<'a, Balances>>>) -> Self {
         Self { vft_admin }
     }
 }
 
-impl<
-    'a,
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> ServiceExposure<Service<'a, S, A, B>>
-{
+#[service(events = Event)]
+impl<'a> Service<'a> {
     /// Reply handler for failed token transfers.
     pub fn handle_reply(&mut self) {
         // TODO(sails): impl getters for reply details.
@@ -72,11 +56,7 @@ impl<
             return;
         };
 
-        let mint_res = unsafe {
-            self.inner
-                .vft_admin
-                .do_mint(Syscall::message_source(), value.into())
-        };
+        let mint_res = unsafe { self.vft_admin.do_mint(Syscall::message_source(), value.into()) };
 
         if mint_res.is_err() {
             self.emit_event(Event::FailedMint {
@@ -86,15 +66,7 @@ impl<
             .expect("failed to emit event");
         }
     }
-}
 
-#[service(events = Event)]
-impl<
-    S: InfallibleStorage<Item = Authorities>,
-    A: Storage<Item = Allowances>,
-    B: Storage<Item = Balances>,
-> Service<'_, S, A, B>
-{
     #[export(unwrap_result)]
     pub fn burn_from(&mut self, from: ActorId, value: U256) -> Result<(), Error> {
         ok_if!(value.is_zero());
@@ -108,8 +80,7 @@ impl<
         gstd::exec::reply_deposit(message_id, 5_000_000_000)
             .map_err(|_| Error::new("failed to deposit gas for reply"))?;
 
-        Ok(())
-    }
+        Ok(())}
 }
 
 #[event]

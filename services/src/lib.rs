@@ -72,19 +72,21 @@ pub mod test {
             minimum_balance: U256,
             expiry_period: u32,
         ) -> Result<(), Error> {
-            let mut a = self.allowances.get_mut()?;
+            {
+                let mut a = self.allowances.get_mut()?;
 
-            a.set_expiry_period(expiry_period);
+                a.set_expiry_period(expiry_period);
 
-            let allowances = a.deref_mut();
-            allowances.clear_shards();
+                let allowances = a.deref_mut();
+                allowances.clear_shards();
 
-            for (owner, spender, amount, bn) in new_allowances {
-                unsafe {
-                    allowances.try_insert_new(
-                        (owner.try_into()?, spender.try_into()?),
-                        (Allowance::try_from(amount)?.try_into()?, bn),
-                    )?;
+                for (owner, spender, amount, bn) in new_allowances {
+                    unsafe {
+                        allowances.try_insert_new(
+                            (owner.try_into()?, spender.try_into()?),
+                            (Allowance::try_from(amount)?.try_into()?, bn),
+                        )?;
+                    }
                 }
             }
 
@@ -183,7 +185,7 @@ pub mod test {
             vft_metadata::Service::new(&self.metadata)
         }
 
-        pub fn vft_native_exchange(&self) -> vft_native_exchange::Service {
+        pub fn vft_native_exchange(&self) -> vft_native_exchange::Service<PausableRef<Allowances>, PausableRef<Balances>> {
             vft_native_exchange::Service::new(self.balances(), self.vft())
         }
 
