@@ -42,11 +42,14 @@ pub use awesome_sails_vft_native_exchange_admin_service as vft_native_exchange_a
 
 #[cfg(all(feature = "all", feature = "test"))]
 pub mod test {
-    use crate::*;
     use crate::{
+        vft,
         vft::utils::{Allowances, Balances},
+        vft_admin,
         vft_admin::Authorities,
+        vft_extension, vft_metadata,
         vft_metadata::Metadata,
+        vft_native_exchange, vft_native_exchange_admin,
     };
     use awesome_sails::{
         error::Error,
@@ -106,7 +109,7 @@ pub mod test {
                 unsafe {
                     balances.try_insert_new(
                         owner.try_into()?,
-                        Balance::try_from(amount)?.try_into()?, 
+                        Balance::try_from(amount)?.try_into()?,
                     )?;
                 }
             }
@@ -180,16 +183,24 @@ pub mod test {
             vft_extension::Service::new(self.allowances(), self.balances(), self.vft())
         }
 
-        // We can use '&T' as `InfallibleStorage<Item = T>`
         pub fn vft_metadata(&self) -> vft_metadata::Service<&Metadata> {
             vft_metadata::Service::new(&self.metadata)
         }
 
-        pub fn vft_native_exchange(&self) -> vft_native_exchange::Service<PausableRef<Allowances>, PausableRef<Balances>> {
+        pub fn vft_native_exchange(
+            &self,
+        ) -> vft_native_exchange::Service<PausableRef<Allowances>, PausableRef<Balances>> {
             vft_native_exchange::Service::new(self.balances(), self.vft())
         }
 
-        pub fn vft_native_exchange_admin(&self) -> vft_native_exchange_admin::Service {
+        pub fn vft_native_exchange_admin(
+            &self,
+        ) -> vft_native_exchange_admin::Service<
+            '_,
+            StorageRefCell<Authorities>,
+            PausableRef<Allowances>,
+            PausableRef<Balances>,
+        > {
             vft_native_exchange_admin::Service::new(self.vft_admin())
         }
     }

@@ -83,7 +83,7 @@ impl<
     ///
     /// # Safety
     /// Make sure that you call mint in eligible places (called by minter, etc).
-    pub unsafe fn do_mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
+    unsafe fn do_mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
         ok_if!(value.is_zero());
 
         self.balances
@@ -103,7 +103,12 @@ impl<
 }
 
 #[service(events = Event)]
-impl<'a, S: InfallibleStorageMut<Item = Authorities>, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'a, S, A, B>
+impl<
+    'a,
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+> Service<'a, S, A, B>
 {
     /// Mints VFTs to the specified address.
     ///

@@ -25,28 +25,41 @@
 use awesome_sails::{
     error::Error,
     ok_if,
+    storage::{InfallibleStorageMut, StorageMut},
 };
 use awesome_sails_vft_admin_service::{self as vft_admin, Authorities};
 use awesome_sails_vft_service::utils::{Allowances, Balances};
 use sails_rs::{gstd, prelude::*};
-use awesome_sails::pause::PausableRef;
-use awesome_sails::storage::{StorageRefCell};
-
 
 /// Awesome VFT-Native-Exchange-Admin service itself.
-pub struct Service<'a> {
-    vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, StorageRefCell<'a, Authorities>, PausableRef<'a, Allowances>, PausableRef<'a, Balances>>>,
+pub struct Service<'a, S, A, B>
+where
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+{
+    vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, S, A, B>>,
 }
 
-impl<'a> Service<'a> {
+impl<'a, S, A, B> Service<'a, S, A, B>
+where
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+{
     /// Constructor for [`Self`].
-    pub fn new(vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, StorageRefCell<'a, Authorities>, PausableRef<'a, Allowances>, PausableRef<'a, Balances>>>) -> Self {
+    pub fn new(vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, S, A, B>>) -> Self {
         Self { vft_admin }
     }
 }
 
 #[service(events = Event)]
-impl<'a> Service<'a> {
+impl<'a, S, A, B> Service<'a, S, A, B>
+where
+    S: InfallibleStorageMut<Item = Authorities>,
+    A: StorageMut<Item = Allowances>,
+    B: StorageMut<Item = Balances>,
+{
     /// Reply handler for failed token transfers.
     pub fn handle_reply(&mut self) {
         // TODO(sails): impl getters for reply details.
@@ -56,7 +69,10 @@ impl<'a> Service<'a> {
             return;
         };
 
-        let mint_res = unsafe { self.vft_admin.do_mint(Syscall::message_source(), value.into()) };
+        let mint_res = unsafe {
+            self.vft_admin
+                .do_mint(Syscall::message_source(), value.into())
+        };
 
         if mint_res.is_err() {
             self.emit_event(Event::FailedMint {
@@ -80,7 +96,8 @@ impl<'a> Service<'a> {
         gstd::exec::reply_deposit(message_id, 5_000_000_000)
             .map_err(|_| Error::new("failed to deposit gas for reply"))?;
 
-        Ok(())}
+        Ok(())
+    }
 }
 
 #[event]
