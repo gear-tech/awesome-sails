@@ -18,20 +18,16 @@
 
 mod common;
 
-use awesome_sails::{
-    assert_ok,
-    math::{Max, OverflowError, UnderflowError},
-    pause::PausableError,
-};
-use awesome_sails_vft_service::utils::{Allowance, AllowancesError, Balance, BalancesError};
+use awesome_sails::{assert_ok, math::Max};
+use awesome_sails_vft_service::utils::{Allowance, Balance};
 use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic};
-use core::convert::Infallible;
 use futures::StreamExt;
-use sails_rs::{U256, calls::*, events::Listener};
+use sails_rs::{U256, prelude::*};
 use test_bin::client::{
-    Vft, VftAdmin, VftExtension,
-    traits::{Vft as _, VftAdmin as _, VftExtension as _},
-    vft::events::{VftEvents, listener as vft_listener},
+    TestBin,
+    vft::{Vft, events::VftEvents},
+    vft_admin::VftAdmin,
+    vft_extension::VftExtension,
 };
 
 const MAGIC: usize = 21;
@@ -42,48 +38,47 @@ async fn allowance() {
     let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
     let balances = Default::default();
 
-    let (remoting, pid) = common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+    let (program, _env, _pid) =
+        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
 
-    let vft = Vft::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
+    let vft_service = program.vft();
+    let vft_extension_service = program.vft_extension();
 
     // # Test case #1.
     // Approve is returned if exists.
     {
-        let res = vft_extension.allowance_of(ALICE, BOB).recv(pid).await;
+        let res = vft_extension_service.allowance_of(ALICE, BOB).await;
         assert_ok!(res, Some((U256::exp10(MAGIC), BN)));
 
-        let res = vft.allowance(ALICE, BOB).recv(pid).await;
+        let res = vft_service.allowance(ALICE, BOB).await;
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
     // # Test case #2.
     // U256::zero() is returned if not exists.
     {
-        let res = vft_extension.allowance_of(BOB, ALICE).recv(pid).await;
+        let res = vft_extension_service.allowance_of(BOB, ALICE).await;
         assert_ok!(res, None);
 
-        let res = vft.allowance(BOB, ALICE).recv(pid).await;
+        let res = vft_service.allowance(BOB, ALICE).await;
         assert_ok!(res, U256::zero());
     }
 }
 
 #[tokio::test]
 async fn approve() {
-    let (remoting, pid) =
+    let (program, _env, pid) =
         common::deploy_with_data(Default::default(), Default::default(), U256::zero(), 1).await;
-    let remoting = remoting.with_actor_id(ALICE);
+    let mut vft_service = program.vft();
+    let vft_extension_service = program.vft_extension();
 
-    let mut vft = Vft::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
-
-    let mut vft_listener = vft_listener(remoting.clone());
-    let mut vft_events = vft_listener.listen().await.unwrap();
+    let listener_binding = program.vft().listener();
+    let mut vft_events = listener_binding.listen().await.unwrap();
 
     // # Test case #1.
     // Allowance from Alice to Bob doesn't exist and created.
     {
-        let res = vft.approve(BOB, U256::exp10(MAGIC)).send_recv(pid).await;
+        let res = vft_service.approve(BOB, U256::exp10(MAGIC)).await;
         assert_ok!(res, true);
 
         let (actor, event) = vft_events.next().await.unwrap();
@@ -97,24 +92,20 @@ async fn approve() {
             }
         );
 
-        let res = vft.allowance(ALICE, BOB).recv(pid).await;
+        let res = vft_service.allowance(ALICE, BOB).await;
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
     // # Test case #2.
     // Allowance from Alice to Bob exist and changed (as well as expiry).
     {
-        let (_, bn1) = vft_extension
+        let (_, bn1) = vft_extension_service
             .allowance_of(ALICE, BOB)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
 
-        let res = vft
-            .approve(BOB, U256::exp10(MAGIC - 1))
-            .send_recv(pid)
-            .await;
+        let res = vft_service.approve(BOB, U256::exp10(MAGIC - 1)).await;
 
         assert_ok!(res, true);
 
@@ -129,9 +120,8 @@ async fn approve() {
             }
         );
 
-        let (res, bn2) = vft_extension
+        let (res, bn2) = vft_extension_service
             .allowance_of(ALICE, BOB)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
@@ -144,23 +134,18 @@ async fn approve() {
     // # Test case #3.
     // Allowance from Alice to Bob exists and not changed.
     {
-        let (_, bn1) = vft_extension
+        let (_, bn1) = vft_extension_service
             .allowance_of(ALICE, BOB)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
 
-        let res = vft
-            .approve(BOB, U256::exp10(MAGIC - 1))
-            .send_recv(pid)
-            .await;
+        let res = vft_service.approve(BOB, U256::exp10(MAGIC - 1)).await;
 
         assert_ok!(res, false);
 
-        let (res, bn2) = vft_extension
+        let (res, bn2) = vft_extension_service
             .allowance_of(ALICE, BOB)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
@@ -173,7 +158,7 @@ async fn approve() {
     // # Test case #4.
     // Allowance from Alice to Bob exists and removed.
     {
-        let res = vft.approve(BOB, U256::zero()).send_recv(pid).await;
+        let res = vft_service.approve(BOB, U256::zero()).await;
         assert_ok!(res, true);
 
         let (actor, event) = vft_events.next().await.unwrap();
@@ -187,36 +172,36 @@ async fn approve() {
             }
         );
 
-        let res = vft.allowance(ALICE, BOB).recv(pid).await;
+        let res = vft_service.allowance(ALICE, BOB).await;
         assert_ok!(res, U256::zero());
 
-        let res = vft_extension.allowance_of(ALICE, BOB).recv(pid).await;
+        let res = vft_extension_service.allowance_of(ALICE, BOB).await;
         assert_ok!(res, None);
     }
 
     // # Test case #5.
     // Allowance from Alice to Bob doesn't exists and not created.
     {
-        let res = vft.approve(BOB, U256::zero()).send_recv(pid).await;
+        let res = vft_service.approve(BOB, U256::zero()).await;
         assert_ok!(res, false);
 
-        let res = vft.allowance(ALICE, BOB).recv(pid).await;
+        let res = vft_service.allowance(ALICE, BOB).await;
         assert_ok!(res, U256::zero());
     }
 
     // # Test case #6.
     // Allowance is always noop on owner == spender.
     {
-        let res = vft.approve(ALICE, U256::exp10(MAGIC)).send_recv(pid).await;
+        let res = vft_service.approve(ALICE, U256::exp10(MAGIC)).await;
         assert_ok!(res, false);
 
-        let res = vft.allowance(ALICE, ALICE).recv(pid).await;
+        let res = vft_service.allowance(ALICE, ALICE).await;
         assert_ok!(res, U256::zero());
 
-        let res = vft.approve(ALICE, U256::zero()).send_recv(pid).await;
+        let res = vft_service.approve(ALICE, U256::zero()).await;
         assert_ok!(res, false);
 
-        let res = vft.allowance(ALICE, ALICE).recv(pid).await;
+        let res = vft_service.allowance(ALICE, ALICE).await;
         assert_ok!(res, U256::zero());
     }
 }
@@ -226,28 +211,29 @@ async fn balance_of() {
     let allowances = Default::default();
     let balances = vec![(ALICE, U256::exp10(MAGIC))];
 
-    let (remoting, pid) = common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+    let (program, _env, _pid) =
+        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
 
-    let vft = Vft::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
+    let vft_service = program.vft();
+    let vft_extension_service = program.vft_extension();
 
     // # Test case #1.
     // Balance is returned if exists.
     {
-        let res = vft_extension.balance_of(ALICE).recv(pid).await;
+        let res = vft_extension_service.balance_of(ALICE).await;
         assert_ok!(res, Some(U256::exp10(MAGIC)));
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
     // # Test case #2.
     // U256::zero() is returned if not exists.
     {
-        let res = vft_extension.balance_of(BOB).recv(pid).await;
+        let res = vft_extension_service.balance_of(BOB).await;
         assert_ok!(res, None);
 
-        let res = vft.balance_of(BOB).recv(pid).await;
+        let res = vft_service.balance_of(BOB).await;
         assert_ok!(res, U256::zero());
     }
 }
@@ -257,63 +243,58 @@ async fn transfer() {
     let allowances = Default::default();
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, Balance::MAX.into())];
 
-    let (remoting, pid) = common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+    let (program, _env, pid) =
+        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
 
-    let vft = Vft::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
+    let mut vft_service = program.vft();
+    let vft_extension_service = program.vft_extension();
 
-    let mut vft_listener = vft_listener(remoting.clone());
-    let mut vft_events = vft_listener.listen().await.unwrap();
+    let listener_binding = program.vft().listener();
+    let mut vft_events = listener_binding.listen().await.unwrap();
 
     // # Test case #1.
     // Alice transfers to Bob, when Alice has no balance.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer(BOB, U256::exp10(MAGIC - 1))
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
-        assert_str_panic(
-            res.unwrap_err(),
-            BalancesError::Insufficient(UnderflowError),
-        );
+        assert_str_panic(res.unwrap_err(), "insufficient balance");
     }
 
     // # Test case #2.
     // Bob transfers to Alice, when Bob's balance is less than required.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC) + U256::one())
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(
-            res.unwrap_err(),
-            BalancesError::Insufficient(UnderflowError),
-        );
+        assert_str_panic(res.unwrap_err(), "insufficient balance");
     }
 
     // # Test case #3.
     // Dave transfers to Bob, causing numeric overflow.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(DAVE))
+        let res = vft_service
             .transfer(
                 BOB,
                 // max - balance_of(bob) + 1
                 U256::from(Balance::MAX) - U256::exp10(MAGIC) + U256::one(),
             )
-            .send_recv(pid)
+            .with_actor_id(DAVE)
             .await;
 
-        assert_str_panic(res.unwrap_err(), BalancesError::Overflow(OverflowError));
+        assert_str_panic(res.unwrap_err(), "balance or supply overflow");
     }
 
     // # Test case #4.
     // Bob transfers to Alice, when Alice's account doesn't exist.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC - 1))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, true);
@@ -329,19 +310,19 @@ async fn transfer() {
             }
         );
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC - 1));
 
-        let res = vft.balance_of(BOB).recv(pid).await;
+        let res = vft_service.balance_of(BOB).await;
         assert_ok!(res, U256::exp10(MAGIC) - U256::exp10(MAGIC - 1));
     }
 
     // # Test case #5.
     // Bob transfers to Alice, when Alice's account exists.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC - 2))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, true);
@@ -357,10 +338,10 @@ async fn transfer() {
             }
         );
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC - 1) + U256::exp10(MAGIC - 2));
 
-        let res = vft.balance_of(BOB).recv(pid).await;
+        let res = vft_service.balance_of(BOB).await;
         assert_ok!(
             res,
             U256::exp10(MAGIC) - U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2)
@@ -370,12 +351,12 @@ async fn transfer() {
     // # Test case #6.
     // Bob transfers to Alice, when Alice's account exists and Bob's is removed.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer(
                 ALICE,
                 U256::exp10(MAGIC) - U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2),
             )
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, true);
@@ -391,19 +372,19 @@ async fn transfer() {
             }
         );
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC));
 
-        let res = vft_extension.balance_of(BOB).recv(pid).await;
+        let res = vft_extension_service.balance_of(BOB).await;
         assert_ok!(res, None);
     }
 
     // # Test case #7.
     // Alice transfers to Charlie, when Alice's account is removed and Charlie's is created.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer(CHARLIE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, true);
@@ -419,58 +400,58 @@ async fn transfer() {
             }
         );
 
-        let res = vft.balance_of(CHARLIE).recv(pid).await;
+        let res = vft_service.balance_of(CHARLIE).await;
         assert_ok!(res, U256::exp10(MAGIC));
 
-        let res = vft_extension.balance_of(ALICE).recv(pid).await;
+        let res = vft_extension_service.balance_of(ALICE).await;
         assert_ok!(res, None);
     }
 
     // # Test case #8.
     // Transfer is always noop when from == to.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, false);
 
-        let res = vft_extension.balance_of(ALICE).recv(pid).await;
+        let res = vft_extension_service.balance_of(ALICE).await;
         assert_ok!(res, None);
 
-        let res = Vft::new(remoting.clone().with_actor_id(CHARLIE))
+        let res = vft_service
             .transfer(CHARLIE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(CHARLIE)
             .await;
 
         assert_ok!(res, false);
 
-        let res = vft.balance_of(CHARLIE).recv(pid).await;
+        let res = vft_service.balance_of(CHARLIE).await;
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
     // # Test case #9.
     // Transfer is always noop when value is zero.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer(CHARLIE, U256::zero())
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, false);
 
-        let res = vft.balance_of(CHARLIE).recv(pid).await;
+        let res = vft_service.balance_of(CHARLIE).await;
         assert_ok!(res, U256::exp10(MAGIC));
 
-        let res = Vft::new(remoting.clone().with_actor_id(CHARLIE))
+        let res = vft_service
             .transfer(ALICE, U256::zero())
-            .send_recv(pid)
+            .with_actor_id(CHARLIE)
             .await;
 
         assert_ok!(res, false);
 
-        let res = vft_extension.balance_of(ALICE).recv(pid).await;
+        let res = vft_extension_service.balance_of(ALICE).await;
         assert_ok!(res, None);
     }
 }
@@ -482,21 +463,22 @@ async fn transfer_from() {
     let allowances = Default::default();
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, U256::exp10(MAGIC))];
 
-    let (remoting, pid) = common::deploy_with_data(allowances, balances, U256::zero(), 1).await;
+    let (program, _env, pid) =
+        common::deploy_with_data(allowances, balances, U256::zero(), 1).await;
 
-    let vft = Vft::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
+    let mut vft_service = program.vft();
+    let vft_extension_service = program.vft_extension();
 
-    let mut vft_listener = vft_listener(remoting.clone());
-    let mut vft_events = vft_listener.listen().await.unwrap();
+    let listener_binding = program.vft().listener();
+    let mut vft_events = listener_binding.listen().await.unwrap();
 
     // # Test case #1.
     // Bob doesn't need approve to transfer from self to Alice.
     // With zero value nothing's changed.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(BOB, ALICE, U256::zero())
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, false);
@@ -505,9 +487,9 @@ async fn transfer_from() {
     // # Test case #2.
     // Bob doesn't need approve to transfer from self to Alice.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(BOB, ALICE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, true);
@@ -523,57 +505,54 @@ async fn transfer_from() {
             }
         );
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC));
 
-        let res = vft_extension.balance_of(BOB).recv(pid).await;
+        let res = vft_extension_service.balance_of(BOB).await;
         assert_ok!(res, None);
     }
 
     // # Test case #3.
     // Noop on self transfer with self approve.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(BOB, BOB, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, false);
 
-        let res = vft_extension.balance_of(BOB).recv(pid).await;
+        let res = vft_extension_service.balance_of(BOB).await;
         assert_ok!(res, None);
 
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer_from(ALICE, ALICE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, false);
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
     // # Test case #4.
     // Bob tries to perform transfer from Alice to Charlie with no approval exists.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(
-            res.unwrap_err(),
-            AllowancesError::Insufficient(UnderflowError),
-        );
+        assert_str_panic(res.unwrap_err(), "insufficient allowance");
     }
 
     // # Test case #5.
     // Bob tries to perform transfer from Alice to Charlie with insufficient approval.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .approve(BOB, U256::exp10(MAGIC - 1))
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, true);
@@ -589,23 +568,20 @@ async fn transfer_from() {
             }
         );
 
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(
-            res.unwrap_err(),
-            AllowancesError::Insufficient(UnderflowError),
-        );
+        assert_str_panic(res.unwrap_err(), "insufficient allowance");
     }
 
     // # Test case #6.
     // Bob tries to perform transfer from Alice to Charlie with insufficient balance.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .approve(BOB, Allowance::MAX.into())
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, true);
@@ -621,30 +597,26 @@ async fn transfer_from() {
             }
         );
 
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC) + U256::one())
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(
-            res.unwrap_err(),
-            BalancesError::Insufficient(UnderflowError),
-        );
+        assert_str_panic(res.unwrap_err(), "insufficient balance");
     }
 
     // # Test case #7.
     // Bob performs transfer from Alice to Charlie and allowance is unchanged (but expiry changed).
     {
-        let (_, bn1) = vft_extension
+        let (_, bn1) = vft_extension_service
             .allowance_of(ALICE, BOB)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
 
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC - 1))
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, true);
@@ -660,15 +632,14 @@ async fn transfer_from() {
             }
         );
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC) - U256::exp10(MAGIC - 1));
 
-        let res = vft.balance_of(CHARLIE).recv(pid).await;
+        let res = vft_service.balance_of(CHARLIE).await;
         assert_ok!(res, U256::exp10(MAGIC - 1));
 
-        let (res, bn2) = vft_extension
+        let (res, bn2) = vft_extension_service
             .allowance_of(ALICE, BOB)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
@@ -681,9 +652,9 @@ async fn transfer_from() {
     // # Test case #8.
     // Alice performs transfer from Charlie to Dave and allowance is changed.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(CHARLIE))
+        let res = vft_service
             .approve(ALICE, U256::exp10(MAGIC - 2))
-            .send_recv(pid)
+            .with_actor_id(CHARLIE)
             .await;
 
         assert_ok!(res, true);
@@ -699,16 +670,15 @@ async fn transfer_from() {
             }
         );
 
-        let (_, bn1) = vft_extension
+        let (_, bn1) = vft_extension_service
             .allowance_of(CHARLIE, ALICE)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
 
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer_from(CHARLIE, DAVE, U256::exp10(MAGIC - 3))
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, true);
@@ -724,9 +694,8 @@ async fn transfer_from() {
             }
         );
 
-        let (res, bn2) = vft_extension
+        let (res, bn2) = vft_extension_service
             .allowance_of(CHARLIE, ALICE)
-            .recv(pid)
             .await
             .expect("infallible")
             .expect("infallible");
@@ -739,13 +708,13 @@ async fn transfer_from() {
     // # Test case #9.
     // Alice performs transfer from Charlie to Dave and allowance is removed.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(ALICE))
+        let res = vft_service
             .transfer_from(
                 CHARLIE,
                 DAVE,
                 U256::exp10(MAGIC - 2) - U256::exp10(MAGIC - 3),
             )
-            .send_recv(pid)
+            .with_actor_id(ALICE)
             .await;
 
         assert_ok!(res, true);
@@ -761,13 +730,13 @@ async fn transfer_from() {
             }
         );
 
-        let res = vft_extension.allowance_of(CHARLIE, ALICE).recv(pid).await;
+        let res = vft_extension_service.allowance_of(CHARLIE, ALICE).await;
         assert_ok!(res, None);
 
-        let res = vft.balance_of(CHARLIE).recv(pid).await;
+        let res = vft_service.balance_of(CHARLIE).await;
         assert_ok!(res, U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2));
 
-        let res = vft.balance_of(DAVE).recv(pid).await;
+        let res = vft_service.balance_of(DAVE).await;
         assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC - 2));
     }
 }
@@ -781,39 +750,40 @@ async fn minimum_balance() {
     let minimum_balance = U256::exp10(10);
     let below_minimum = minimum_balance - U256::one();
 
-    let (remoting, pid) = common::deploy_with_data(allowances, balances, minimum_balance, 1).await;
+    let (program, _env, pid) =
+        common::deploy_with_data(allowances, balances, minimum_balance, 1).await;
 
-    let mut vft = Vft::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
+    let mut vft_service = program.vft();
+    let vft_extension_service = program.vft_extension();
 
-    let mut vft_listener = vft_listener(remoting.clone());
-    let mut vft_events = vft_listener.listen().await.unwrap();
+    let listener_binding = program.vft().listener();
+    let mut vft_events = listener_binding.listen().await.unwrap();
 
     // # Test case #0.
     // Assert deploy parameters.
     {
-        let res = vft.total_supply().recv(pid).await;
+        let res = vft_service.total_supply().await;
         assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
 
-        let res = vft_extension.unused_value().recv(pid).await;
+        let res = vft_extension_service.unused_value().await;
         assert_ok!(res, U256::zero());
 
-        let res = vft_extension.minimum_balance().recv(pid).await;
+        let res = vft_extension_service.minimum_balance().await;
         assert_ok!(res, minimum_balance);
     }
 
     // # Test case #1.
     // Alice transfers to Bob value below ED: Bob cannot receive it.
     {
-        let res = vft.transfer(BOB, below_minimum).send_recv(pid).await;
+        let res = vft_service.transfer(BOB, below_minimum).await;
 
-        assert_str_panic(res.unwrap_err(), BalancesError::BelowMinimum);
+        assert_str_panic(res.unwrap_err(), "balance below minimum");
     }
 
     // # Test case #2.
     // Alice transfers to Dave value below ED: Dave can receive it.
     {
-        let res = vft.transfer(DAVE, below_minimum).send_recv(pid).await;
+        let res = vft_service.transfer(DAVE, below_minimum).await;
 
         assert_ok!(res, true);
 
@@ -832,9 +802,9 @@ async fn minimum_balance() {
     // # Test case #3.
     // Dave transfers to Alice value and goes below ED: remaining are burnt from Dave to unused.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(DAVE))
+        let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC))
-            .send_recv(pid)
+            .with_actor_id(DAVE)
             .await;
 
         assert_ok!(res, true);
@@ -850,26 +820,23 @@ async fn minimum_balance() {
             }
         );
 
-        let res = vft.balance_of(ALICE).recv(pid).await;
+        let res = vft_service.balance_of(ALICE).await;
         assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC) - below_minimum);
 
-        let res = vft_extension.balance_of(DAVE).recv(pid).await;
+        let res = vft_extension_service.balance_of(DAVE).await;
         assert_ok!(res, None);
 
-        let res = vft_extension.unused_value().recv(pid).await;
+        let res = vft_extension_service.unused_value().await;
         assert_ok!(res, below_minimum);
 
-        let res = vft.total_supply().recv(pid).await;
+        let res = vft_service.total_supply().await;
         assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
     }
 
     // # Test case #4.
     // Bob transfers from Alice to Charlie value below ED: Charlie cannot receive it.
     {
-        let res = vft
-            .approve(BOB, U256::MAX - U256::one())
-            .send_recv(pid)
-            .await;
+        let res = vft_service.approve(BOB, U256::MAX - U256::one()).await;
         assert_ok!(res, true);
 
         let (actor, event) = vft_events.next().await.unwrap();
@@ -883,24 +850,24 @@ async fn minimum_balance() {
             }
         );
 
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(ALICE, CHARLIE, below_minimum)
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(res.unwrap_err(), BalancesError::BelowMinimum);
+        assert_str_panic(res.unwrap_err(), "balance below minimum");
     }
 
     // # Test case #5.
     // Bob transfers from Alice to Charlie and burns Alice.
     {
-        let res = Vft::new(remoting.clone().with_actor_id(BOB))
+        let res = vft_service
             .transfer_from(
                 ALICE,
                 CHARLIE,
                 U256::exp10(MAGIC) + U256::exp10(MAGIC) - below_minimum - below_minimum,
             )
-            .send_recv(pid)
+            .with_actor_id(BOB)
             .await;
 
         assert_ok!(res, true);
@@ -916,13 +883,13 @@ async fn minimum_balance() {
             }
         );
 
-        let res = vft_extension.balance_of(ALICE).recv(pid).await;
+        let res = vft_extension_service.balance_of(ALICE).await;
         assert_ok!(res, None);
 
-        let res = vft_extension.unused_value().recv(pid).await;
+        let res = vft_extension_service.unused_value().await;
         assert_ok!(res, below_minimum + below_minimum);
 
-        let res = vft.total_supply().recv(pid).await;
+        let res = vft_service.total_supply().await;
         assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
     }
 }
@@ -932,33 +899,34 @@ async fn pause() {
     let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
     let balances = Default::default();
 
-    let (remoting, pid) = common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+    let (program, _env, _pid) =
+        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
 
-    let mut vft = Vft::new(remoting.clone());
-    let mut vft_admin = VftAdmin::new(remoting.clone());
-    let vft_extension = VftExtension::new(remoting.clone());
+    let mut vft_service = program.vft();
+    let mut vft_admin_service = program.vft_admin();
+    let vft_extension_service = program.vft_extension();
 
     // Call not paused.
     {
-        let res = vft_extension.allowance_of(ALICE, BOB).recv(pid).await;
+        let res = vft_extension_service.allowance_of(ALICE, BOB).await;
         assert_ok!(res, Some((U256::exp10(MAGIC), BN)));
 
-        let res = vft.allowance(ALICE, BOB).recv(pid).await;
+        let res = vft_service.allowance(ALICE, BOB).await;
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
     // Pause
     {
-        vft_admin.pause().send_recv(pid).await.unwrap();
+        vft_admin_service.pause().await.unwrap();
 
-        let paused = vft_admin.is_paused().recv(pid).await.unwrap();
+        let paused = vft_admin_service.is_paused().await.unwrap();
         assert!(paused);
     }
 
     // Call paused.
     {
-        let res = vft.transfer(BOB, U256::exp10(10)).send_recv(pid).await;
+        let res = vft_service.transfer(BOB, U256::exp10(10)).await;
 
-        assert_str_panic(res.unwrap_err(), PausableError::<Infallible>::Paused);
+        assert_str_panic(res.unwrap_err(), "storage is paused");
     }
 }

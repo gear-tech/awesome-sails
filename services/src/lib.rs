@@ -129,11 +129,11 @@ pub mod test {
     }
 
     impl TestProgram {
-        pub fn allowances(&self) -> PausableRef<Allowances> {
+        pub fn allowances(&self) -> PausableRef<'_, Allowances> {
             PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
         }
 
-        pub fn balances(&self) -> PausableRef<Balances> {
+        pub fn balances(&self) -> PausableRef<'_, Balances> {
             PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
         }
     }
@@ -158,18 +158,18 @@ pub mod test {
             self.vft_native_exchange_admin().handle_reply();
         }
 
-        pub fn test(&self) -> TestService {
+        pub fn test(&self) -> TestService<'_> {
             TestService {
                 allowances: self.allowances(),
                 balances: self.balances(),
             }
         }
 
-        pub fn vft(&self) -> vft::Service {
+        pub fn vft(&self) -> vft::Service<'_> {
             vft::Service::new(self.allowances(), self.balances())
         }
 
-        pub fn vft_admin(&self) -> vft_admin::Service {
+        pub fn vft_admin(&self) -> vft_admin::Service<'_> {
             vft_admin::Service::new(
                 StorageRefCell::new(&self.authorities),
                 self.allowances(),
@@ -179,7 +179,7 @@ pub mod test {
             )
         }
 
-        pub fn vft_extension(&self) -> vft_extension::Service {
+        pub fn vft_extension(&self) -> vft_extension::Service<'_> {
             vft_extension::Service::new(self.allowances(), self.balances(), self.vft())
         }
 
@@ -189,7 +189,8 @@ pub mod test {
 
         pub fn vft_native_exchange(
             &self,
-        ) -> vft_native_exchange::Service<PausableRef<Allowances>, PausableRef<Balances>> {
+        ) -> vft_native_exchange::Service<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>>
+        {
             vft_native_exchange::Service::new(self.balances(), self.vft())
         }
 
@@ -197,9 +198,9 @@ pub mod test {
             &self,
         ) -> vft_native_exchange_admin::Service<
             '_,
-            StorageRefCell<Authorities>,
-            PausableRef<Allowances>,
-            PausableRef<Balances>,
+            StorageRefCell<'_, Authorities>,
+            PausableRef<'_, Allowances>,
+            PausableRef<'_, Balances>,
         > {
             vft_native_exchange_admin::Service::new(self.vft_admin())
         }
