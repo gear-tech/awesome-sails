@@ -7,6 +7,4 @@ edition = "2021"
 sails-rs = { workspace = true }
 derive_more = { version = "2.1.0", default-features = false }
 thiserror = { workspace = true }
-ruint = { version = "1.10.0", default-features = false, features = [
-    "parity-scale-codec",
-] }
+ruint = { version = "1.10.0", default-features = false }

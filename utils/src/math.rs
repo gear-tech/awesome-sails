@@ -73,8 +73,7 @@ impl_checked_math!(U256);
 
 // === CUSTOM UINT (The LeBytes Replacement) ===
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Decode, Encode)]
-#[codec(crate = sails_rs::scale_codec)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CustomUint<const BITS: usize, const LIMBS: usize>(ruint::Uint<BITS, LIMBS>);
 
 // Helper to calculate byte length
@@ -123,16 +122,60 @@ impl<const BITS: usize, const LIMBS: usize> CustomUint<BITS, LIMBS> {
     }
 }
 
-// --- Manual TypeInfo to match LeBytes metadata ([u8; N]) ---
+// --- Manual Encode/Decode to match LeBytes format (Compact bytes) ---
+
+// We implement Encode/Decode manually to enforce compact storage.
+// By default, `ruint` encodes data as an array of `u64` limbs (8-byte aligned).
+// For example, a 72-bit value would take 16 bytes (2 * u64).
+// To save storage costs and maintain binary compatibility with the legacy `LeBytes` format,
+// we pack the data into the exact number of bytes required (e.g., 9 bytes for 72 bits).
+impl<const BITS: usize, const LIMBS: usize> Encode for CustomUint<BITS, LIMBS> {
+    fn size_hint(&self) -> usize {
+        n_bytes(BITS)
+    }
+
+    fn encode_to<T: sails_rs::scale_codec::Output + ?Sized>(&self, dest: &mut T) {
+        let len = n_bytes(BITS);
+        // Write exactly the needed bytes (Little Endian)
+        for i in 0..len {
+            dest.push_byte(self.0.byte(i));
+        }
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Decode for CustomUint<BITS, LIMBS> {
+    fn decode<I: sails_rs::scale_codec::Input>(
+        input: &mut I,
+    ) -> Result<Self, sails_rs::scale_codec::Error> {
+        let len = n_bytes(BITS);
+        let mut buffer = [0u8; 64];
+
+        if len > 64 {
+            return Err("CustomUint too large".into());
+        }
+
+        // Read the exact compact byte sequence
+        input.read(&mut buffer[..len])?;
+
+        ruint::Uint::try_from_le_slice(&buffer[..len])
+            .ok_or("Overflow or invalid data".into())
+            .map(CustomUint)
+    }
+}
+
+// --- Manual TypeInfo ---
+
 impl<const BITS: usize, const LIMBS: usize> TypeInfo for CustomUint<BITS, LIMBS> {
     type Identity = Self;
     fn type_info() -> Type {
-        // We present this as [u64; LIMBS] in metadata for simplicity, or could try to match bytes.
-        // Array of u64 is standard for ruint-based types.
+        // Since we manually encode this type as a compact sequence of bytes (see Encode impl),
+        // we must inform the metadata that this is effectively a byte slice/array `[u8]`.
+        // If we relied on `ruint` default TypeInfo, it would report `[u64; LIMBS]`, causing
+        // decoding errors for frontends expecting the compact format.
         Type::builder()
             .path(Path::new("CustomUint", module_path!()))
-            .type_params(sails_rs::prelude::vec![])
-            .composite(Fields::unnamed().field(|f| f.ty::<[u64; LIMBS]>()))
+            .type_params(sails_rs::Vec::new())
+            .composite(Fields::unnamed().field(|f| f.ty::<[u8]>()))
     }
 }
 
