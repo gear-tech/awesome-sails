@@ -16,5 +16,5 @@ sails-rs = { workspace = true, features = ["gstd"] }
 thiserror.workspace = true
 
 # Local dependencies.
-awesome-sails.workspace = true
+awesome-sails-utils = { workspace = true }
 awesome-sails-vft-service.workspace = true

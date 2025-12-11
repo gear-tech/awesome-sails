@@ -20,7 +20,7 @@
 
 #![no_std]
 
-use awesome_sails::{
+use awesome_sails_utils::{
     impl_math_for_small_le_bytes_wrap,
     math::{LeBytes, Max},
     unwrap_infallible,

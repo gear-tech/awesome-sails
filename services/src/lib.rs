@@ -51,7 +51,7 @@ pub mod test {
         vft_metadata::Metadata,
         vft_native_exchange, vft_native_exchange_admin,
     };
-    use awesome_sails::{
+    use awesome_sails_utils::{
         error::Error,
         pause::{PausableRef, Pause},
         storage::{StorageMut, StorageRefCell},

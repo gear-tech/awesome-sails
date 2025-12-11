@@ -19,7 +19,7 @@
 //! Module for balances-related VFT logic.
 
 use crate::Balance;
-use awesome_sails::{
+use awesome_sails_utils::{
     ensure,
     map::{ShardedMap, ShardedMapError},
     math::{CheckedMath, Math, MathError, NonZero, OverflowError, UnderflowError, Zero, ZeroError},

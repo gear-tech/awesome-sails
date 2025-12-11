@@ -20,7 +20,10 @@
 
 use crate::ensure;
 use core::{hash::Hash, mem};
-use sails_rs::{Decode, Encode, TypeInfo, collections::HashMap, vec::Vec};
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
+use gstd::collections::HashMap;
+use gstd::vec::Vec;
 
 /// A sharded hash map that allows to pick a different shard's capacity, so
 /// resulting capacity isn't that much restricted by the HashMap impl.
@@ -291,8 +294,8 @@ impl ShardIdx {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[codec(crate = parity_scale_codec)]
+#[scale_info(crate = scale_info)]
 pub enum ShardedMapError {
     #[error("capacity overflow")]
     CapacityOverflow,

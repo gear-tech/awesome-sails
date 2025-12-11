@@ -24,7 +24,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use sails_rs::rc::Rc;
+use alloc::rc::Rc;
 
 /// A trait representing a read-only storage mechanism inside a program.
 pub trait Storage {

@@ -19,7 +19,7 @@
 //! Module for allowances-related VFT logic.
 
 use crate::Allowance;
-use awesome_sails::{
+use awesome_sails_utils::{
     map::{ShardedMap, ShardedMapError},
     math::{Math, MathError, NonZero, UnderflowError, Zero},
     ok_if, unwrap_infallible,

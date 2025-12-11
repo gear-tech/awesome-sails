@@ -18,7 +18,7 @@
 
 mod common;
 
-use awesome_sails::{assert_ok, math::Max};
+use awesome_sails_utils::{assert_ok, math::Max};
 use awesome_sails_vft_service::utils::{Allowance, Balance};
 use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic};
 use futures::StreamExt;

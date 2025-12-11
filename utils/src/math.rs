@@ -20,9 +20,11 @@
 
 use crate::{ensure, impl_non_zero_conversion};
 use core::cmp::Ordering;
-use sails_rs::{ActorId, Decode, Encode, H160, H256, TypeInfo};
+use gprimitives::{ActorId, H160, H256};
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 
-pub use sails_rs::U256;
+pub use primitive_types::U256;
 
 macro_rules! for_primitives {
     ($macro:ident) => {
@@ -279,8 +281,8 @@ impl Zero for H160 {
     derive_more::Into,
     derive_more::AsRef,
 )]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[codec(crate = parity_scale_codec)]
+#[scale_info(crate = scale_info)]
 pub struct LeBytes<const N: usize>([u8; N]);
 
 impl<const N: usize> LeBytes<N> {
@@ -440,8 +442,8 @@ impl<const N: usize> Zero for LeBytes<N> {
     Hash,
     derive_more::Deref,
 )]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[codec(crate = parity_scale_codec)]
+#[scale_info(crate = scale_info)]
 pub struct NonZero<T>(T);
 
 impl<T: Zero + PartialEq> NonZero<T> {
@@ -524,9 +526,9 @@ impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error(transparent)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub enum MathError {
     /// Overflow error.
     Overflow(#[from] OverflowError),
@@ -550,9 +552,9 @@ pub enum MathError {
     TypeInfo,
     thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error("mathematical overflow")]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub struct OverflowError;
 
 /// Arbitrary error type for math underflows.
@@ -569,9 +571,9 @@ pub struct OverflowError;
     TypeInfo,
     thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error("mathematical underflow")]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub struct UnderflowError;
 
 /// Arbitrary error type for zeroes.
@@ -588,7 +590,7 @@ pub struct UnderflowError;
     TypeInfo,
     thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error("zero error")]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub struct ZeroError;

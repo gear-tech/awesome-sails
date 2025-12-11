@@ -22,7 +22,7 @@
 
 #![no_std]
 
-use awesome_sails::{
+use awesome_sails_utils::{
     error::Error,
     ok_if,
     storage::{InfallibleStorageMut, StorageMut},

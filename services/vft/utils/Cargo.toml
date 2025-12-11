@@ -16,7 +16,7 @@ sails-rs.workspace = true
 thiserror.workspace = true
 
 # Local dependencies.
-awesome-sails.workspace = true
+awesome-sails-utils = { workspace = true }
 
 [features]
 test = []

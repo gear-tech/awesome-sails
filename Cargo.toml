@@ -1,35 +1,17 @@
-[package]
-name = "awesome-sails"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-repository.workspace = true
-rust-version.workspace = true
-
-[dependencies]
-# Sails dependencies
-sails-rs.workspace = true
-
-# External dependencies
-derive_more = { workspace = true, features = [
-    "as_ref",
-    "deref",
-    "display",
-    "from",
-    "into",
-] }
-thiserror.workspace = true
+[workspace.package]
+version = "0.1.0"
+authors = ["Gear Technologies"]
+edition = "2024"
+homepage = "https://gear-tech.io"
+license = "GPL-3.0"
+repository = "https://github.com/gear-tech/gear"
+rust-version = "1.91"
 
 [workspace]
 resolver = "3"
 
-default-members = ["."]
-
 members = [
-    ## `awesome-sails`
-    ".",
+    "utils",
     ## `awesome-sails` services [and binary for testing]
     "services",
     "services/bin",
@@ -48,30 +30,20 @@ members = [
     "services/vft-native-exchange-admin",
 ]
 
-[workspace.package]
-version = "0.1.0"
-authors = ["Gear Technologies"]
-edition = "2024"
-homepage = "https://gear-tech.io"
-license = "GPL-3.0"
-repository = "https://github.com/gear-tech/gear"
-rust-version = "1.91"
 
 [workspace.dependencies]
 # Sails dependencies
 sails-rs = { version = "0.10.1", default-features = false, features = ["gstd"] }
 
 # External dependencies
-derive_more = { version = "2.0.1", default-features = false }
+derive_more = { version = "2.1.0", default-features = false }
 futures = { version = "=0.3.31", default-features = false }
-mockall = { version = "=0.12", default-features = false }
-thiserror = { version = "=2.0.12", default-features = false }
-tokio = { version = "=1.45", default-features = false }
+mockall = { version = "=0.14", default-features = false }
+thiserror = { version = "=2.0.17", default-features = false }
+tokio = { version = "=1.48", default-features = false }
 
 # Local dependencies
-## `awesome-sails`
-awesome = { package = "awesome-sails", path = ".", default-features = false }
-awesome-sails = { path = ".", default-features = false }
+awesome-sails-utils = { path = "utils", default-features = false }
 
 ## `awesome-sails` services
 awesome-sails-services = { path = "services", default-features = false }

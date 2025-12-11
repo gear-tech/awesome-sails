@@ -22,7 +22,7 @@
 
 #![no_std]
 
-use awesome_sails::{
+use awesome_sails_utils::{
     ensure,
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},

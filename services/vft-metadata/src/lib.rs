@@ -22,7 +22,7 @@
 
 #![no_std]
 
-use awesome_sails::storage::InfallibleStorage;
+use awesome_sails_utils::storage::InfallibleStorage;
 use core::ops::Deref;
 use sails_rs::prelude::*;
 

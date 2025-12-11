@@ -13,7 +13,7 @@ rust-version.workspace = true
 sails-rs = { workspace = true, optional = true }
 
 # Local dependencies.
-awesome-sails = { workspace = true, optional = true }
+awesome-sails-utils = { workspace = true }
 awesome-sails-vft-service = { workspace = true, optional = true }
 awesome-sails-vft-admin-service = { workspace = true, optional = true }
 awesome-sails-vft-extension-service = { workspace = true, optional = true }
@@ -30,7 +30,7 @@ futures.workspace = true
 tokio = { workspace = true, features = ["rt", "macros"] }
 
 # Local dependencies.
-awesome-sails.workspace = true
+
 awesome-sails-services = { workspace = true, features = ["all", "test"] }
 test-bin = { workspace = true, features = ["wasm-binary"] }
 
@@ -55,6 +55,5 @@ vft-native-exchange-admin = ["dep:awesome-sails-vft-native-exchange-admin-servic
 
 test = [
     "sails-rs/gstd",
-    "dep:awesome-sails",
     "awesome-sails-vft-service?/test",
 ]

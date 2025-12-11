@@ -22,7 +22,7 @@
 
 #![no_std]
 
-use awesome_sails::{
+use awesome_sails_utils::{
     ensure,
     error::{BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
@@ -36,10 +36,7 @@ use awesome_sails_vft_service::{
 };
 use sails_rs::prelude::*;
 
-/// Re-exporting utils for easier access.
-pub mod utils {
-    pub use awesome_sails::pause::{Pausable, Pause};
-}
+
 
 /// Awesome VFT-Admin service itself.
 pub struct Service<
