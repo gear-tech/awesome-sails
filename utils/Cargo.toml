@@ -4,14 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gstd = { version = "1.10.0", default-features = false }
-gprimitives = { version = "1.10.0", default-features = false }
-primitive-types = { version = "0.12.2", default-features = false }
-parity-scale-codec = { version = "3.7.5", default-features = false, features = [
-    "derive",
-] }
-scale-info = { version = "2.11", default-features = false, features = [
-    "derive",
-] }
+sails-rs = { workspace = true }
 derive_more = { version = "2.1.0", default-features = false }
-thiserror.workspace = true
+thiserror = { workspace = true }
+ruint = { version = "1.10.0", default-features = false, features = [
+    "parity-scale-codec",
+] }

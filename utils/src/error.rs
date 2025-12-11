@@ -19,14 +19,13 @@
 //! Awesome errors definition module.
 
 use core::fmt;
-use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
+use sails_rs::{Decode, Encode, TypeInfo};
 use alloc::string::{String, ToString};
 
 /// Error type for the `awesome-sails` library.
 #[derive(Clone, Decode, Encode, TypeInfo, derive_more::Display)]
-#[codec(crate = parity_scale_codec)]
-#[scale_info(crate = scale_info)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
 #[display("{}", _0)]
 pub struct Error(String);
 
@@ -51,28 +50,28 @@ impl<E: core::error::Error> From<E> for Error {
 
 /// Arbitrary error type for incorrect input argument.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
-#[codec(crate = parity_scale_codec)]
+#[codec(crate = sails_rs::scale_codec)]
 #[error("incorrect input argument")]
-#[scale_info(crate = scale_info)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub struct BadInput;
 
 /// Arbitrary error type for incorrect origin.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
-#[codec(crate = parity_scale_codec)]
+#[codec(crate = sails_rs::scale_codec)]
 #[error("incorrect message origin")]
-#[scale_info(crate = scale_info)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub struct BadOrigin;
 
 /// Arbitrary error type for incorrect (e.g. insufficient) value applied to the message.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
-#[codec(crate = parity_scale_codec)]
+#[codec(crate = sails_rs::scale_codec)]
 #[error("incorrect message value")]
-#[scale_info(crate = scale_info)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub struct BadValue;
 
 /// Error type for inability to emit event.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
-#[codec(crate = parity_scale_codec)]
+#[codec(crate = sails_rs::scale_codec)]
 #[error("emit event error")]
-#[scale_info(crate = scale_info)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub struct EmitError;

@@ -27,8 +27,7 @@ use core::{
     error,
     ops::{Deref, DerefMut},
 };
-use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
+use sails_rs::{Decode, Encode, TypeInfo};
 
 /// Wrapper for Storage trait implementor in order to provide pause functionality.
 pub struct Pausable<S: StorageMut, P: InfallibleStorage<Item = Pause>> {
@@ -164,8 +163,8 @@ impl Pause {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
-#[codec(crate = parity_scale_codec)]
-#[scale_info(crate = scale_info)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub enum PausableError<E: error::Error> {
     /// Error indicating that the storage is paused.
     #[error("storage is paused")]
@@ -178,15 +177,15 @@ pub enum PausableError<E: error::Error> {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
-#[codec(crate = parity_scale_codec)]
+#[codec(crate = sails_rs::scale_codec)]
 #[error("enabled pause error")]
-#[scale_info(crate = scale_info)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub struct PausedError;
 
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
-#[codec(crate = parity_scale_codec)]
+#[codec(crate = sails_rs::scale_codec)]
 #[error("disabled pause error")]
-#[scale_info(crate = scale_info)]
+#[scale_info(crate = sails_rs::scale_info)]
 pub struct UnpausedError;
