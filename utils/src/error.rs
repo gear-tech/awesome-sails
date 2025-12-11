@@ -18,9 +18,9 @@
 
 //! Awesome errors definition module.
 
+use alloc::string::{String, ToString};
 use core::fmt;
 use sails_rs::{Decode, Encode, TypeInfo};
-use alloc::string::{String, ToString};
 
 /// Error type for the `awesome-sails` library.
 #[derive(Clone, Decode, Encode, TypeInfo, derive_more::Display)]

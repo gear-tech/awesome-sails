@@ -108,8 +108,8 @@ impl<const BITS: usize, const LIMBS: usize> CustomUint<BITS, LIMBS> {
         }
 
         // Create new uint from bytes
-        let mut buffer = [0u8; 64];
-        let copy_len = core::cmp::min(current_bytes, 64);
+        let mut buffer = sails_rs::vec![0u8; current_bytes];
+        let copy_len = current_bytes; // We copy everything we have
 
         for i in 0..copy_len {
             buffer[i] = self.0.byte(i);
@@ -148,11 +148,7 @@ impl<const BITS: usize, const LIMBS: usize> Decode for CustomUint<BITS, LIMBS> {
         input: &mut I,
     ) -> Result<Self, sails_rs::scale_codec::Error> {
         let len = n_bytes(BITS);
-        let mut buffer = [0u8; 64];
-
-        if len > 64 {
-            return Err("CustomUint too large".into());
-        }
+        let mut buffer = sails_rs::vec![0u8; len];
 
         // Read the exact compact byte sequence
         input.read(&mut buffer[..len])?;
@@ -624,7 +620,7 @@ macro_rules! impl_math_wrapper {
         impl TryFrom<$crate::math::U256> for $wrapper {
             type Error = $crate::math::OverflowError;
             fn try_from(value: $crate::math::U256) -> Result<Self, Self::Error> {
-                let inner = <$inner>::try_from(value)?;
+                let inner = <$inner>::try_from(value).map_err(|_| $crate::math::OverflowError)?;
                 Ok(Self(inner))
             }
         }
@@ -638,7 +634,7 @@ macro_rules! impl_math_wrapper {
         impl TryFrom<u128> for $wrapper {
             type Error = $crate::math::OverflowError;
             fn try_from(value: u128) -> Result<Self, Self::Error> {
-                let inner = <$inner>::try_from(value)?;
+                let inner = <$inner>::try_from(value).map_err(|_| $crate::math::OverflowError)?;
                 Ok(Self(inner))
             }
         }

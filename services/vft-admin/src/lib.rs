@@ -36,8 +36,6 @@ use awesome_sails_vft_service::{
 };
 use sails_rs::prelude::*;
 
-
-
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,

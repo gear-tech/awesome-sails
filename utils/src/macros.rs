@@ -94,5 +94,3 @@ macro_rules! impl_non_zero_conversion {
         )*
     };
 }
-
-
