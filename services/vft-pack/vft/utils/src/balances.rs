@@ -83,7 +83,9 @@ impl<T> Balances<T> {
 
 impl<T: Zero> Default for Balances<T> {
     fn default() -> Self {
-        unwrap_infallible!(Self::try_new(vec![Self::DEFAULT_MAX_SHARD; 2]).map_err(|_| unreachable!()))
+        unwrap_infallible!(
+            Self::try_new(vec![Self::DEFAULT_MAX_SHARD; 2]).map_err(|_| unreachable!())
+        )
     }
 }
 

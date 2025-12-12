@@ -1,6 +1,6 @@
 // This file is part of Gear.
 
-// Copyright (C) 2021-2025 Gear Technologies Inc.
+// Copyright (C) 2025 Gear Technologies Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -366,7 +366,7 @@ impl Zero for H160 {
 pub struct CustomUint<const BITS: usize, const LIMBS: usize>(ruint::Uint<BITS, LIMBS>);
 
 const fn n_bytes(bits: usize) -> usize {
-    (bits + 7) / 8
+    bits.div_ceil(8)
 }
 
 impl<const BITS: usize, const LIMBS: usize> CustomUint<BITS, LIMBS> {
@@ -403,8 +403,8 @@ impl<const BITS: usize, const LIMBS: usize> CustomUint<BITS, LIMBS> {
         }
 
         let mut buffer = sails_rs::vec![0u8; current_bytes];
-        for i in 0..current_bytes {
-            buffer[i] = self.0.byte(i);
+        for (i, byte_val) in buffer.iter_mut().enumerate().take(current_bytes) {
+            *byte_val = self.0.byte(i);
         }
 
         let copy_len = core::cmp::min(current_bytes, target_bytes);
@@ -549,8 +549,8 @@ impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for
             }
         }
         let mut bytes = [0u8; 32];
-        for i in 0..core::cmp::min(len, 32) {
-            bytes[i] = value.0.byte(i);
+        for (i, byte_val) in bytes.iter_mut().enumerate().take(core::cmp::min(len, 32)) {
+            *byte_val = value.0.byte(i);
         }
         Ok(U256::from_little_endian(&bytes))
     }

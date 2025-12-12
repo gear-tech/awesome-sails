@@ -38,8 +38,7 @@ async fn allowance() {
     let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
     let balances = Default::default();
 
-    let (program, _env, _pid) =
-        common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, _pid) = common::deploy_with_data(allowances, balances, 0).await;
 
     let vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -211,8 +210,7 @@ async fn balance_of() {
     let allowances = Default::default();
     let balances = vec![(ALICE, U256::exp10(MAGIC))];
 
-    let (program, _env, _pid) =
-        common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, _pid) = common::deploy_with_data(allowances, balances, 0).await;
 
     let vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -243,8 +241,7 @@ async fn transfer() {
     let allowances = Default::default();
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, Balance::MAX.into())];
 
-    let (program, _env, pid) =
-        common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, pid) = common::deploy_with_data(allowances, balances, 0).await;
 
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -463,8 +460,7 @@ async fn transfer_from() {
     let allowances = Default::default();
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, U256::exp10(MAGIC))];
 
-    let (program, _env, pid) =
-        common::deploy_with_data(allowances, balances, 1).await;
+    let (program, _env, pid) = common::deploy_with_data(allowances, balances, 1).await;
 
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -741,15 +737,12 @@ async fn transfer_from() {
     }
 }
 
-
-
 #[tokio::test]
 async fn pause() {
     let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
     let balances = Default::default();
 
-    let (program, _env, _pid) =
-        common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, _pid) = common::deploy_with_data(allowances, balances, 0).await;
 
     let mut vft_service = program.vft();
     let mut vft_admin_service = program.vft_admin();
