@@ -2,9 +2,7 @@
 #[allow(unused_imports)]
 use sails_rs::{client::*, collections::*, prelude::*};
 pub struct VftPackTestClientProgram;
-
 impl sails_rs::client::Program for VftPackTestClientProgram {}
-
 pub trait VftPackTestClient {
     type Env: sails_rs::client::GearEnv;
     fn test(&self) -> sails_rs::client::Service<test::TestImpl, Self::Env>;
@@ -21,7 +19,6 @@ pub trait VftPackTestClient {
         &self,
     ) -> sails_rs::client::Service<vft_native_exchange_admin::VftNativeExchangeAdminImpl, Self::Env>;
 }
-
 impl<E: sails_rs::client::GearEnv> VftPackTestClient
     for sails_rs::client::Actor<VftPackTestClientProgram, E>
 {
@@ -55,14 +52,12 @@ impl<E: sails_rs::client::GearEnv> VftPackTestClient
         self.service(stringify!(VftNativeExchangeAdmin))
     }
 }
-
 pub trait VftPackTestClientCtors {
     type Env: sails_rs::client::GearEnv;
     #[allow(clippy::new_ret_no_self)]
     #[allow(clippy::wrong_self_convention)]
     fn new(self) -> sails_rs::client::PendingCtor<VftPackTestClientProgram, io::New, Self::Env>;
 }
-
 impl<E: sails_rs::client::GearEnv> VftPackTestClientCtors
     for sails_rs::client::Deployment<VftPackTestClientProgram, E>
 {
@@ -79,7 +74,6 @@ pub mod io {
 
 pub mod test {
     use super::*;
-
     pub trait Test {
         type Env: sails_rs::client::GearEnv;
         fn set(
@@ -89,9 +83,7 @@ pub mod test {
             expiry_period: u32,
         ) -> sails_rs::client::PendingCall<io::Set, Self::Env>;
     }
-
     pub struct TestImpl;
-
     impl<E: sails_rs::client::GearEnv> Test for sails_rs::client::Service<TestImpl, E> {
         type Env = E;
         fn set(
@@ -112,7 +104,6 @@ pub mod test {
 
 pub mod vft {
     use super::*;
-
     pub trait Vft {
         type Env: sails_rs::client::GearEnv;
         fn approve(
@@ -142,9 +133,7 @@ pub mod vft {
         ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env>;
         fn total_supply(&self) -> sails_rs::client::PendingCall<io::TotalSupply, Self::Env>;
     }
-
     pub struct VftImpl;
-
     impl<E: sails_rs::client::GearEnv> Vft for sails_rs::client::Service<VftImpl, E> {
         type Env = E;
         fn approve(
@@ -217,7 +206,6 @@ pub mod vft {
         impl sails_rs::client::Event for VftEvents {
             const EVENT_NAMES: &'static [Route] = &["Approval", "Transfer"];
         }
-
         impl sails_rs::client::ServiceWithEvents for VftImpl {
             type Event = VftEvents;
         }
@@ -226,7 +214,6 @@ pub mod vft {
 
 pub mod vft_admin {
     use super::*;
-
     pub trait VftAdmin {
         type Env: sails_rs::client::GearEnv;
         fn append_allowances_shard(
@@ -285,9 +272,7 @@ pub mod vft_admin {
         fn minter(&self) -> sails_rs::client::PendingCall<io::Minter, Self::Env>;
         fn pauser(&self) -> sails_rs::client::PendingCall<io::Pauser, Self::Env>;
     }
-
     pub struct VftAdminImpl;
-
     impl<E: sails_rs::client::GearEnv> VftAdmin for sails_rs::client::Service<VftAdminImpl, E> {
         type Env = E;
         fn append_allowances_shard(
@@ -436,7 +421,6 @@ pub mod vft_admin {
                 "Resumed",
             ];
         }
-
         impl sails_rs::client::ServiceWithEvents for VftAdminImpl {
             type Event = VftAdminEvents;
         }
@@ -445,7 +429,6 @@ pub mod vft_admin {
 
 pub mod vft_extension {
     use super::*;
-
     pub trait VftExtension {
         type Env: sails_rs::client::GearEnv;
         fn allocate_next_allowances_shard(
@@ -490,9 +473,7 @@ pub mod vft_extension {
         fn expiry_period(&self) -> sails_rs::client::PendingCall<io::ExpiryPeriod, Self::Env>;
         fn unused_value(&self) -> sails_rs::client::PendingCall<io::UnusedValue, Self::Env>;
     }
-
     pub struct VftExtensionImpl;
-
     impl<E: sails_rs::client::GearEnv> VftExtension for sails_rs::client::Service<VftExtensionImpl, E> {
         type Env = E;
         fn allocate_next_allowances_shard(
@@ -578,7 +559,6 @@ pub mod vft_extension {
 
 pub mod vft_metadata {
     use super::*;
-
     pub trait VftMetadata {
         type Env: sails_rs::client::GearEnv;
         /// Returns the number of decimals of the VFT.
@@ -588,9 +568,7 @@ pub mod vft_metadata {
         /// Returns the symbol of the VFT.
         fn symbol(&self) -> sails_rs::client::PendingCall<io::Symbol, Self::Env>;
     }
-
     pub struct VftMetadataImpl;
-
     impl<E: sails_rs::client::GearEnv> VftMetadata for sails_rs::client::Service<VftMetadataImpl, E> {
         type Env = E;
         fn decimals(&self) -> sails_rs::client::PendingCall<io::Decimals, Self::Env> {
@@ -614,16 +592,13 @@ pub mod vft_metadata {
 
 pub mod vft_native_exchange {
     use super::*;
-
     pub trait VftNativeExchange {
         type Env: sails_rs::client::GearEnv;
         fn burn(&mut self, value: U256) -> sails_rs::client::PendingCall<io::Burn, Self::Env>;
         fn burn_all(&mut self) -> sails_rs::client::PendingCall<io::BurnAll, Self::Env>;
         fn mint(&mut self) -> sails_rs::client::PendingCall<io::Mint, Self::Env>;
     }
-
     pub struct VftNativeExchangeImpl;
-
     impl<E: sails_rs::client::GearEnv> VftNativeExchange
         for sails_rs::client::Service<VftNativeExchangeImpl, E>
     {
@@ -649,7 +624,6 @@ pub mod vft_native_exchange {
 
 pub mod vft_native_exchange_admin {
     use super::*;
-
     pub trait VftNativeExchangeAdmin {
         type Env: sails_rs::client::GearEnv;
         fn burn_from(
@@ -658,9 +632,7 @@ pub mod vft_native_exchange_admin {
             value: U256,
         ) -> sails_rs::client::PendingCall<io::BurnFrom, Self::Env>;
     }
-
     pub struct VftNativeExchangeAdminImpl;
-
     impl<E: sails_rs::client::GearEnv> VftNativeExchangeAdmin
         for sails_rs::client::Service<VftNativeExchangeAdminImpl, E>
     {
@@ -690,7 +662,6 @@ pub mod vft_native_exchange_admin {
         impl sails_rs::client::Event for VftNativeExchangeAdminEvents {
             const EVENT_NAMES: &'static [Route] = &["FailedMint"];
         }
-
         impl sails_rs::client::ServiceWithEvents for VftNativeExchangeAdminImpl {
             type Event = VftNativeExchangeAdminEvents;
         }

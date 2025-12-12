@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use bnum::BUintD8;
 use core::cmp::Ordering;
 use derive_more::Deref;
-use ruint;
 use sails_rs::{
     scale_info::{build::Fields, Path, Type},
     ActorId, Decode, Encode, TypeInfo, H160, H256,
@@ -137,35 +137,11 @@ macro_rules! impl_non_zero_conversion {
 }
 
 /// Macro to implement Math traits and conversions for a wrapper type.
-///
-/// # Usage
-///
-/// ## 1. Default Mode
-/// ```rust,ignore
-/// impl_math_wrapper!(MyType, InnerType);
-/// ```
-/// Use this mode when you want standard, safe `TryFrom` implementations.
-/// It automatically generates:
-/// - `impl TryFrom<MyType> for u128`
-/// - `impl TryFrom<MyType> for U256`
-///
-/// ## 2. Manual From Mode
-/// ```rust,ignore
-/// impl_math_wrapper!(MyType, InnerType, manual_from);
-/// ```
-/// Use this mode if you intend to implement `From<MyType> for u128` (or U256) manually.
-///
-/// Since implementing `From` automatically provides a blanket `TryFrom` implementation in Rust core,
-/// the macro must skip generating `TryFrom` to avoid conflicting implementation errors (E0119).
 #[macro_export]
 macro_rules! impl_math_wrapper {
     // 1. Default Mode: Generates safe `TryFrom` conversions.
     ($wrapper:ident, $inner:ty) => {
         $crate::impl_math_wrapper!(@common $wrapper, $inner);
-
-        // Standard TryFrom implementations.
-        // We use TryFrom because converting a wrapper to u128/U256 might fail (overflow),
-        // or the inner type's conversion is fallible.
 
         impl TryFrom<$wrapper> for u128 {
              type Error = $crate::math::OverflowError;
@@ -183,7 +159,6 @@ macro_rules! impl_math_wrapper {
     };
 
     // 2. Manual Mode: Skips output conversions.
-    // Use this if you implement `From<$wrapper>` manually to avoid conflict.
     ($wrapper:ident, $inner:ty, manual_from) => {
         $crate::impl_math_wrapper!(@common $wrapper, $inner);
     };
@@ -257,7 +232,6 @@ macro_rules! impl_math_wrapper {
 
         // --- INPUT CONVERSIONS (From External to Wrapper) ---
 
-        // TryFrom U256 -> Wrapper
         impl TryFrom<$crate::math::U256> for $wrapper {
             type Error = $crate::math::OverflowError;
             fn try_from(value: $crate::math::U256) -> Result<Self, Self::Error> {
@@ -266,7 +240,6 @@ macro_rules! impl_math_wrapper {
             }
         }
 
-        // TryFrom u128 -> Wrapper
         impl TryFrom<u128> for $wrapper {
             type Error = $crate::math::OverflowError;
             fn try_from(value: u128) -> Result<Self, Self::Error> {
@@ -359,76 +332,72 @@ impl Zero for H160 {
 }
 
 // ==============================================================================
-//                              CUSTOM UINT
+//                              CUSTOM UINT (with bnum::BUintD8)
 // ==============================================================================
 
+/// A custom unsigned integer wrapper using `bnum::BUintD8`.
+///
+/// Unlike standard `ruint` or `bnum::BUint` which align to u64 (8 bytes),
+/// `BUintD8` aligns to u8 (1 byte). This allows creating integers of arbitrary
+/// byte size (e.g., 10 bytes for 80 bits) without memory overhead.
+///
+/// `N` is the number of **bytes** (not bits).
+/// Example: For 80 bits, use `CustomUint<10>`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CustomUint<const BITS: usize, const LIMBS: usize>(ruint::Uint<BITS, LIMBS>);
+pub struct CustomUint<const N: usize>(pub BUintD8<N>);
 
-const fn n_bytes(bits: usize) -> usize {
-    bits.div_ceil(8)
-}
-
-impl<const BITS: usize, const LIMBS: usize> CustomUint<BITS, LIMBS> {
-    pub const fn new(val: ruint::Uint<BITS, LIMBS>) -> Self {
+impl<const N: usize> CustomUint<N> {
+    pub const fn new(val: BUintD8<N>) -> Self {
         Self(val)
     }
 
-    pub fn into_inner(self) -> ruint::Uint<BITS, LIMBS> {
+    pub fn into_inner(self) -> BUintD8<N> {
         self.0
     }
 
-    /// Resizes the CustomUint to a different bit width.
+    /// Resizes the CustomUint to a different **byte** width.
     ///
     /// # Returns
-    /// - `Ok(CustomUint<B2, L2>)`: A new `CustomUint` with the target size.
+    /// - `Ok(CustomUint<N2>)`: A new `CustomUint` with the target size.
     /// - `Err(OverflowError)`: If the value is too large to fit in the target size.
-    ///
-    /// # Note
-    /// use `try_into()` (via `TryFrom` trait) if you want to convert to external types
-    /// like `u64`, `u128`, or `U256`.
-    pub fn try_resize<const B2: usize, const L2: usize>(
-        self,
-    ) -> Result<CustomUint<B2, L2>, OverflowError> {
-        let current_bytes = n_bytes(BITS);
-        let target_bytes = n_bytes(B2);
+    pub fn try_resize<const N2: usize>(self) -> Result<CustomUint<N2>, OverflowError> {
+        let digits = self.0.digits();
 
-        if target_bytes < current_bytes {
-            // Check higher bytes for non-zero to detect overflow
-            for i in target_bytes..current_bytes {
-                if self.0.byte(i) != 0 {
-                    return Err(OverflowError);
-                }
+        if N2 >= N {
+            // Expanding: copy existing bytes to new larger array
+            let mut new_digits = [0u8; N2];
+            new_digits[..N].copy_from_slice(digits);
+            // Safe to unwrap here because N2 >= N
+            Ok(CustomUint(BUintD8::from_digits(new_digits)))
+        } else {
+            // Shrinking: check for overflow
+            // Check if any byte from N2 to N is non-zero
+            if digits[N2..].iter().any(|&x| x != 0) {
+                return Err(OverflowError);
             }
-        }
 
-        let mut buffer = sails_rs::vec![0u8; current_bytes];
-        for (i, byte_val) in buffer.iter_mut().enumerate().take(current_bytes) {
-            *byte_val = self.0.byte(i);
+            let mut new_digits = [0u8; N2];
+            new_digits.copy_from_slice(&digits[..N2]);
+            Ok(CustomUint(BUintD8::from_digits(new_digits)))
         }
-
-        let copy_len = core::cmp::min(current_bytes, target_bytes);
-        ruint::Uint::<B2, L2>::try_from_le_slice(&buffer[..copy_len])
-            .ok_or(OverflowError)
-            .map(CustomUint)
     }
 }
 
 // --- Traits for CustomUint ---
 
-impl<const BITS: usize, const LIMBS: usize> Default for CustomUint<BITS, LIMBS> {
+impl<const N: usize> Default for CustomUint<N> {
     fn default() -> Self {
-        Self(ruint::Uint::ZERO)
+        Self(BUintD8::ZERO)
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> core::fmt::Debug for CustomUint<BITS, LIMBS> {
+impl<const N: usize> core::fmt::Debug for CustomUint<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> CheckedMath for CustomUint<BITS, LIMBS> {
+impl<const N: usize> CheckedMath for CustomUint<N> {
     fn checked_add(self, rhs: Self) -> Option<Self> {
         self.0.checked_add(rhs.0).map(Self)
     }
@@ -437,48 +406,50 @@ impl<const BITS: usize, const LIMBS: usize> CheckedMath for CustomUint<BITS, LIM
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> Max for CustomUint<BITS, LIMBS> {
-    const MAX: Self = Self(ruint::Uint::MAX);
+impl<const N: usize> Max for CustomUint<N> {
+    const MAX: Self = Self(BUintD8::MAX);
 }
-impl<const BITS: usize, const LIMBS: usize> Min for CustomUint<BITS, LIMBS> {
-    const MIN: Self = Self(ruint::Uint::ZERO);
+impl<const N: usize> Min for CustomUint<N> {
+    const MIN: Self = Self(BUintD8::MIN);
 }
-impl<const BITS: usize, const LIMBS: usize> One for CustomUint<BITS, LIMBS> {
-    const ONE: Self = Self(ruint::Uint::ONE);
+impl<const N: usize> One for CustomUint<N> {
+    const ONE: Self = Self(BUintD8::ONE);
 }
-impl<const BITS: usize, const LIMBS: usize> Zero for CustomUint<BITS, LIMBS> {
-    const ZERO: Self = Self(ruint::Uint::ZERO);
+impl<const N: usize> Zero for CustomUint<N> {
+    const ZERO: Self = Self(BUintD8::ZERO);
 }
 
 // --- Scale Codec Manual Implementation (Compact storage) ---
 
-impl<const BITS: usize, const LIMBS: usize> Encode for CustomUint<BITS, LIMBS> {
+impl<const N: usize> Encode for CustomUint<N> {
     fn size_hint(&self) -> usize {
-        n_bytes(BITS)
+        N
     }
 
     fn encode_to<T: sails_rs::scale_codec::Output + ?Sized>(&self, dest: &mut T) {
-        let len = n_bytes(BITS);
-        for i in 0..len {
-            dest.push_byte(self.0.byte(i));
+        // BUintD8 stores digits as Little Endian bytes directly
+        for byte in self.0.digits() {
+            dest.push_byte(*byte);
         }
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> Decode for CustomUint<BITS, LIMBS> {
+impl<const N: usize> Decode for CustomUint<N> {
     fn decode<I: sails_rs::scale_codec::Input>(
         input: &mut I,
     ) -> Result<Self, sails_rs::scale_codec::Error> {
-        let len = n_bytes(BITS);
-        let mut buffer = sails_rs::vec![0u8; len];
-        input.read(&mut buffer[..len])?;
-        ruint::Uint::try_from_le_slice(&buffer[..len])
-            .ok_or("Overflow or invalid data".into())
-            .map(CustomUint)
+        let mut buffer = sails_rs::vec![0u8; N];
+        input.read(&mut buffer[..N])?;
+
+        let mut bytes = [0u8; N];
+        bytes.copy_from_slice(&buffer);
+
+        // BUintD8 uses from_digits for constructor
+        Ok(CustomUint(BUintD8::from_digits(bytes)))
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TypeInfo for CustomUint<BITS, LIMBS> {
+impl<const N: usize> TypeInfo for CustomUint<N> {
     type Identity = Self;
     fn type_info() -> Type {
         Type::builder()
@@ -490,68 +461,103 @@ impl<const BITS: usize, const LIMBS: usize> TypeInfo for CustomUint<BITS, LIMBS>
 
 // --- Converisons ---
 
-impl<const BITS: usize, const LIMBS: usize> From<u64> for CustomUint<BITS, LIMBS> {
+impl<const N: usize> From<u64> for CustomUint<N> {
     fn from(val: u64) -> Self {
-        Self(ruint::Uint::from(val))
+        let bytes = val.to_le_bytes();
+        let mut my_bytes = [0u8; N];
+        // Safely copy only what fits. If N < 8, this truncates (which is implied in From for integer types if it existed).
+        // Since we typically use N >= 8 (e.g. 10), this works perfectly.
+        let len = core::cmp::min(N, 8);
+        my_bytes[..len].copy_from_slice(&bytes[..len]);
+        Self(BUintD8::from_digits(my_bytes))
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TryFrom<u128> for CustomUint<BITS, LIMBS> {
+impl<const N: usize> TryFrom<u128> for CustomUint<N> {
     type Error = OverflowError;
     fn try_from(val: u128) -> Result<Self, Self::Error> {
-        ruint::Uint::try_from(val)
-            .map(Self)
-            .map_err(|_| OverflowError)
+        // MANUAL SAFE IMPLEMENTATION
+        // We do this manually because bnum::BUintD8::try_from(u128) panics
+        // if the target type is smaller than u128 (e.g. 8 bytes).
+        let bytes = val.to_le_bytes(); // [u8; 16]
+
+        if N >= 16 {
+            // Target is large enough, just copy.
+            let mut my_bytes = [0u8; N];
+            my_bytes[..16].copy_from_slice(&bytes);
+            Ok(Self(BUintD8::from_digits(my_bytes)))
+        } else {
+            // Target is smaller (e.g. N=10 or N=8).
+            // Check if any byte beyond N is non-zero.
+            if bytes[N..].iter().any(|&b| b != 0) {
+                return Err(OverflowError);
+            }
+
+            // Safe to copy lower N bytes
+            let mut my_bytes = [0u8; N];
+            my_bytes.copy_from_slice(&bytes[..N]);
+            Ok(Self(BUintD8::from_digits(my_bytes)))
+        }
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TryFrom<U256> for CustomUint<BITS, LIMBS> {
+impl<const N: usize> TryFrom<U256> for CustomUint<N> {
     type Error = OverflowError;
     fn try_from(value: U256) -> Result<Self, Self::Error> {
         let mut bytes = [0u8; 32];
         value.to_little_endian(&mut bytes);
-        // Find highest byte
-        let len = bytes
-            .iter()
-            .rposition(|&x| x != 0)
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        ruint::Uint::try_from_le_slice(&bytes[..len])
-            .ok_or(OverflowError)
-            .map(Self)
+
+        // Check for overflow if N < 32
+        if N < 32 {
+            for &byte in bytes.iter().skip(N) {
+                if byte != 0 {
+                    return Err(OverflowError);
+                }
+            }
+        }
+
+        let mut my_bytes = [0u8; N];
+        let copy_len = core::cmp::min(N, 32);
+        my_bytes[..copy_len].copy_from_slice(&bytes[..copy_len]);
+
+        Ok(Self(BUintD8::from_digits(my_bytes)))
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for u64 {
+impl<const N: usize> TryFrom<CustomUint<N>> for u64 {
     type Error = OverflowError;
-    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
+    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
         value.0.try_into().map_err(|_| OverflowError)
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for u128 {
+impl<const N: usize> TryFrom<CustomUint<N>> for u128 {
     type Error = OverflowError;
-    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
+    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
         value.0.try_into().map_err(|_| OverflowError)
     }
 }
 
 // Used when converting CustomUint to external type U256
-impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for U256 {
+impl<const N: usize> TryFrom<CustomUint<N>> for U256 {
     type Error = OverflowError;
-    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
-        let len = n_bytes(BITS);
+    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
+        let digits = value.0.digits();
+        let len = N;
+
+        // If our custom int is larger than 256 bits (32 bytes), check for overflow
         if len > 32 {
-            for i in 32..len {
-                if value.0.byte(i) != 0 {
+            for &digit in digits.iter().take(len).skip(32) {
+                if digit != 0 {
                     return Err(OverflowError);
                 }
             }
         }
+
         let mut bytes = [0u8; 32];
-        for (i, byte_val) in bytes.iter_mut().enumerate().take(core::cmp::min(len, 32)) {
-            *byte_val = value.0.byte(i);
-        }
+        let copy_len = core::cmp::min(len, 32);
+        bytes[..copy_len].copy_from_slice(&digits[..copy_len]);
+
         Ok(U256::from_little_endian(&bytes))
     }
 }
@@ -643,19 +649,15 @@ impl<T: PartialOrd> PartialOrd<T> for NonZero<T> {
 impl_non_zero_conversion!(ActorId, H256, H160, U256);
 impl_non_zero_conversion!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
-impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>>
-    for NonZero<CustomUint<BITS, LIMBS>>
-{
+impl<const N: usize> TryFrom<CustomUint<N>> for NonZero<CustomUint<N>> {
     type Error = ZeroError;
-    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
+    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
         NonZero::try_new(value)
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> From<NonZero<CustomUint<BITS, LIMBS>>>
-    for CustomUint<BITS, LIMBS>
-{
-    fn from(value: NonZero<CustomUint<BITS, LIMBS>>) -> Self {
+impl<const N: usize> From<NonZero<CustomUint<N>>> for CustomUint<N> {
+    fn from(value: NonZero<CustomUint<N>>) -> Self {
         value.into_inner()
     }
 }

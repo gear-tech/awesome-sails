@@ -42,7 +42,7 @@ pub struct Balances<T = Balance> {
 
 impl<T> Balances<T> {
     /// Default, recommended max shard capacity.
-    pub const DEFAULT_MAX_SHARD: usize = 0b11100000000000000000000;
+    pub const DEFAULT_MAX_SHARD: usize = 0b111000000000000000000000;
 
     /// Tries to create a new [`Self`] instance with the given capacities.
     ///

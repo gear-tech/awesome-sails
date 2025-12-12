@@ -32,21 +32,23 @@ pub use balances::{Balances, BalancesError};
 
 // --- ALLOWANCE ---
 
+// 72 bits = 9 bytes
 #[derive(Clone, Copy, Debug, Default, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
-pub struct Allowance(CustomUint<72, 2>);
+pub struct Allowance(CustomUint<9>);
 
-impl_math_wrapper!(Allowance, CustomUint<72, 2>, manual_from);
+impl_math_wrapper!(Allowance, CustomUint<9>, manual_from);
 
 impl From<Balance> for Allowance {
     fn from(value: Balance) -> Self {
-        Self(value.0.try_resize().unwrap_or(CustomUint::<72, 2>::MAX))
+        // Try resizing from 10 bytes (Balance) to 9 bytes (Allowance)
+        Self(value.0.try_resize().unwrap_or(CustomUint::<9>::MAX))
     }
 }
 
-impl From<CustomUint<72, 2>> for Allowance {
-    fn from(v: CustomUint<72, 2>) -> Self {
+impl From<CustomUint<9>> for Allowance {
+    fn from(v: CustomUint<9>) -> Self {
         Self(v)
     }
 }
@@ -60,12 +62,13 @@ impl From<Allowance> for sails_rs::U256 {
 
 // --- BALANCE ---
 
+// 80 bits = 10 bytes
 #[derive(Clone, Copy, Debug, Default, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
-pub struct Balance(CustomUint<80, 2>);
+pub struct Balance(CustomUint<10>);
 
-impl_math_wrapper!(Balance, CustomUint<80, 2>, manual_from);
+impl_math_wrapper!(Balance, CustomUint<10>, manual_from);
 
 impl From<Balance> for sails_rs::U256 {
     fn from(value: Balance) -> Self {
@@ -80,16 +83,16 @@ impl From<Balance> for u128 {
 }
 impl From<u64> for Balance {
     fn from(value: u64) -> Self {
-        Self(CustomUint::<80, 2>::from(value))
+        Self(CustomUint::<10>::from(value))
     }
 }
 
-impl From<CustomUint<80, 2>> for Balance {
-    fn from(v: CustomUint<80, 2>) -> Self {
+impl From<CustomUint<10>> for Balance {
+    fn from(v: CustomUint<10>) -> Self {
         Self(v)
     }
 }
-impl From<Balance> for CustomUint<80, 2> {
+impl From<Balance> for CustomUint<10> {
     fn from(v: Balance) -> Self {
         v.0
     }

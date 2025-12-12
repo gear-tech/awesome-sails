@@ -20,13 +20,14 @@ use awesome_sails_utils::{impl_math_wrapper, math::*};
 use proptest::prelude::*;
 use sails_rs::{Decode, Encode, TypeInfo, U256};
 
-type Uint64 = CustomUint<64, 1>;
-type Uint72 = CustomUint<72, 2>;
-type Uint80 = CustomUint<80, 2>;
-type Uint128 = CustomUint<128, 2>;
-type Uint256 = CustomUint<256, 4>;
-type Uint512 = CustomUint<512, 8>;
-type Uint1024 = CustomUint<1024, 16>;
+// UPDATED: Now defining types by BYTE count, not bits/limbs.
+type Uint64 = CustomUint<8>; // 64 bits = 8 bytes
+type Uint72 = CustomUint<9>; // 72 bits = 9 bytes
+type Uint80 = CustomUint<10>; // 80 bits = 10 bytes
+type Uint128 = CustomUint<16>; // 128 bits = 16 bytes
+type Uint256 = CustomUint<32>; // 256 bits = 32 bytes
+type Uint512 = CustomUint<64>; // 512 bits = 64 bytes
+type Uint1024 = CustomUint<128>; // 1024 bits = 128 bytes
 
 fn any_u256() -> impl Strategy<Value = U256> {
     proptest::collection::vec(any::<u8>(), 32).prop_map(|bytes| U256::from_little_endian(&bytes))
