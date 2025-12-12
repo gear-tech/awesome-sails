@@ -14,7 +14,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// along with this program. If not, see <https://www.gnu.gnu.org/licenses/>.
 
 use sails_rs::{
     ActorId, U256,
@@ -22,8 +22,10 @@ use sails_rs::{
     gtest::System,
     prelude::*,
 };
-use test_bin::client::{
-    TestBin, TestBinCtors, TestBinProgram, test::Test, vft_extension::VftExtension,
+// УДАЛЕНО: use vft_pack_test_app::Program as AppProgram;
+use vft_pack_test_client::{
+    VftPackTestClient, VftPackTestClientCtors, VftPackTestClientProgram, test::Test,
+    vft_extension::VftExtension,
 };
 
 const fn actor_id(id: u8) -> ActorId {
@@ -47,6 +49,13 @@ pub const DAVE: ActorId = actor_id(45);
 /// Initial balance for the actor. 100_000 * 10**12.
 pub const BALANCE: u128 = 100_000_000_000_000_000;
 
+#[cfg(debug_assertions)]
+pub(crate) const DEMO_WASM_PATH: &str =
+    "../../../target/wasm32-gear/debug/vft_pack_test_app.opt.wasm";
+#[cfg(not(debug_assertions))]
+pub(crate) const DEMO_WASM_PATH: &str =
+    "../../../target/wasm32-gear/release/vft_pack_test_app.opt.wasm";
+
 /// Deploys a new program in the test environment and returns the program client, GtestEnv and program ID.
 pub fn deploy_env() -> (GtestEnv, CodeId, GasUnit) {
     let system = System::new();
@@ -59,7 +68,7 @@ pub fn deploy_env() -> (GtestEnv, CodeId, GasUnit) {
     system.mint_to(DAVE, BALANCE);
 
     let env = GtestEnv::new(system, ALICE);
-    let program_code_id = env.system().submit_code(test_bin::WASM_BINARY);
+    let program_code_id = env.system().submit_code_file(DEMO_WASM_PATH);
     let gas_limit = sails_rs::gtest::constants::MAX_USER_GAS_LIMIT;
 
     (env, program_code_id, gas_limit)
@@ -70,18 +79,19 @@ pub async fn deploy_with_data(
     balances: Vec<(ActorId, U256)>,
     minimum_balance: U256,
     expiry_period: u32,
-) -> (Actor<TestBinProgram, GtestEnv>, GtestEnv, ActorId) {
+) -> (Actor<VftPackTestClientProgram, GtestEnv>, GtestEnv, ActorId) {
+    // Use VftPackTestClientProgram
     let (env, code_id, _gas_limit) = deploy_env();
 
     let program = env
-        .deploy(code_id, b"salt".to_vec())
+        .deploy::<VftPackTestClientProgram>(code_id, b"salt".to_vec()) // Use VftPackTestClientProgram
         .new()
         .await
         .expect("failed to deploy program");
 
     let program_id = program.id();
 
-    let mut vft_extension = program.vft_extension();
+    let mut vft_extension = program.vft_extension(); // Use methods from VftPackTestClient trait
 
     while vft_extension
         .allocate_next_balances_shard()

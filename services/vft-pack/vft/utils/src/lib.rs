@@ -37,7 +37,7 @@ pub use balances::{Balances, BalancesError};
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct Allowance(CustomUint<72, 2>);
 
-impl_math_wrapper!(Allowance, CustomUint<72, 2>);
+impl_math_wrapper!(Allowance, CustomUint<72, 2>, manual_from);
 
 impl From<Balance> for Allowance {
     fn from(value: Balance) -> Self {
@@ -50,9 +50,11 @@ impl From<CustomUint<72, 2>> for Allowance {
         Self(v)
     }
 }
-impl From<Allowance> for CustomUint<72, 2> {
-    fn from(v: Allowance) -> Self {
-        v.0
+
+// Исправляем конвертацию в U256
+impl From<Allowance> for sails_rs::U256 {
+    fn from(value: Allowance) -> Self {
+        value.0.try_into().unwrap()
     }
 }
 
@@ -63,15 +65,24 @@ impl From<Allowance> for CustomUint<72, 2> {
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct Balance(CustomUint<80, 2>);
 
-impl_math_wrapper!(Balance, CustomUint<80, 2>);
+impl_math_wrapper!(Balance, CustomUint<80, 2>, manual_from);
 
+impl From<Balance> for sails_rs::U256 {
+    fn from(value: Balance) -> Self {
+        value.0.try_into().unwrap()
+    }
+}
+
+impl From<Balance> for u128 {
+    fn from(value: Balance) -> u128 {
+        value.0.try_into().expect("Value fits in u128")
+    }
+}
 impl From<u64> for Balance {
     fn from(value: u64) -> Self {
         Self(CustomUint::<80, 2>::from(value))
     }
 }
-
-// NOTE: From<Balance> for u64 removed to avoid panic on overflow in tests. Use u128.
 
 impl From<CustomUint<80, 2>> for Balance {
     fn from(v: CustomUint<80, 2>) -> Self {

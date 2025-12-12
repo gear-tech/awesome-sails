@@ -12,28 +12,27 @@ resolver = "3"
 
 members = [
     "utils",
-    ## `awesome-sails` services [and binary for testing]
-    "services",
-    "services/bin",
-    ### `vft` service
-    "services/vft",
-    "services/vft/utils",
-    ### `vft-admin` service
-    "services/vft-admin",
-    ### `vft-extension` service
-    "services/vft-extension",
-    ### `vft-metadata` service
-    "services/vft-metadata",
-    ### `vft-native-exchange` service
-    "services/vft-native-exchange",
-    ### `vft-native-exchange-admin` service
-    "services/vft-native-exchange-admin",
+
+    # vft-pack
+    "services/vft-pack",
+    "services/vft-pack/vft",
+    "services/vft-pack/vft/utils",
+    "services/vft-pack/vft-admin",
+    "services/vft-pack/vft-extension",
+    "services/vft-pack/vft-metadata",
+    "services/vft-pack/vft-native-exchange",
+    "services/vft-pack/vft-native-exchange-admin",
+
+    # tests
+    "tests/vft-pack-test/app",
+    "tests/vft-pack-test/client",
 ]
 
 
 [workspace.dependencies]
-# Sails dependencies
 sails-rs = { version = "0.10.1", default-features = false, features = ["gstd"] }
+awesome-sails-utils = { path = "utils", default-features = false }
+gtest = "=1.10.0"
 
 # External dependencies
 derive_more = { version = "2.1.0", default-features = false }
@@ -42,28 +41,13 @@ mockall = { version = "=0.14", default-features = false }
 thiserror = { version = "=2.0.17", default-features = false }
 tokio = { version = "=1.48", default-features = false }
 
-# Local dependencies
-awesome-sails-utils = { path = "utils", default-features = false }
 
-## `awesome-sails` services
-awesome-sails-services = { path = "services", default-features = false }
-test-bin = { path = "services/bin", default-features = false }
-
-### `vft` service
-awesome-sails-vft-service = { path = "services/vft", default-features = false }
-awesome-sails-vft-service-utils = { path = "services/vft/utils", default-features = false }
-
-### `vft-admin` service
-awesome-sails-vft-admin-service = { path = "services/vft-admin", default-features = false }
-
-### `vft-extension` service
-awesome-sails-vft-extension-service = { path = "services/vft-extension", default-features = false }
-
-### `vft-metadata` service
-awesome-sails-vft-metadata-service = { path = "services/vft-metadata", default-features = false }
-
-### `vft-native-exchange` service
-awesome-sails-vft-native-exchange-service = { path = "services/vft-native-exchange", default-features = false }
-
-### `vft-native-exchange-admin` service
-awesome-sails-vft-native-exchange-admin-service = { path = "services/vft-native-exchange-admin", default-features = false }
+# vft-pack
+awesome-sails-vft-pack = { path = "services/vft-pack", default-features = false }
+awesome-sails-vft-service = { path = "services/vft-pack/vft", default-features = false }
+awesome-sails-vft-service-utils = { path = "services/vft-pack/vft/utils", default-features = false }
+awesome-sails-vft-admin-service = { path = "services/vft-pack/vft-admin", default-features = false }
+awesome-sails-vft-extension-service = { path = "services/vft-pack/vft-extension", default-features = false }
+awesome-sails-vft-metadata-service = { path = "services/vft-pack/vft-metadata", default-features = false }
+awesome-sails-vft-native-exchange-service = { path = "services/vft-pack/vft-native-exchange", default-features = false }
+awesome-sails-vft-native-exchange-admin-service = { path = "services/vft-pack/vft-native-exchange-admin", default-features = false }
