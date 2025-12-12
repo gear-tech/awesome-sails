@@ -39,7 +39,7 @@ async fn allowance() {
     let balances = Default::default();
 
     let (program, _env, _pid) =
-        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+        common::deploy_with_data(allowances, balances, 0).await;
 
     let vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -68,7 +68,7 @@ async fn allowance() {
 #[tokio::test]
 async fn approve() {
     let (program, _env, pid) =
-        common::deploy_with_data(Default::default(), Default::default(), U256::zero(), 1).await;
+        common::deploy_with_data(Default::default(), Default::default(), 1).await;
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
@@ -212,7 +212,7 @@ async fn balance_of() {
     let balances = vec![(ALICE, U256::exp10(MAGIC))];
 
     let (program, _env, _pid) =
-        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+        common::deploy_with_data(allowances, balances, 0).await;
 
     let vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -244,7 +244,7 @@ async fn transfer() {
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, Balance::MAX.into())];
 
     let (program, _env, pid) =
-        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+        common::deploy_with_data(allowances, balances, 0).await;
 
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -464,7 +464,7 @@ async fn transfer_from() {
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, U256::exp10(MAGIC))];
 
     let (program, _env, pid) =
-        common::deploy_with_data(allowances, balances, U256::zero(), 1).await;
+        common::deploy_with_data(allowances, balances, 1).await;
 
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -741,158 +741,7 @@ async fn transfer_from() {
     }
 }
 
-#[tokio::test]
-async fn minimum_balance() {
-    let allowances = Default::default();
-    let balances = vec![(ALICE, U256::exp10(MAGIC)), (DAVE, U256::exp10(MAGIC))];
 
-    // AKA ED (Existential Deposit).
-    let minimum_balance = U256::exp10(10);
-    let below_minimum = minimum_balance - U256::one();
-
-    let (program, _env, pid) =
-        common::deploy_with_data(allowances, balances, minimum_balance, 1).await;
-
-    let mut vft_service = program.vft();
-    let vft_extension_service = program.vft_extension();
-
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
-
-    // # Test case #0.
-    // Assert deploy parameters.
-    {
-        let res = vft_service.total_supply().await;
-        assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
-
-        let res = vft_extension_service.unused_value().await;
-        assert_ok!(res, U256::zero());
-
-        let res = vft_extension_service.minimum_balance().await;
-        assert_ok!(res, minimum_balance);
-    }
-
-    // # Test case #1.
-    // Alice transfers to Bob value below ED: Bob cannot receive it.
-    {
-        let res = vft_service.transfer(BOB, below_minimum).await;
-
-        assert_str_panic(res.unwrap_err(), "balance below minimum");
-    }
-
-    // # Test case #2.
-    // Alice transfers to Dave value below ED: Dave can receive it.
-    {
-        let res = vft_service.transfer(DAVE, below_minimum).await;
-
-        assert_ok!(res, true);
-
-        let (actor, event) = vft_events.next().await.unwrap();
-        assert_eq!(actor, pid);
-        assert_eq!(
-            event,
-            VftEvents::Transfer {
-                from: ALICE,
-                to: DAVE,
-                value: below_minimum,
-            }
-        );
-    }
-
-    // # Test case #3.
-    // Dave transfers to Alice value and goes below ED: remaining are burnt from Dave to unused.
-    {
-        let res = vft_service
-            .transfer(ALICE, U256::exp10(MAGIC))
-            .with_actor_id(DAVE)
-            .await;
-
-        assert_ok!(res, true);
-
-        let (actor, event) = vft_events.next().await.unwrap();
-        assert_eq!(actor, pid);
-        assert_eq!(
-            event,
-            VftEvents::Transfer {
-                from: DAVE,
-                to: ALICE,
-                value: U256::exp10(MAGIC),
-            }
-        );
-
-        let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC) - below_minimum);
-
-        let res = vft_extension_service.balance_of(DAVE).await;
-        assert_ok!(res, None);
-
-        let res = vft_extension_service.unused_value().await;
-        assert_ok!(res, below_minimum);
-
-        let res = vft_service.total_supply().await;
-        assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
-    }
-
-    // # Test case #4.
-    // Bob transfers from Alice to Charlie value below ED: Charlie cannot receive it.
-    {
-        let res = vft_service.approve(BOB, U256::MAX - U256::one()).await;
-        assert_ok!(res, true);
-
-        let (actor, event) = vft_events.next().await.unwrap();
-        assert_eq!(actor, pid);
-        assert_eq!(
-            event,
-            VftEvents::Approval {
-                owner: ALICE,
-                spender: BOB,
-                value: U256::MAX,
-            }
-        );
-
-        let res = vft_service
-            .transfer_from(ALICE, CHARLIE, below_minimum)
-            .with_actor_id(BOB)
-            .await;
-
-        assert_str_panic(res.unwrap_err(), "balance below minimum");
-    }
-
-    // # Test case #5.
-    // Bob transfers from Alice to Charlie and burns Alice.
-    {
-        let res = vft_service
-            .transfer_from(
-                ALICE,
-                CHARLIE,
-                U256::exp10(MAGIC) + U256::exp10(MAGIC) - below_minimum - below_minimum,
-            )
-            .with_actor_id(BOB)
-            .await;
-
-        assert_ok!(res, true);
-
-        let (actor, event) = vft_events.next().await.unwrap();
-        assert_eq!(actor, pid);
-        assert_eq!(
-            event,
-            VftEvents::Transfer {
-                from: ALICE,
-                to: CHARLIE,
-                value: U256::exp10(MAGIC) + U256::exp10(MAGIC) - below_minimum - below_minimum,
-            }
-        );
-
-        let res = vft_extension_service.balance_of(ALICE).await;
-        assert_ok!(res, None);
-
-        let res = vft_extension_service.unused_value().await;
-        assert_ok!(res, below_minimum + below_minimum);
-
-        let res = vft_service.total_supply().await;
-        assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC));
-    }
-}
 
 #[tokio::test]
 async fn pause() {
@@ -900,7 +749,7 @@ async fn pause() {
     let balances = Default::default();
 
     let (program, _env, _pid) =
-        common::deploy_with_data(allowances, balances, U256::zero(), 0).await;
+        common::deploy_with_data(allowances, balances, 0).await;
 
     let mut vft_service = program.vft();
     let mut vft_admin_service = program.vft_admin();

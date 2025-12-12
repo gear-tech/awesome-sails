@@ -3,7 +3,7 @@ constructor {
 };
 
 service Test {
-  Set : (new_allowances: vec struct { actor_id, actor_id, u256, u32 }, new_balances: vec struct { actor_id, u256 }, minimum_balance: u256, expiry_period: u32) -> null;
+  Set : (new_allowances: vec struct { actor_id, actor_id, u256, u32 }, new_balances: vec struct { actor_id, u256 }, expiry_period: u32) -> null;
 };
 
 service Vft {
@@ -40,7 +40,6 @@ service VftAdmin {
   SetAdmin : (admin: actor_id) -> null;
   SetBurner : (burner: actor_id) -> null;
   SetExpiryPeriod : (period: u32) -> null;
-  SetMinimumBalance : (value: u256) -> null;
   SetMinter : (minter: actor_id) -> null;
   SetPauser : (pauser: actor_id) -> null;
   query Admin : () -> actor_id;
@@ -57,7 +56,6 @@ service VftAdmin {
     BurnerTookPlace;
     MinterTookPlace;
     ExpiryPeriodChanged: u32;
-    MinimumBalanceChanged: u256;
     Exited: actor_id;
     Paused;
     Resumed;
@@ -75,7 +73,6 @@ service VftExtension {
   query BalanceOf : (account: actor_id) -> opt u256;
   query Balances : (cursor: u32, len: u32) -> vec struct { actor_id, u256 };
   query ExpiryPeriod : () -> u32;
-  query MinimumBalance : () -> u256;
   query UnusedValue : () -> u256;
 };
 

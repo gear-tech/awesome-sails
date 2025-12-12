@@ -77,7 +77,6 @@ pub fn deploy_env() -> (GtestEnv, CodeId, GasUnit) {
 pub async fn deploy_with_data(
     allowances: Vec<(ActorId, ActorId, U256, u32)>,
     balances: Vec<(ActorId, U256)>,
-    minimum_balance: U256,
     expiry_period: u32,
 ) -> (Actor<VftPackTestClientProgram, GtestEnv>, GtestEnv, ActorId) {
     // Use VftPackTestClientProgram
@@ -107,7 +106,7 @@ pub async fn deploy_with_data(
 
     program
         .test()
-        .set(allowances, balances, minimum_balance, expiry_period)
+        .set(allowances, balances, expiry_period)
         .await
         .expect("failed to set data");
 

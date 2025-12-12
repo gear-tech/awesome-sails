@@ -227,11 +227,6 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Service<'
     }
 
     #[export(unwrap_result)]
-    pub fn minimum_balance(&self) -> Result<U256, Error> {
-        Ok((*self.balances.get()?.minimum_balance()).into())
-    }
-
-    #[export(unwrap_result)]
     pub fn unused_value(&self) -> Result<U256, Error> {
         Ok(self.balances.get()?.unused_value())
     }

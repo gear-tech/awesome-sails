@@ -86,7 +86,6 @@ pub mod test {
             &mut self,
             new_allowances: Vec<(ActorId, ActorId, U256, u32)>,
             new_balances: Vec<(ActorId, U256)>,
-            minimum_balance: U256,
             expiry_period: u32,
         ) -> sails_rs::client::PendingCall<io::Set, Self::Env>;
     }
@@ -99,16 +98,15 @@ pub mod test {
             &mut self,
             new_allowances: Vec<(ActorId, ActorId, U256, u32)>,
             new_balances: Vec<(ActorId, U256)>,
-            minimum_balance: U256,
             expiry_period: u32,
         ) -> sails_rs::client::PendingCall<io::Set, Self::Env> {
-            self.pending_call((new_allowances, new_balances, minimum_balance, expiry_period))
+            self.pending_call((new_allowances, new_balances, expiry_period))
         }
     }
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(Set (new_allowances: Vec<(ActorId,ActorId,U256,u32,)>, new_balances: Vec<(ActorId,U256,)>, minimum_balance: U256, expiry_period: u32) -> ());
+        sails_rs::io_struct_impl!(Set (new_allowances: Vec<(ActorId,ActorId,U256,u32,)>, new_balances: Vec<(ActorId,U256,)>, expiry_period: u32) -> ());
     }
 }
 
@@ -273,10 +271,6 @@ pub mod vft_admin {
             &mut self,
             period: u32,
         ) -> sails_rs::client::PendingCall<io::SetExpiryPeriod, Self::Env>;
-        fn set_minimum_balance(
-            &mut self,
-            value: U256,
-        ) -> sails_rs::client::PendingCall<io::SetMinimumBalance, Self::Env>;
         fn set_minter(
             &mut self,
             minter: ActorId,
@@ -360,12 +354,6 @@ pub mod vft_admin {
         ) -> sails_rs::client::PendingCall<io::SetExpiryPeriod, Self::Env> {
             self.pending_call((period,))
         }
-        fn set_minimum_balance(
-            &mut self,
-            value: U256,
-        ) -> sails_rs::client::PendingCall<io::SetMinimumBalance, Self::Env> {
-            self.pending_call((value,))
-        }
         fn set_minter(
             &mut self,
             minter: ActorId,
@@ -408,7 +396,6 @@ pub mod vft_admin {
         sails_rs::io_struct_impl!(SetAdmin (admin: ActorId) -> ());
         sails_rs::io_struct_impl!(SetBurner (burner: ActorId) -> ());
         sails_rs::io_struct_impl!(SetExpiryPeriod (period: u32) -> ());
-        sails_rs::io_struct_impl!(SetMinimumBalance (value: U256) -> ());
         sails_rs::io_struct_impl!(SetMinter (minter: ActorId) -> ());
         sails_rs::io_struct_impl!(SetPauser (pauser: ActorId) -> ());
         sails_rs::io_struct_impl!(Admin () -> ActorId);
@@ -431,7 +418,6 @@ pub mod vft_admin {
             BurnerTookPlace,
             MinterTookPlace,
             ExpiryPeriodChanged(u32),
-            MinimumBalanceChanged(U256),
             Exited(ActorId),
             Paused,
             Resumed,
@@ -445,7 +431,6 @@ pub mod vft_admin {
                 "BurnerTookPlace",
                 "MinterTookPlace",
                 "ExpiryPeriodChanged",
-                "MinimumBalanceChanged",
                 "Exited",
                 "Paused",
                 "Resumed",
@@ -503,7 +488,6 @@ pub mod vft_extension {
             len: u32,
         ) -> sails_rs::client::PendingCall<io::Balances, Self::Env>;
         fn expiry_period(&self) -> sails_rs::client::PendingCall<io::ExpiryPeriod, Self::Env>;
-        fn minimum_balance(&self) -> sails_rs::client::PendingCall<io::MinimumBalance, Self::Env>;
         fn unused_value(&self) -> sails_rs::client::PendingCall<io::UnusedValue, Self::Env>;
     }
 
@@ -571,9 +555,6 @@ pub mod vft_extension {
         fn expiry_period(&self) -> sails_rs::client::PendingCall<io::ExpiryPeriod, Self::Env> {
             self.pending_call(())
         }
-        fn minimum_balance(&self) -> sails_rs::client::PendingCall<io::MinimumBalance, Self::Env> {
-            self.pending_call(())
-        }
         fn unused_value(&self) -> sails_rs::client::PendingCall<io::UnusedValue, Self::Env> {
             self.pending_call(())
         }
@@ -591,7 +572,6 @@ pub mod vft_extension {
         sails_rs::io_struct_impl!(BalanceOf (account: ActorId) -> Option<U256>);
         sails_rs::io_struct_impl!(Balances (cursor: u32, len: u32) -> Vec<(ActorId,U256,)>);
         sails_rs::io_struct_impl!(ExpiryPeriod () -> u32);
-        sails_rs::io_struct_impl!(MinimumBalance () -> U256);
         sails_rs::io_struct_impl!(UnusedValue () -> U256);
     }
 }

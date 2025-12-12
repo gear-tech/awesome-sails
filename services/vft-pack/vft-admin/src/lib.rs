@@ -277,20 +277,6 @@ impl<
     }
 
     #[export(unwrap_result)]
-    pub fn set_minimum_balance(&mut self, value: U256) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
-
-        self.balances
-            .get_mut()?
-            .set_minimum_balance(value.try_into()?);
-
-        self.emit_event(Event::MinimumBalanceChanged(value))
-            .map_err(|_| EmitError)?;
-
-        Ok(())
-    }
-
-    #[export(unwrap_result)]
     pub fn set_minter(&mut self, minter: ActorId) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.admin(), BadOrigin);
 
@@ -354,7 +340,6 @@ pub enum Event {
     MinterTookPlace,
 
     ExpiryPeriodChanged(u32),
-    MinimumBalanceChanged(U256),
 
     Exited(ActorId),
 

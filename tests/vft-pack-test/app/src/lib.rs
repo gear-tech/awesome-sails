@@ -29,7 +29,6 @@ impl TestService<'_> {
         &mut self,
         new_allowances: Vec<(ActorId, ActorId, U256, u32)>,
         new_balances: Vec<(ActorId, U256)>,
-        minimum_balance: U256,
         expiry_period: u32,
     ) -> Result<(), Error> {
         {
@@ -52,7 +51,6 @@ impl TestService<'_> {
 
         let mut b = self.balances.get_mut()?;
 
-        b.set_minimum_balance(Balance::try_from(minimum_balance)?);
         b.set_unused_value(U256::zero());
 
         let balances = b.deref_mut();

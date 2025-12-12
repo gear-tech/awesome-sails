@@ -20,7 +20,6 @@
 
 use crate::Balance;
 use awesome_sails_utils::{
-    ensure,
     map::{ShardedMap, ShardedMapError},
     math::{CheckedMath, Math, MathError, NonZero, OverflowError, UnderflowError, Zero, ZeroError},
     ok_if, unwrap_infallible,
@@ -36,7 +35,6 @@ pub type BalancesValue<T> = NonZero<T>;
 /// All functions are transactional, meaning if err is returned,
 /// state hasn't been changed.
 pub struct Balances<T = Balance> {
-    minimum_balance: T,
     store: ShardedMap<BalancesKey, BalancesValue<T>>,
     total: U256,
     unused: U256,
@@ -49,20 +47,14 @@ impl<T> Balances<T> {
     /// Tries to create a new [`Self`] instance with the given capacities.
     ///
     /// Reuses [`ShardedMap::try_new`] under the hood.
-    pub fn try_new(capacities: Vec<usize>, minimum_balance: T) -> Result<Self, BalancesError> {
+    pub fn try_new(capacities: Vec<usize>) -> Result<Self, BalancesError> {
         let store = ShardedMap::try_new(capacities)?;
 
         Ok(Self {
             store,
-            minimum_balance,
             total: U256::zero(),
             unused: U256::zero(),
         })
-    }
-
-    /// Returns the minimum balance.
-    pub fn minimum_balance(&self) -> &T {
-        &self.minimum_balance
     }
 
     /// Returns the total supply of the balances.
@@ -83,11 +75,6 @@ impl<T> Balances<T> {
         self.store.alloc_next_shard()
     }
 
-    /// Sets the new minimum balance.
-    pub fn set_minimum_balance(&mut self, minimum_balance: T) {
-        self.minimum_balance = minimum_balance;
-    }
-
     /// Tries to append a new shard to the underlying sharded map.
     pub fn try_append_shard(&mut self, capacity: usize) -> Result<(), BalancesError> {
         self.store.try_append_shard(capacity).map_err(Into::into)
@@ -96,9 +83,7 @@ impl<T> Balances<T> {
 
 impl<T: Zero> Default for Balances<T> {
     fn default() -> Self {
-        unwrap_infallible!(
-            Self::try_new(vec![Self::DEFAULT_MAX_SHARD; 2], T::ZERO).map_err(|_| unreachable!())
-        )
+        unwrap_infallible!(Self::try_new(vec![Self::DEFAULT_MAX_SHARD; 2]).map_err(|_| unreachable!()))
     }
 }
 
@@ -161,13 +146,9 @@ where
         let (idx, balance) = self.store.get_mut(&account).ok_or(UnderflowError)?;
 
         match balance.clone().try_sub(value.clone()) {
-            Ok(remaining) if remaining >= self.minimum_balance => {
+            Ok(remaining) => {
                 *balance = remaining;
             }
-            Ok(remaining) /* if remaining < self.minimum_balance */ => {
-                self.unused = self.unused.checked_add_err(remaining.cast())?;
-                self.store.remove_at(idx, &account);
-            },
             Err(MathError::Zero(_)) => {
                 self.store.remove_at(idx, &account);
             }
@@ -231,15 +212,9 @@ where
             Some((_, balance)) => {
                 let new_balance = balance.clone().try_add(value)?;
 
-                ensure!(
-                    new_balance >= self.minimum_balance,
-                    BalancesError::BelowMinimum
-                );
-
                 *balance = new_balance;
             }
-            _ if value < self.minimum_balance => Err(BalancesError::BelowMinimum)?,
-            _ => unsafe {
+            None => unsafe {
                 self.store.try_insert_new(account, value)?;
             },
         }
@@ -275,17 +250,12 @@ where
         let (idx_from, balance_from) = self.store.get(&from).ok_or(UnderflowError)?;
 
         let mut new_balance_from = None;
-        let mut new_unused = None;
 
         match balance_from.clone().try_sub(value.clone()) {
-            Ok(remaining_from) if remaining_from >= self.minimum_balance => {
+            Ok(remaining_from) => {
                 new_balance_from = Some(remaining_from);
             }
-            Ok(remaining_from) /* if remaining_from < self.minimum_balance */ => {
-                new_unused = Some(self.unused.checked_add_err(remaining_from.cast())?);
-                /* `from` to be removed */
-            }
-            Err(MathError::Zero(_)) => { /* no `new_unused`, `from` to be removed */}
+            Err(MathError::Zero(_)) => { /* `from` to be removed */ }
             Err(MathError::Overflow(e)) => Err(e)?,
             Err(MathError::Underflow(e)) => Err(e)?,
         };
@@ -296,19 +266,12 @@ where
             Some((_, balance_to)) => {
                 let new_balance_to = balance_to.clone().try_add(value)?;
 
-                ensure!(
-                    new_balance_to >= self.minimum_balance,
-                    BalancesError::BelowMinimum
-                );
-
                 *balance_to = new_balance_to;
             }
             None => {
                 if new_balance_from.is_some() {
                     self.store.has_space_err()?;
                 }
-
-                ensure!(value >= self.minimum_balance, BalancesError::BelowMinimum);
 
                 insert_balance_to = Some(value);
             }
@@ -346,10 +309,6 @@ where
             }
         };
 
-        if let Some(unused) = new_unused {
-            self.unused = unused;
-        }
-
         Ok(())
     }
 
@@ -378,18 +337,8 @@ where
         if let Some((_, balance_to)) = self.store.get_mut(&to) {
             let new_balance_to = balance_to.clone().try_add(balance_from)?;
 
-            ensure!(
-                new_balance_to >= self.minimum_balance,
-                BalancesError::BelowMinimum
-            );
-
             *balance_to = new_balance_to;
         } else {
-            ensure!(
-                balance_from >= self.minimum_balance,
-                BalancesError::BelowMinimum
-            );
-
             insert_balance_to = Some(balance_from);
         }
 
@@ -417,8 +366,6 @@ where
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum BalancesError {
-    #[error("balance below minimum")]
-    BelowMinimum,
     #[error("insufficient balance")]
     Insufficient(#[from] UnderflowError),
     #[error("sharded map error: {0}")]
