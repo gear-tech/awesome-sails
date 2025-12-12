@@ -213,13 +213,6 @@ impl<const BITS: usize, const LIMBS: usize> TryFrom<u128> for CustomUint<BITS, L
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TryInto<u128> for CustomUint<BITS, LIMBS> {
-    type Error = OverflowError;
-    fn try_into(self) -> Result<u128, Self::Error> {
-        self.0.try_into().map_err(|_| OverflowError)
-    }
-}
-
 impl<const BITS: usize, const LIMBS: usize> TryFrom<U256> for CustomUint<BITS, LIMBS> {
     type Error = OverflowError;
     fn try_from(value: U256) -> Result<Self, Self::Error> {
@@ -236,19 +229,33 @@ impl<const BITS: usize, const LIMBS: usize> TryFrom<U256> for CustomUint<BITS, L
     }
 }
 
-impl<const BITS: usize, const LIMBS: usize> TryInto<U256> for CustomUint<BITS, LIMBS> {
+impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for u64 {
     type Error = OverflowError;
-    fn try_into(self) -> Result<U256, Self::Error> {
+    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
+        value.0.try_into().map_err(|_| OverflowError)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for u128 {
+    type Error = OverflowError;
+    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
+        value.0.try_into().map_err(|_| OverflowError)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> TryFrom<CustomUint<BITS, LIMBS>> for U256 {
+    type Error = OverflowError;
+    fn try_from(value: CustomUint<BITS, LIMBS>) -> Result<Self, Self::Error> {
         let mut bytes = [0u8; 32];
         let len = n_bytes(BITS);
         // Copy bytes safely
         for i in 0..core::cmp::min(len, 32) {
-            bytes[i] = self.0.byte(i);
+            bytes[i] = value.0.byte(i);
         }
         // Check overflow if BITS > 256
         if len > 32 {
             for i in 32..len {
-                if self.0.byte(i) != 0 {
+                if value.0.byte(i) != 0 {
                     return Err(OverflowError);
                 }
             }

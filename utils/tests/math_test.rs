@@ -372,11 +372,16 @@ mod ops {
         let two = one.try_add(one).unwrap();
         assert_eq!(two.into_inner(), Uint64::from(2));
 
+        // Test try_add overflow
+        let max_uint64 = NonZero::try_new(Uint64::MAX).unwrap();
+        assert!(max_uint64.try_add(one).is_err()); // Should overflow
+
         // Test try_sub
         let three = NonZero::try_new(Uint64::from(3)).unwrap();
         let diff = three.try_sub(one).unwrap();
         assert_eq!(diff.into_inner(), Uint64::from(2));
         assert!(one.try_sub(three).is_err()); // Underflow: one - three should fail
+        assert!(one.try_sub(one).is_err()); // Should be ZeroError
 
         // Test try_cast to u64 (should succeed for Uint64)
         let try_casted_one_u64: Result<u64, _> = one.try_cast();
@@ -391,6 +396,7 @@ mod ops {
         let try_cast_overflow_u64: Result<u64, _> = big_uint128.try_cast();
         assert!(try_cast_overflow_u64.is_err());
 
+
         // Test PartialEq (NonZero<T> vs NonZero<T>)
         let another_one = NonZero::try_new(Uint64::ONE).unwrap();
         assert_eq!(one, another_one);
@@ -401,6 +407,19 @@ mod ops {
         assert!(two > one);
         assert!(one <= one);
         assert!(one >= one);
+    }
+
+    #[test]
+    fn test_non_zero_u256_conversion() {
+        let val = U256::one();
+        let non_zero_u256 = NonZero::try_from(val).unwrap();
+        assert_eq!(non_zero_u256.into_inner(), U256::one());
+
+        let back_to_u256: U256 = non_zero_u256.into();
+        assert_eq!(back_to_u256, U256::one());
+
+        // Test with zero
+        assert!(NonZero::try_from(U256::zero()).is_err());
     }
 }
 
