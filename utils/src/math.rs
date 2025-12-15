@@ -20,8 +20,8 @@ use bnum::BUintD8;
 use core::cmp::Ordering;
 use derive_more::Deref;
 use sails_rs::{
-    scale_info::{build::Fields, Path, Type},
-    ActorId, Decode, Encode, TypeInfo, H160, H256,
+    ActorId, Decode, Encode, H160, H256, TypeInfo,
+    scale_info::{Path, Type, build::Fields},
 };
 
 pub use sails_rs::U256;
@@ -36,15 +36,8 @@ pub trait Math:
 }
 
 impl<
-        T: Max
-            + Min
-            + One
-            + Zero
-            + CheckedMath
-            + PartialEq
-            + From<NonZero<Self>>
-            + TryInto<NonZero<Self>>,
-    > Math for T
+    T: Max + Min + One + Zero + CheckedMath + PartialEq + From<NonZero<Self>> + TryInto<NonZero<Self>>,
+> Math for T
 {
 }
 
@@ -140,7 +133,9 @@ macro_rules! impl_non_zero_conversion {
 //                          PRIMITIVES & EXTERNAL TYPES
 // ==============================================================================
 
-impl_primitive_traits!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+impl_primitive_traits!(
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+);
 
 // --- U256 ---
 impl CheckedMath for U256 {
@@ -532,7 +527,9 @@ impl<T: PartialOrd> PartialOrd<T> for NonZero<T> {
 
 // Implement conversions
 impl_non_zero_conversion!(ActorId, H256, H160, U256);
-impl_non_zero_conversion!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+impl_non_zero_conversion!(
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+);
 
 impl<const N: usize> TryFrom<LeBytes<N>> for NonZero<LeBytes<N>> {
     type Error = ZeroError;

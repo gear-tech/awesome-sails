@@ -20,7 +20,7 @@
 
 use crate::ensure;
 use core::{hash::Hash, mem};
-use sails_rs::{collections::HashMap, vec::Vec, Decode, Encode, TypeInfo};
+use sails_rs::{Decode, Encode, TypeInfo, collections::HashMap, vec::Vec};
 
 /// A sharded hash map that allows to pick a different shard's capacity, so
 /// resulting capacity isn't that much restricted by the HashMap impl.
