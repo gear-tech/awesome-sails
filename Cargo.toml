@@ -31,7 +31,7 @@ members = [
 
 [workspace.dependencies]
 sails-rs = { version = "0.10.1", default-features = false, features = ["gstd"] }
-awesome-sails-utils = { path = "utils", default-features = false }
+awesome-sails-utils = { path = "utils", version = "0.1.0", default-features = false }
 gtest = "=1.10.0"
 
 # External dependencies
@@ -43,11 +43,11 @@ tokio = { version = "=1.48", default-features = false }
 
 
 # vft-pack
-awesome-sails-vft-pack = { path = "services/vft-pack", default-features = false }
-awesome-sails-vft-service = { path = "services/vft-pack/vft", default-features = false }
-awesome-sails-vft-service-utils = { path = "services/vft-pack/vft/utils", default-features = false }
-awesome-sails-vft-admin-service = { path = "services/vft-pack/vft-admin", default-features = false }
-awesome-sails-vft-extension-service = { path = "services/vft-pack/vft-extension", default-features = false }
-awesome-sails-vft-metadata-service = { path = "services/vft-pack/vft-metadata", default-features = false }
-awesome-sails-vft-native-exchange-service = { path = "services/vft-pack/vft-native-exchange", default-features = false }
-awesome-sails-vft-native-exchange-admin-service = { path = "services/vft-pack/vft-native-exchange-admin", default-features = false }
+awesome-sails-vft-pack = { path = "services/vft-pack", version = "0.1.0", default-features = false }
+awesome-sails-vft-service = { path = "services/vft-pack/vft", version = "0.1.0", default-features = false }
+awesome-sails-vft-service-utils = { path = "services/vft-pack/vft/utils", version = "0.1.0", default-features = false }
+awesome-sails-vft-admin-service = { path = "services/vft-pack/vft-admin", version = "0.1.0", default-features = false }
+awesome-sails-vft-extension-service = { path = "services/vft-pack/vft-extension", version = "0.1.0", default-features = false }
+awesome-sails-vft-metadata-service = { path = "services/vft-pack/vft-metadata", version = "0.1.0", default-features = false }
+awesome-sails-vft-native-exchange-service = { path = "services/vft-pack/vft-native-exchange", version = "0.1.0", default-features = false }
+awesome-sails-vft-native-exchange-admin-service = { path = "services/vft-pack/vft-native-exchange-admin", version = "0.1.0", default-features = false }
