@@ -86,11 +86,144 @@ macro_rules! impl_non_zero_conversion {
                 }
             }
 
-            impl From<$crate::math::NonZero<$name>> for $name {
-                fn from(value: $crate::math::NonZero<$name>) -> Self {
-                    value.into_inner()
+                        impl From<$crate::math::NonZero<$name>> for $name {
+                            fn from(value: $crate::math::NonZero<$name>) -> Self {
+                                value.into_inner()
+                            }
+                        }
+                    )*
+                };
+            }
+
+/// Verifies that given wrapper is small enough (< 16 bytes)
+/// to be used with default math operations.
+///
+/// Usage: `impl_math_wrapper!(WrapperName, LeBytes<AMOUNT_OF_BYTES>);`
+///
+/// Requires:
+/// - `PartialEq`
+///
+/// Derives:
+/// - `TryFrom<u128>`
+/// - `TryFrom<U256>`
+/// - `Into<u128>`
+/// - `Into<U256>`
+/// - `TryInto<NonZero<Self>>`
+/// - `From<NonZero<Self>>`
+/// - `Max`
+/// - `Min`
+/// - `One`
+/// - `Zero`
+/// - `CheckedMath`
+#[macro_export]
+macro_rules! impl_math_wrapper {
+    ($wrapper:ident, LeBytes<$n:literal>) => {
+        const _: () = assert!(
+            $n < 16,
+            "should only be used for small le bytes wrappers (< 16 bytes)"
+        );
+
+        const _: $wrapper = $wrapper(<$crate::math::LeBytes<$n> as $crate::math::Zero>::ZERO);
+
+        $crate::impl_non_zero_conversion!($wrapper);
+
+        impl $crate::math::Max for $wrapper {
+            const MAX: Self = Self(<$crate::math::LeBytes<$n>>::MAX);
+        }
+        impl $crate::math::Min for $wrapper {
+            const MIN: Self = Self(<$crate::math::LeBytes<$n>>::MIN);
+        }
+        impl $crate::math::Zero for $wrapper {
+            const ZERO: Self = Self(<$crate::math::LeBytes<$n>>::ZERO);
+        }
+        impl $crate::math::One for $wrapper {
+            const ONE: Self = Self(<$crate::math::LeBytes<$n>>::ONE);
+        }
+
+        impl $crate::math::CheckedMath for $wrapper {
+            fn checked_add(self, rhs: Self) -> Option<Self> {
+                self.0.checked_add(rhs.0).map(Self)
+            }
+            fn checked_sub(self, rhs: Self) -> Option<Self> {
+                self.0.checked_sub(rhs.0).map(Self)
+            }
+        }
+
+        impl PartialEq<$crate::math::NonZero<$wrapper>> for $wrapper {
+            fn eq(&self, other: &$crate::math::NonZero<$wrapper>) -> bool {
+                self.eq(&other.0)
+            }
+        }
+        impl PartialOrd<$crate::math::NonZero<$wrapper>> for $wrapper {
+            fn partial_cmp(
+                &self,
+                other: &$crate::math::NonZero<$wrapper>,
+            ) -> Option<core::cmp::Ordering> {
+                self.partial_cmp(&other.0)
+            }
+        }
+
+        impl PartialEq<$crate::math::LeBytes<$n>> for $wrapper {
+            fn eq(&self, other: &$crate::math::LeBytes<$n>) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialOrd<$crate::math::LeBytes<$n>> for $wrapper {
+            fn partial_cmp(
+                &self,
+                other: &$crate::math::LeBytes<$n>,
+            ) -> Option<core::cmp::Ordering> {
+                self.0.partial_cmp(other)
+            }
+        }
+
+        impl TryFrom<$crate::math::U256> for $wrapper {
+            type Error = $crate::math::OverflowError;
+            fn try_from(value: $crate::math::U256) -> Result<Self, Self::Error> {
+                let inner = <$crate::math::LeBytes<$n>>::try_from(value)
+                    .map_err(|_| $crate::math::OverflowError)?;
+                Ok(Self(inner))
+            }
+        }
+
+        impl TryFrom<u128> for $wrapper {
+            type Error = $crate::math::OverflowError;
+            fn try_from(value: u128) -> Result<Self, Self::Error> {
+                let inner = <$crate::math::LeBytes<$n>>::try_from(value)
+                    .map_err(|_| $crate::math::OverflowError)?;
+                Ok(Self(inner))
+            }
+        }
+
+        impl From<$wrapper> for u128 {
+            fn from(value: $wrapper) -> u128 {
+                match value.0.try_into().map_err(|_| unreachable!()) {
+                    Ok(v) => v,
+                    Err(inf) => inf,
                 }
             }
-        )*
+        }
+
+        impl From<$wrapper> for $crate::math::U256 {
+            fn from(value: $wrapper) -> $crate::math::U256 {
+                match value.0.try_into().map_err(|_| unreachable!()) {
+                    Ok(v) => v,
+                    Err(inf) => inf,
+                }
+            }
+        }
+
+        impl From<$crate::math::LeBytes<$n>> for $wrapper {
+            fn from(v: $crate::math::LeBytes<$n>) -> Self {
+                Self(v)
+            }
+        }
+
+        impl From<$wrapper> for $crate::math::LeBytes<$n> {
+            fn from(v: $wrapper) -> Self {
+                v.0
+            }
+        }
     };
 }

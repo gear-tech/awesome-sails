@@ -136,120 +136,6 @@ macro_rules! impl_non_zero_conversion {
     };
 }
 
-/// Macro to implement Math traits and conversions for a wrapper type.
-#[macro_export]
-macro_rules! impl_math_wrapper {
-    // 1. Default Mode: Generates safe `TryFrom` conversions.
-    ($wrapper:ident, $inner:ty) => {
-        $crate::impl_math_wrapper!(@common $wrapper, $inner);
-
-        impl TryFrom<$wrapper> for u128 {
-             type Error = $crate::math::OverflowError;
-             fn try_from(value: $wrapper) -> Result<u128, Self::Error> {
-                 value.0.try_into().map_err(|_| $crate::math::OverflowError)
-             }
-        }
-
-        impl TryFrom<$wrapper> for $crate::math::U256 {
-             type Error = $crate::math::OverflowError;
-             fn try_from(value: $wrapper) -> Result<$crate::math::U256, Self::Error> {
-                 value.0.try_into().map_err(|_| $crate::math::OverflowError)
-             }
-        }
-    };
-
-    // 2. Manual Mode: Skips output conversions.
-    ($wrapper:ident, $inner:ty, manual_from) => {
-        $crate::impl_math_wrapper!(@common $wrapper, $inner);
-    };
-
-    // 3. Common implementation details (Internal).
-    (@common $wrapper:ident, $inner:ty) => {
-        // --- CONSTANTS ---
-        impl $crate::math::Max for $wrapper {
-            const MAX: Self = Self(<$inner>::MAX);
-        }
-        impl $crate::math::Min for $wrapper {
-            const MIN: Self = Self(<$inner>::MIN);
-        }
-        impl $crate::math::Zero for $wrapper {
-            const ZERO: Self = Self(<$inner>::ZERO);
-        }
-        impl $crate::math::One for $wrapper {
-            const ONE: Self = Self(<$inner>::ONE);
-        }
-
-        // --- MATH ---
-        impl $crate::math::CheckedMath for $wrapper {
-            fn checked_add(self, rhs: Self) -> Option<Self> {
-                self.0.checked_add(rhs.0).map(Self)
-            }
-            fn checked_sub(self, rhs: Self) -> Option<Self> {
-                self.0.checked_sub(rhs.0).map(Self)
-            }
-        }
-
-        // --- NON ZERO ---
-        impl TryFrom<$wrapper> for $crate::math::NonZero<$wrapper> {
-            type Error = $crate::math::ZeroError;
-            fn try_from(value: $wrapper) -> Result<Self, Self::Error> {
-                $crate::math::NonZero::try_new(value)
-            }
-        }
-        impl From<$crate::math::NonZero<$wrapper>> for $wrapper {
-            fn from(value: $crate::math::NonZero<$wrapper>) -> Self {
-                value.into_inner()
-            }
-        }
-
-        // --- COMPARISONS (Wrapper vs NonZero) ---
-        impl PartialEq<$crate::math::NonZero<$wrapper>> for $wrapper {
-            fn eq(&self, other: &$crate::math::NonZero<$wrapper>) -> bool {
-                self.eq(&other.0)
-            }
-        }
-        impl PartialOrd<$crate::math::NonZero<$wrapper>> for $wrapper {
-            fn partial_cmp(
-                &self,
-                other: &$crate::math::NonZero<$wrapper>,
-            ) -> Option<core::cmp::Ordering> {
-                self.partial_cmp(&other.0)
-            }
-        }
-
-        // --- COMPARISONS (Wrapper vs Inner) ---
-        impl PartialEq<$inner> for $wrapper {
-            fn eq(&self, other: &$inner) -> bool {
-                self.0 == *other
-            }
-        }
-
-        impl PartialOrd<$inner> for $wrapper {
-            fn partial_cmp(&self, other: &$inner) -> Option<core::cmp::Ordering> {
-                self.0.partial_cmp(other)
-            }
-        }
-
-        // --- INPUT CONVERSIONS (From External to Wrapper) ---
-
-        impl TryFrom<$crate::math::U256> for $wrapper {
-            type Error = $crate::math::OverflowError;
-            fn try_from(value: $crate::math::U256) -> Result<Self, Self::Error> {
-                let inner = <$inner>::try_from(value).map_err(|_| $crate::math::OverflowError)?;
-                Ok(Self(inner))
-            }
-        }
-
-        impl TryFrom<u128> for $wrapper {
-            type Error = $crate::math::OverflowError;
-            fn try_from(value: u128) -> Result<Self, Self::Error> {
-                let inner = <$inner>::try_from(value).map_err(|_| $crate::math::OverflowError)?;
-                Ok(Self(inner))
-            }
-        }
-    };
-}
-
 // ==============================================================================
 //                          PRIMITIVES & EXTERNAL TYPES
 // ==============================================================================
@@ -342,11 +228,11 @@ impl Zero for H160 {
 /// byte size (e.g., 10 bytes for 80 bits) without memory overhead.
 ///
 /// `N` is the number of **bytes** (not bits).
-/// Example: For 80 bits, use `CustomUint<10>`.
+/// Example: For 80 bits, use `LeBytes<10>`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CustomUint<const N: usize>(pub BUintD8<N>);
+pub struct LeBytes<const N: usize>(pub BUintD8<N>);
 
-impl<const N: usize> CustomUint<N> {
+impl<const N: usize> LeBytes<N> {
     pub const fn new(val: BUintD8<N>) -> Self {
         Self(val)
     }
@@ -355,12 +241,12 @@ impl<const N: usize> CustomUint<N> {
         self.0
     }
 
-    /// Resizes the CustomUint to a different **byte** width.
+    /// Resizes the LeBytes to a different **byte** width.
     ///
     /// # Returns
-    /// - `Ok(CustomUint<N2>)`: A new `CustomUint` with the target size.
+    /// - `Ok(LeBytes<N2>)`: A new `LeBytes` with the target size.
     /// - `Err(OverflowError)`: If the value is too large to fit in the target size.
-    pub fn try_resize<const N2: usize>(self) -> Result<CustomUint<N2>, OverflowError> {
+    pub fn try_resize<const N2: usize>(self) -> Result<LeBytes<N2>, OverflowError> {
         let digits = self.0.digits();
 
         if N2 >= N {
@@ -368,7 +254,7 @@ impl<const N: usize> CustomUint<N> {
             let mut new_digits = [0u8; N2];
             new_digits[..N].copy_from_slice(digits);
             // Safe to unwrap here because N2 >= N
-            Ok(CustomUint(BUintD8::from_digits(new_digits)))
+            Ok(LeBytes(BUintD8::from_digits(new_digits)))
         } else {
             // Shrinking: check for overflow
             // Check if any byte from N2 to N is non-zero
@@ -378,26 +264,26 @@ impl<const N: usize> CustomUint<N> {
 
             let mut new_digits = [0u8; N2];
             new_digits.copy_from_slice(&digits[..N2]);
-            Ok(CustomUint(BUintD8::from_digits(new_digits)))
+            Ok(LeBytes(BUintD8::from_digits(new_digits)))
         }
     }
 }
 
-// --- Traits for CustomUint ---
+// --- Traits for LeBytes ---
 
-impl<const N: usize> Default for CustomUint<N> {
+impl<const N: usize> Default for LeBytes<N> {
     fn default() -> Self {
         Self(BUintD8::ZERO)
     }
 }
 
-impl<const N: usize> core::fmt::Debug for CustomUint<N> {
+impl<const N: usize> core::fmt::Debug for LeBytes<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<const N: usize> CheckedMath for CustomUint<N> {
+impl<const N: usize> CheckedMath for LeBytes<N> {
     fn checked_add(self, rhs: Self) -> Option<Self> {
         self.0.checked_add(rhs.0).map(Self)
     }
@@ -406,22 +292,22 @@ impl<const N: usize> CheckedMath for CustomUint<N> {
     }
 }
 
-impl<const N: usize> Max for CustomUint<N> {
+impl<const N: usize> Max for LeBytes<N> {
     const MAX: Self = Self(BUintD8::MAX);
 }
-impl<const N: usize> Min for CustomUint<N> {
+impl<const N: usize> Min for LeBytes<N> {
     const MIN: Self = Self(BUintD8::MIN);
 }
-impl<const N: usize> One for CustomUint<N> {
+impl<const N: usize> One for LeBytes<N> {
     const ONE: Self = Self(BUintD8::ONE);
 }
-impl<const N: usize> Zero for CustomUint<N> {
+impl<const N: usize> Zero for LeBytes<N> {
     const ZERO: Self = Self(BUintD8::ZERO);
 }
 
 // --- Scale Codec Manual Implementation (Compact storage) ---
 
-impl<const N: usize> Encode for CustomUint<N> {
+impl<const N: usize> Encode for LeBytes<N> {
     fn size_hint(&self) -> usize {
         N
     }
@@ -434,7 +320,7 @@ impl<const N: usize> Encode for CustomUint<N> {
     }
 }
 
-impl<const N: usize> Decode for CustomUint<N> {
+impl<const N: usize> Decode for LeBytes<N> {
     fn decode<I: sails_rs::scale_codec::Input>(
         input: &mut I,
     ) -> Result<Self, sails_rs::scale_codec::Error> {
@@ -445,15 +331,15 @@ impl<const N: usize> Decode for CustomUint<N> {
         bytes.copy_from_slice(&buffer);
 
         // BUintD8 uses from_digits for constructor
-        Ok(CustomUint(BUintD8::from_digits(bytes)))
+        Ok(LeBytes(BUintD8::from_digits(bytes)))
     }
 }
 
-impl<const N: usize> TypeInfo for CustomUint<N> {
+impl<const N: usize> TypeInfo for LeBytes<N> {
     type Identity = Self;
     fn type_info() -> Type {
         Type::builder()
-            .path(Path::new("CustomUint", module_path!()))
+            .path(Path::new("LeBytes", module_path!()))
             .type_params(sails_rs::Vec::new())
             .composite(Fields::unnamed().field(|f| f.ty::<[u8]>()))
     }
@@ -461,7 +347,7 @@ impl<const N: usize> TypeInfo for CustomUint<N> {
 
 // --- Converisons ---
 
-impl<const N: usize> From<u64> for CustomUint<N> {
+impl<const N: usize> From<u64> for LeBytes<N> {
     fn from(val: u64) -> Self {
         let bytes = val.to_le_bytes();
         let mut my_bytes = [0u8; N];
@@ -473,7 +359,7 @@ impl<const N: usize> From<u64> for CustomUint<N> {
     }
 }
 
-impl<const N: usize> TryFrom<u128> for CustomUint<N> {
+impl<const N: usize> TryFrom<u128> for LeBytes<N> {
     type Error = OverflowError;
     fn try_from(val: u128) -> Result<Self, Self::Error> {
         // MANUAL SAFE IMPLEMENTATION
@@ -501,7 +387,7 @@ impl<const N: usize> TryFrom<u128> for CustomUint<N> {
     }
 }
 
-impl<const N: usize> TryFrom<U256> for CustomUint<N> {
+impl<const N: usize> TryFrom<U256> for LeBytes<N> {
     type Error = OverflowError;
     fn try_from(value: U256) -> Result<Self, Self::Error> {
         let mut bytes = [0u8; 32];
@@ -524,24 +410,24 @@ impl<const N: usize> TryFrom<U256> for CustomUint<N> {
     }
 }
 
-impl<const N: usize> TryFrom<CustomUint<N>> for u64 {
+impl<const N: usize> TryFrom<LeBytes<N>> for u64 {
     type Error = OverflowError;
-    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
+    fn try_from(value: LeBytes<N>) -> Result<Self, Self::Error> {
         value.0.try_into().map_err(|_| OverflowError)
     }
 }
 
-impl<const N: usize> TryFrom<CustomUint<N>> for u128 {
+impl<const N: usize> TryFrom<LeBytes<N>> for u128 {
     type Error = OverflowError;
-    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
+    fn try_from(value: LeBytes<N>) -> Result<Self, Self::Error> {
         value.0.try_into().map_err(|_| OverflowError)
     }
 }
 
-// Used when converting CustomUint to external type U256
-impl<const N: usize> TryFrom<CustomUint<N>> for U256 {
+// Used when converting LeBytes to external type U256
+impl<const N: usize> TryFrom<LeBytes<N>> for U256 {
     type Error = OverflowError;
-    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
+    fn try_from(value: LeBytes<N>) -> Result<Self, Self::Error> {
         let digits = value.0.digits();
         let len = N;
 
@@ -649,15 +535,15 @@ impl<T: PartialOrd> PartialOrd<T> for NonZero<T> {
 impl_non_zero_conversion!(ActorId, H256, H160, U256);
 impl_non_zero_conversion!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
-impl<const N: usize> TryFrom<CustomUint<N>> for NonZero<CustomUint<N>> {
+impl<const N: usize> TryFrom<LeBytes<N>> for NonZero<LeBytes<N>> {
     type Error = ZeroError;
-    fn try_from(value: CustomUint<N>) -> Result<Self, Self::Error> {
+    fn try_from(value: LeBytes<N>) -> Result<Self, Self::Error> {
         NonZero::try_new(value)
     }
 }
 
-impl<const N: usize> From<NonZero<CustomUint<N>>> for CustomUint<N> {
-    fn from(value: NonZero<CustomUint<N>>) -> Self {
+impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
+    fn from(value: NonZero<LeBytes<N>>) -> Self {
         value.into_inner()
     }
 }

@@ -20,7 +20,7 @@
 
 use awesome_sails_utils::{
     impl_math_wrapper,
-    math::{CustomUint, Max},
+    math::{LeBytes, Max},
 };
 use sails_rs::{Decode, Encode, TypeInfo};
 
@@ -36,27 +36,14 @@ pub use balances::{Balances, BalancesError};
 #[derive(Clone, Copy, Debug, Default, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
-pub struct Allowance(CustomUint<9>);
+pub struct Allowance(LeBytes<9>);
 
-impl_math_wrapper!(Allowance, CustomUint<9>, manual_from);
+impl_math_wrapper!(Allowance, LeBytes<9>);
 
 impl From<Balance> for Allowance {
     fn from(value: Balance) -> Self {
         // Try resizing from 10 bytes (Balance) to 9 bytes (Allowance)
-        Self(value.0.try_resize().unwrap_or(CustomUint::<9>::MAX))
-    }
-}
-
-impl From<CustomUint<9>> for Allowance {
-    fn from(v: CustomUint<9>) -> Self {
-        Self(v)
-    }
-}
-
-// Исправляем конвертацию в U256
-impl From<Allowance> for sails_rs::U256 {
-    fn from(value: Allowance) -> Self {
-        value.0.try_into().unwrap()
+        Self(value.0.try_resize().unwrap_or(LeBytes::<9>::MAX))
     }
 }
 
@@ -66,34 +53,12 @@ impl From<Allowance> for sails_rs::U256 {
 #[derive(Clone, Copy, Debug, Default, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
-pub struct Balance(CustomUint<10>);
+pub struct Balance(LeBytes<10>);
 
-impl_math_wrapper!(Balance, CustomUint<10>, manual_from);
+impl_math_wrapper!(Balance, LeBytes<10>);
 
-impl From<Balance> for sails_rs::U256 {
-    fn from(value: Balance) -> Self {
-        value.0.try_into().unwrap()
-    }
-}
-
-impl From<Balance> for u128 {
-    fn from(value: Balance) -> u128 {
-        value.0.try_into().expect("Value fits in u128")
-    }
-}
 impl From<u64> for Balance {
     fn from(value: u64) -> Self {
-        Self(CustomUint::<10>::from(value))
-    }
-}
-
-impl From<CustomUint<10>> for Balance {
-    fn from(v: CustomUint<10>) -> Self {
-        Self(v)
-    }
-}
-impl From<Balance> for CustomUint<10> {
-    fn from(v: Balance) -> Self {
-        v.0
+        Self(LeBytes::<10>::from(value))
     }
 }
