@@ -229,7 +229,18 @@ impl Zero for H160 {
 ///
 /// `N` is the number of **bytes** (not bits).
 /// Example: For 80 bits, use `LeBytes<10>`.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    derive_more::From,
+    derive_more::Into,
+    derive_more::AsRef,
+)]
 pub struct LeBytes<const N: usize>(BUintD8<N>);
 
 impl<const N: usize> LeBytes<N> {

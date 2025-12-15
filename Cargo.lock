@@ -361,7 +361,6 @@ dependencies = [
  "awesome-sails-utils",
  "awesome-sails-vft-service",
  "sails-rs",
- "thiserror 2.0.17",
 ]
 
 [[package]]
