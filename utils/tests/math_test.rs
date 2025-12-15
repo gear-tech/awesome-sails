@@ -185,7 +185,7 @@ mod custom_uint {
         proptest! {
             #[test]
             fn test_try_resize_up(val in any::<u64>()) {
-                let small = Uint64::from(val);
+                let small = Uint64::try_from(u128::from(val)).unwrap();
                 // 64 -> 80
                 let big: Uint80 = small.try_resize().unwrap();
                 // 80 -> 64
@@ -218,7 +218,7 @@ mod custom_uint {
             let one = NonZero::try_new(Uint64::ONE).unwrap();
             let two = one.try_add(one).unwrap();
 
-            assert_eq!(two.into_inner(), Uint64::from(2));
+            assert_eq!(two.into_inner(), Uint64::try_from(2u128).unwrap());
             assert!(one < two);
         }
 

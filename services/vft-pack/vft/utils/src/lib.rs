@@ -59,6 +59,6 @@ impl_math_wrapper!(Balance, LeBytes<10>);
 
 impl From<u64> for Balance {
     fn from(value: u64) -> Self {
-        Self(LeBytes::<10>::from(value))
+        Self(LeBytes::<10>::try_from(u128::from(value)).unwrap())
     }
 }

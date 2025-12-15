@@ -230,7 +230,7 @@ impl Zero for H160 {
 /// `N` is the number of **bytes** (not bits).
 /// Example: For 80 bits, use `LeBytes<10>`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LeBytes<const N: usize>(pub BUintD8<N>);
+pub struct LeBytes<const N: usize>(BUintD8<N>);
 
 impl<const N: usize> LeBytes<N> {
     pub const fn new(val: BUintD8<N>) -> Self {
@@ -346,18 +346,6 @@ impl<const N: usize> TypeInfo for LeBytes<N> {
 }
 
 // --- Converisons ---
-
-impl<const N: usize> From<u64> for LeBytes<N> {
-    fn from(val: u64) -> Self {
-        let bytes = val.to_le_bytes();
-        let mut my_bytes = [0u8; N];
-        // Safely copy only what fits. If N < 8, this truncates (which is implied in From for integer types if it existed).
-        // Since we typically use N >= 8 (e.g. 10), this works perfectly.
-        let len = core::cmp::min(N, 8);
-        my_bytes[..len].copy_from_slice(&bytes[..len]);
-        Self(BUintD8::from_digits(my_bytes))
-    }
-}
 
 impl<const N: usize> TryFrom<u128> for LeBytes<N> {
     type Error = OverflowError;

@@ -1,6 +1,7 @@
 [package]
 name = "vft-pack-test-app"
 edition.workspace = true
+publish = false
 
 [dependencies]
 awesome-sails-vft-pack = { workspace = true, features = ["all", "test"] }

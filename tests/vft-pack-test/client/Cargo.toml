@@ -2,6 +2,7 @@
 name = "vft-pack-test-client"
 version = "0.1.0"
 edition.workspace = true
+publish = false
 
 [dependencies]
 mockall = { workspace = true, optional = true }
