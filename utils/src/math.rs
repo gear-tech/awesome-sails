@@ -16,15 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use alloc::vec;
 use bnum::BUintD8;
 use core::cmp::Ordering;
 use derive_more::Deref;
-use sails_rs::{
-    ActorId, Decode, Encode, H160, H256, TypeInfo,
-    scale_info::{Path, Type, build::Fields},
-};
+use gstd::ActorId;
+use parity_scale_codec::{Decode, Encode};
+use primitive_types::{H160, H256};
+use scale_info::{Path, Type, TypeInfo, build::Fields};
 
-pub use sails_rs::U256;
+pub use primitive_types::U256;
 
 // ==============================================================================
 //                              TRAITS
@@ -318,7 +319,7 @@ impl<const N: usize> Encode for LeBytes<N> {
         N
     }
 
-    fn encode_to<T: sails_rs::scale_codec::Output + ?Sized>(&self, dest: &mut T) {
+    fn encode_to<T: parity_scale_codec::Output + ?Sized>(&self, dest: &mut T) {
         // BUintD8 stores digits as Little Endian bytes directly
         for byte in self.0.digits() {
             dest.push_byte(*byte);
@@ -327,10 +328,10 @@ impl<const N: usize> Encode for LeBytes<N> {
 }
 
 impl<const N: usize> Decode for LeBytes<N> {
-    fn decode<I: sails_rs::scale_codec::Input>(
+    fn decode<I: parity_scale_codec::Input>(
         input: &mut I,
-    ) -> Result<Self, sails_rs::scale_codec::Error> {
-        let mut buffer = sails_rs::vec![0u8; N];
+    ) -> Result<Self, parity_scale_codec::Error> {
+        let mut buffer = vec![0u8; N];
         input.read(&mut buffer[..N])?;
 
         let mut bytes = [0u8; N];
@@ -346,7 +347,7 @@ impl<const N: usize> TypeInfo for LeBytes<N> {
     fn type_info() -> Type {
         Type::builder()
             .path(Path::new("LeBytes", module_path!()))
-            .type_params(sails_rs::Vec::new())
+            .type_params(vec::Vec::new())
             .composite(Fields::unnamed().field(|f| f.ty::<[u8]>()))
     }
 }
@@ -447,8 +448,8 @@ impl<const N: usize> TryFrom<LeBytes<N>> for U256 {
 // ==============================================================================
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Decode, Encode, TypeInfo, Hash, Deref)]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[codec(crate = parity_scale_codec)]
+#[scale_info(crate = scale_info)]
 pub struct NonZero<T>(T);
 
 impl<T: Zero + PartialEq> NonZero<T> {
@@ -551,9 +552,9 @@ impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error(transparent)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub enum MathError {
     Overflow(#[from] OverflowError),
     Underflow(#[from] UnderflowError),
@@ -573,9 +574,9 @@ pub enum MathError {
     TypeInfo,
     thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error("mathematical overflow")]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub struct OverflowError;
 
 #[derive(
@@ -591,9 +592,9 @@ pub struct OverflowError;
     TypeInfo,
     thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error("mathematical underflow")]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub struct UnderflowError;
 
 #[derive(
@@ -609,7 +610,7 @@ pub struct UnderflowError;
     TypeInfo,
     thiserror::Error,
 )]
-#[codec(crate = sails_rs::scale_codec)]
+#[codec(crate = parity_scale_codec)]
 #[error("zero error")]
-#[scale_info(crate = sails_rs::scale_info)]
+#[scale_info(crate = scale_info)]
 pub struct ZeroError;

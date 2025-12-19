@@ -349,8 +349,12 @@ version = "0.1.0"
 dependencies = [
  "bnum",
  "derive_more 2.1.0",
+ "gstd",
+ "hashbrown 0.14.5",
+ "parity-scale-codec",
+ "primitive-types 0.12.2",
  "proptest",
- "sails-rs",
+ "scale-info",
  "thiserror 2.0.17",
 ]
 

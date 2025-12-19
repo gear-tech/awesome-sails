@@ -17,8 +17,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use awesome_sails_utils::math::*;
+use parity_scale_codec::{Decode, Encode};
+use primitive_types::U256;
 use proptest::prelude::*;
-use sails_rs::{Decode, Encode, U256};
 
 // UPDATED: Now defining types by BYTE count, not bits/limbs.
 type Uint64 = LeBytes<8>; // 64 bits = 8 bytes

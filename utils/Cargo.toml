@@ -10,9 +10,19 @@ rust-version.workspace = true
 description = "Utilities for Awesome Sails services"
 
 [dependencies]
-sails-rs = { workspace = true }
-derive_more = { version = "2.1.0", default-features = false }
+primitive-types = { workspace = true }
+gstd = { workspace = true }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
+derive_more = { workspace = true, features = [
+    "display",
+    "from",
+    "into",
+    "as_ref",
+    "deref",
+] }
 thiserror = { workspace = true }
+hashbrown = { workspace = true }
 bnum = { version = "0.13.0", default-features = false }
 
 [dev-dependencies]

@@ -33,11 +33,16 @@ members = [
 sails-rs = { version = "0.10.1", default-features = false, features = ["gstd"] }
 awesome-sails-utils = { path = "utils", version = "0.1.0", default-features = false }
 gtest = "=1.10.0"
+gstd = { version = "1.10.0", default-features = false }
 
 # External dependencies
+hashbrown = { version = "0.14.5", default-features = false }
 derive_more = { version = "2.1.0", default-features = false }
 futures = { version = "=0.3.31", default-features = false }
 mockall = { version = "=0.14", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = false }
+primitive-types = { version = "0.12.2", default-features = false }
+scale-info = { version = "2.11.6", default-features = false }
 thiserror = { version = "=2.0.17", default-features = false }
 tokio = { version = "=1.48", default-features = false }
 
