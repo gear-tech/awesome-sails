@@ -235,5 +235,25 @@ mod custom_uint {
             let as_custom: Uint64 = one.cast();
             assert_eq!(as_custom, Uint64::ONE);
         }
+
+        #[cfg(feature = "gprimitives")]
+        #[test]
+        fn test_actor_id() {
+            use awesome_sails_utils::math::ActorId;
+
+            let zero_id = ActorId::zero();
+            let non_zero_id = ActorId::from([1u8; 32]);
+
+            // Test try_new
+            assert!(NonZero::try_new(zero_id).is_err());
+            assert!(NonZero::try_new(non_zero_id).is_ok());
+
+            let nz = NonZero::try_new(non_zero_id).unwrap();
+            let back: ActorId = nz.into_inner();
+            assert_eq!(back, non_zero_id);
+
+            let nz2: NonZero<ActorId> = non_zero_id.try_into().unwrap();
+            assert_eq!(nz2, nz);
+        }
     }
 }

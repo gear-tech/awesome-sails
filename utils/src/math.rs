@@ -20,12 +20,13 @@ use alloc::vec;
 use bnum::BUintD8;
 use core::cmp::Ordering;
 use derive_more::Deref;
-use gstd::ActorId;
 use parity_scale_codec::{Decode, Encode};
-use primitive_types::{H160, H256};
 use scale_info::{Path, Type, TypeInfo, build::Fields};
 
-pub use primitive_types::U256;
+pub use primitive_types::{H160, H256, U256};
+
+#[cfg(feature = "gprimitives")]
+pub use gprimitives::ActorId;
 
 // ==============================================================================
 //                              TRAITS
@@ -162,12 +163,17 @@ impl Zero for U256 {
 
 // --- ActorId, H256, H160 (No CheckedMath impl) ---
 
+#[cfg(feature = "gprimitives")]
 impl Max for ActorId {
     const MAX: Self = ActorId::new([u8::MAX; 32]);
 }
+
+#[cfg(feature = "gprimitives")]
 impl Min for ActorId {
     const MIN: Self = ActorId::zero();
 }
+
+#[cfg(feature = "gprimitives")]
 impl One for ActorId {
     const ONE: Self = {
         let mut b = [0; 32];
@@ -175,6 +181,8 @@ impl One for ActorId {
         Self::new(b)
     };
 }
+
+#[cfg(feature = "gprimitives")]
 impl Zero for ActorId {
     const ZERO: Self = ActorId::zero();
 }
@@ -527,7 +535,10 @@ impl<T: PartialOrd> PartialOrd<T> for NonZero<T> {
 }
 
 // Implement conversions
-impl_non_zero_conversion!(ActorId, H256, H160, U256);
+#[cfg(feature = "gprimitives")]
+impl_non_zero_conversion!(ActorId);
+
+impl_non_zero_conversion!(H256, H160, U256);
 impl_non_zero_conversion!(
     u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
 );
