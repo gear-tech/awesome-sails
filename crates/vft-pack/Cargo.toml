@@ -34,12 +34,13 @@ all = [
 
 test = ["awesome-sails-vft-service-utils/test"]
 
-vft-service = ["dep:awesome-sails-vft-service"]
+vft-service = ["dep:awesome-sails-vft-service", "vft-service-utils"]
 vft-service-utils = ["dep:awesome-sails-vft-service-utils"]
-vft-admin-service = ["dep:awesome-sails-vft-admin-service"]
-vft-extension-service = ["dep:awesome-sails-vft-extension-service", "vft-service", "vft-service-utils"]
+vft-admin-service = ["dep:awesome-sails-vft-admin-service", "vft-service"]
+vft-extension-service = ["dep:awesome-sails-vft-extension-service", "vft-service"]
 vft-metadata-service = ["dep:awesome-sails-vft-metadata-service"]
-vft-native-exchange-service = ["dep:awesome-sails-vft-native-exchange-service"]
+vft-native-exchange-service = ["dep:awesome-sails-vft-native-exchange-service", "vft-service"]
 vft-native-exchange-admin-service = [
     "dep:awesome-sails-vft-native-exchange-admin-service",
+    "vft-admin-service",
 ]
