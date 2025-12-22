@@ -63,20 +63,20 @@ pub const DEFAULT_ADMIN_ROLE: RoleId = [0u8; 32];
 
 #[derive(Default, Debug)]
 pub struct RolesStorage {
-    pub roles: BTreeMap<RoleId, RoleData>,
+    roles: BTreeMap<RoleId, RoleData>,
 }
 
 #[derive(Default, Debug)]
 pub struct RoleData {
-    pub members: BTreeSet<ActorId>,
-    pub admin_role_id: RoleId,
+    members: BTreeSet<ActorId>,
+    admin_role_id: RoleId,
 }
 
 impl RolesStorage {
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
         self.roles
             .get(&role_id)
-            .map_or(false, |data| data.members.contains(&account_id))
+            .is_some_and(|data| data.members.contains(&account_id))
     }
 
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
@@ -84,6 +84,14 @@ impl RolesStorage {
             .get(&role_id)
             .map(|data| data.admin_role_id)
             .unwrap_or(DEFAULT_ADMIN_ROLE)
+    }
+
+    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
+        self.roles
+            .entry(DEFAULT_ADMIN_ROLE)
+            .or_default()
+            .members
+            .insert(deployer);
     }
 }
 
@@ -100,38 +108,29 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
         }
     }
 
-    /// Grants `role_id` to `target_account`.
-    ///
-    /// Internal function without access restriction.
     fn grant_role_unchecked(
         &mut self,
         role_id: RoleId,
         target_account: ActorId,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         let mut storage = self.storage.get_mut()?;
         let role_data = storage.roles.entry(role_id).or_default();
-        role_data.members.insert(target_account);
-        Ok(())
+        Ok(role_data.members.insert(target_account))
     }
 
-    /// Revokes `role_id` from `target_account`.
-    ///
-    /// Internal function without access restriction.
     fn revoke_role_unchecked(
         &mut self,
         role_id: RoleId,
         target_account: ActorId,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         let mut storage = self.storage.get_mut()?;
         if let Some(role_data) = storage.roles.get_mut(&role_id) {
-            role_data.members.remove(&target_account);
+            Ok(role_data.members.remove(&target_account))
+        } else {
+            Ok(false)
         }
-        Ok(())
     }
 
-    /// Sets `admin_role_id` as the admin role for `role_id`.
-    ///
-    /// Internal function without access restriction.
     fn set_role_admin_unchecked(
         &mut self,
         role_id: RoleId,
@@ -180,8 +179,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
             BadOrigin
         );
 
-        if !self.has_role(role_id, target_account) {
-            self.grant_role_unchecked(role_id, target_account)?;
+        if self.grant_role_unchecked(role_id, target_account)? {
             self.emit_event(Event::RoleGranted {
                 role_id,
                 target_account,
@@ -208,8 +206,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
             BadOrigin
         );
 
-        if self.has_role(role_id, target_account) {
-            self.revoke_role_unchecked(role_id, target_account)?;
+        if self.revoke_role_unchecked(role_id, target_account)? {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account,
@@ -237,8 +234,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     pub fn renounce_role(&mut self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
         ensure!(account_id == Syscall::message_source(), BadOrigin);
 
-        if self.has_role(role_id, account_id) {
-            self.revoke_role_unchecked(role_id, account_id)?;
+        if self.revoke_role_unchecked(role_id, account_id)? {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,

@@ -18,9 +18,7 @@
 
 #![no_std]
 
-use awesome_sails_access_control_service::{
-    DEFAULT_ADMIN_ROLE, RolesStorage, Service as AccessControlService,
-};
+use awesome_sails_access_control_service::{RolesStorage, Service as AccessControlService};
 use awesome_sails_utils::{
     error::Error,
     pause::{PausableRef, Pause},
@@ -122,13 +120,7 @@ impl Program {
         let mut access_control_roles = RolesStorage::default();
         let deployer = Syscall::message_source();
 
-        // Grant DEFAULT_ADMIN_ROLE to deployer
-        access_control_roles
-            .roles
-            .entry(DEFAULT_ADMIN_ROLE)
-            .or_default()
-            .members
-            .insert(deployer);
+        access_control_roles.grant_initial_admin(deployer);
 
         Self {
             access_control_roles: RefCell::new(access_control_roles),

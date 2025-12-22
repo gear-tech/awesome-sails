@@ -18,9 +18,7 @@
 
 #![no_std]
 
-use awesome_sails_access_control_service::{
-    DEFAULT_ADMIN_ROLE, RolesStorage, Service as AccessControlService,
-};
+use awesome_sails_access_control_service::{RolesStorage, Service as AccessControlService};
 use awesome_sails_utils::storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
@@ -35,13 +33,7 @@ impl Program {
         let mut storage = RolesStorage::default();
         let deployer = Syscall::message_source();
 
-        // Grant DEFAULT_ADMIN_ROLE to deployer directly in storage
-        storage
-            .roles
-            .entry(DEFAULT_ADMIN_ROLE)
-            .or_default()
-            .members
-            .insert(deployer);
+        storage.grant_initial_admin(deployer);
 
         Self {
             roles: RefCell::new(storage),
