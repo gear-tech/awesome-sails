@@ -6,6 +6,69 @@ service Test {
   Set : (new_allowances: vec struct { actor_id, actor_id, u256, u32 }, new_balances: vec struct { actor_id, u256 }, expiry_period: u32) -> null;
 };
 
+service AccessControl {
+  /// Grants `role_id` to `target_account`.
+  /// 
+  /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
+  /// event.
+  /// 
+  /// Requirements:
+  /// 
+  /// - the caller must have `role_id`'s admin role.
+  GrantRole : (role_id: [u8, 32], target_account: actor_id) -> null;
+  /// Revokes `role_id` from the calling account.
+  /// 
+  /// Roles are often managed via `grant_role` and `revoke_role`: this function's
+  /// purpose is to provide a mechanism for accounts to lose their privileges
+  /// if they are compromised (such as when a trusted device is misplaced).
+  /// 
+  /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
+  /// event.
+  /// 
+  /// Requirements:
+  /// 
+  /// - the caller must be `account_id`.
+  RenounceRole : (role_id: [u8, 32], account_id: actor_id) -> null;
+  /// Revokes `role_id` from `target_account`.
+  /// 
+  /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
+  /// 
+  /// Requirements:
+  /// 
+  /// - the caller must have `role_id`'s admin role.
+  RevokeRole : (role_id: [u8, 32], target_account: actor_id) -> null;
+  /// Sets `new_admin_role_id` as the admin role for `role_id`.
+  /// 
+  /// Emits a `RoleAdminChanged` event.
+  /// 
+  /// Requirements:
+  /// 
+  /// - the caller must have `role_id`'s admin role.
+  SetRoleAdmin : (role_id: [u8, 32], new_admin_role_id: [u8, 32]) -> null;
+  /// Returns the admin role ID that controls `role_id`.
+  query GetRoleAdmin : (role_id: [u8, 32]) -> [u8, 32];
+  /// Returns `true` if `account_id` has been granted `role_id`.
+  query HasRole : (role_id: [u8, 32], account_id: actor_id) -> bool;
+
+  events {
+    RoleGranted: struct {
+      role_id: [u8, 32],
+      target_account: actor_id,
+      sender: actor_id,
+    };
+    RoleRevoked: struct {
+      role_id: [u8, 32],
+      target_account: actor_id,
+      sender: actor_id,
+    };
+    RoleAdminChanged: struct {
+      role_id: [u8, 32],
+      previous_admin_role_id: [u8, 32],
+      new_admin_role_id: [u8, 32],
+    };
+  }
+};
+
 service Vft {
   Approve : (spender: actor_id, value: u256) -> bool;
   Transfer : (to: actor_id, value: u256) -> bool;
@@ -37,22 +100,10 @@ service VftAdmin {
   Mint : (to: actor_id, value: u256) -> null;
   Pause : () -> null;
   Resume : () -> null;
-  SetAdmin : (admin: actor_id) -> null;
-  SetBurner : (burner: actor_id) -> null;
   SetExpiryPeriod : (period: u32) -> null;
-  SetMinter : (minter: actor_id) -> null;
-  SetPauser : (pauser: actor_id) -> null;
-  query Admin : () -> actor_id;
-  query Burner : () -> actor_id;
   query IsPaused : () -> bool;
-  query Minter : () -> actor_id;
-  query Pauser : () -> actor_id;
 
   events {
-    AdminChanged: actor_id;
-    BurnerChanged: actor_id;
-    MinterChanged: actor_id;
-    PauserChanged: actor_id;
     BurnerTookPlace;
     MinterTookPlace;
     ExpiryPeriodChanged: u32;

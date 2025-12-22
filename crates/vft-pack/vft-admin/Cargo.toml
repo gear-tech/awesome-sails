@@ -16,3 +16,5 @@ sails-rs = { workspace = true, features = ["gstd"] }
 # Local dependencies.
 awesome-sails-utils = { workspace = true }
 awesome-sails-vft-service.workspace = true
+awesome-sails-access-control-service = { workspace = true }
+keccak-const = { workspace = true }

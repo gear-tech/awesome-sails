@@ -392,8 +392,10 @@ dependencies = [
 name = "awesome-sails-vft-admin-service"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-utils",
  "awesome-sails-vft-service",
+ "keccak-const",
  "sails-rs",
 ]
 
@@ -419,6 +421,7 @@ dependencies = [
 name = "awesome-sails-vft-native-exchange-admin-service"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-utils",
  "awesome-sails-vft-admin-service",
  "awesome-sails-vft-service",
@@ -3163,6 +3166,12 @@ checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
 ]
+
+[[package]]
+name = "keccak-const"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d8d8ce877200136358e0bbff3a77965875db3af755a11e1fa6b1b3e2df13ea"
 
 [[package]]
 name = "lalrpop"
@@ -6551,6 +6560,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vft-pack-test-app"
 version = "0.0.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-utils",
  "awesome-sails-vft-pack",
  "futures",

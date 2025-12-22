@@ -50,6 +50,7 @@ primitive-types = { version = "0.12.2", default-features = false }
 scale-info = { version = "2.11.6", default-features = false }
 thiserror = { version = "=2.0.17", default-features = false }
 tokio = { version = "=1.48", default-features = false }
+keccak-const = { version = "0.2", default-features = false }
 
 
 # vft-pack

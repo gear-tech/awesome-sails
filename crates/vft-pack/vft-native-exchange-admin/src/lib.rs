@@ -22,41 +22,38 @@
 
 #![no_std]
 
-use awesome_sails_utils::{
-    error::Error,
-    ok_if,
-    storage::{InfallibleStorageMut, StorageMut},
-};
-use awesome_sails_vft_admin_service::{self as vft_admin, Authorities};
+use awesome_sails_access_control_service::RolesStorage;
+use awesome_sails_utils::{error::Error, ok_if, storage::StorageMut};
+use awesome_sails_vft_admin_service::{self as vft_admin};
 use awesome_sails_vft_service::utils::{Allowances, Balances};
 use sails_rs::{gstd, prelude::*};
 
 /// Awesome VFT-Native-Exchange-Admin service itself.
-pub struct Service<'a, S, A, B>
+pub struct Service<'a, ACS, A, B>
 where
-    S: InfallibleStorageMut<Item = Authorities>,
+    ACS: StorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
-    vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, S, A, B>>,
+    vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, ACS, A, B>>,
 }
 
-impl<'a, S, A, B> Service<'a, S, A, B>
+impl<'a, ACS, A, B> Service<'a, ACS, A, B>
 where
-    S: InfallibleStorageMut<Item = Authorities>,
+    ACS: StorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
     /// Constructor for [`Self`].
-    pub fn new(vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, S, A, B>>) -> Self {
+    pub fn new(vft_admin: vft_admin::ServiceExposure<vft_admin::Service<'a, ACS, A, B>>) -> Self {
         Self { vft_admin }
     }
 }
 
 #[service(events = Event)]
-impl<'a, S, A, B> Service<'a, S, A, B>
+impl<'a, ACS, A, B> Service<'a, ACS, A, B>
 where
-    S: InfallibleStorageMut<Item = Authorities>,
+    ACS: StorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {

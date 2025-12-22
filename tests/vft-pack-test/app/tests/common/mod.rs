@@ -22,10 +22,12 @@ use sails_rs::{
     gtest::System,
     prelude::*,
 };
-// УДАЛЕНО: use vft_pack_test_app::Program as AppProgram;
 use vft_pack_test_client::{
-    VftPackTestClient, VftPackTestClientCtors, VftPackTestClientProgram, test::Test,
-    vft_extension::VftExtension,
+    VftPackTestClient, // Import VftPackTestClient trait
+    VftPackTestClientCtors,
+    VftPackTestClientProgram,
+    test::Test,                  // Restore Test service import
+    vft_extension::VftExtension, // Restore VftExtension import
 };
 
 const fn actor_id(id: u8) -> ActorId {
@@ -79,18 +81,17 @@ pub async fn deploy_with_data(
     balances: Vec<(ActorId, U256)>,
     expiry_period: u32,
 ) -> (Actor<VftPackTestClientProgram, GtestEnv>, GtestEnv, ActorId) {
-    // Use VftPackTestClientProgram
     let (env, code_id, _gas_limit) = deploy_env();
 
     let program = env
-        .deploy::<VftPackTestClientProgram>(code_id, b"salt".to_vec()) // Use VftPackTestClientProgram
+        .deploy::<VftPackTestClientProgram>(code_id, b"salt".to_vec())
         .new()
         .await
         .expect("failed to deploy program");
 
     let program_id = program.id();
 
-    let mut vft_extension = program.vft_extension(); // Use methods from VftPackTestClient trait
+    let mut vft_extension = program.vft_extension();
 
     while vft_extension
         .allocate_next_balances_shard()
