@@ -1,0 +1,32 @@
+[package]
+name = "awesome-sails-utils"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Utilities for Awesome Sails services"
+
+[dependencies]
+primitive-types = { workspace = true }
+gprimitives = { workspace = true, optional = true }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
+derive_more = { workspace = true, features = [
+    "display",
+    "from",
+    "into",
+    "as_ref",
+    "deref",
+] }
+thiserror = { workspace = true }
+hashbrown = { workspace = true, features = ["ahash"] }
+bnum = { version = "0.13.0", default-features = false }
+
+[features]
+gprimitives = ["dep:gprimitives"]
+
+[dev-dependencies]
+proptest = "1.9.0"
