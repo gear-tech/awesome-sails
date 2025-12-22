@@ -1,0 +1,19 @@
+[package]
+name = "access-control-test-app"
+edition.workspace = true
+publish = false
+
+[dependencies]
+awesome-sails-access-control-service = { workspace = true }
+awesome-sails-utils = { workspace = true }
+sails-rs = { workspace = true }
+
+[build-dependencies]
+sails-rs = { workspace = true, features = ["wasm-builder"] }
+
+[dev-dependencies]
+access-control-test-client = { path = "../client" }
+futures.workspace = true
+gtest.workspace = true
+sails-rs = { workspace = true, features = ["gtest"] }
+tokio = { workspace = true, features = ["rt", "macros"] }

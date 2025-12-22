@@ -13,6 +13,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "access-control-test-app"
+version = "0.0.0"
+dependencies = [
+ "access-control-test-client",
+ "awesome-sails-access-control-service",
+ "awesome-sails-utils",
+ "futures",
+ "gtest",
+ "sails-rs",
+ "tokio",
+]
+
+[[package]]
+name = "access-control-test-client"
+version = "0.1.0"
+dependencies = [
+ "access-control-test-app",
+ "mockall 0.14.0",
+ "sails-rs",
+]
+
+[[package]]
 name = "actor-system-error"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -342,6 +364,14 @@ name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
+
+[[package]]
+name = "awesome-sails-access-control-service"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-utils",
+ "sails-rs",
+]
 
 [[package]]
 name = "awesome-sails-utils"
