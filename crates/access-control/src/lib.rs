@@ -52,7 +52,10 @@ use awesome_sails_utils::{
     storage::{StorageMut, StorageRefCell},
 };
 use core::marker::PhantomData;
-use sails_rs::{collections::BTreeMap, prelude::*};
+use sails_rs::{
+    collections::{BTreeMap, BTreeSet},
+    prelude::*,
+};
 
 pub type RoleId = [u8; 32];
 
@@ -65,7 +68,7 @@ pub struct RolesStorage {
 
 #[derive(Default, Debug)]
 pub struct RoleData {
-    pub members: BTreeMap<ActorId, bool>,
+    pub members: BTreeSet<ActorId>,
     pub admin_role_id: RoleId,
 }
 
@@ -73,9 +76,7 @@ impl RolesStorage {
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
         self.roles
             .get(&role_id)
-            .and_then(|data| data.members.get(&account_id))
-            .copied()
-            .unwrap_or(false)
+            .map_or(false, |data| data.members.contains(&account_id))
     }
 
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
@@ -102,38 +103,28 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// Grants `role_id` to `target_account`.
     ///
     /// Internal function without access restriction.
-    pub fn grant_role_unchecked(
+    fn grant_role_unchecked(
         &mut self,
         role_id: RoleId,
         target_account: ActorId,
     ) -> Result<(), Error> {
         let mut storage = self.storage.get_mut()?;
         let role_data = storage.roles.entry(role_id).or_default();
-
-        if !role_data
-            .members
-            .get(&target_account)
-            .copied()
-            .unwrap_or(false)
-        {
-            role_data.members.insert(target_account, true);
-        }
+        role_data.members.insert(target_account);
         Ok(())
     }
 
     /// Revokes `role_id` from `target_account`.
     ///
     /// Internal function without access restriction.
-    pub fn revoke_role_unchecked(
+    fn revoke_role_unchecked(
         &mut self,
         role_id: RoleId,
         target_account: ActorId,
     ) -> Result<(), Error> {
         let mut storage = self.storage.get_mut()?;
-        if let Some(role_data) = storage.roles.get_mut(&role_id)
-            && role_data.members.remove(&target_account).is_some()
-        {
-            // Logic handled
+        if let Some(role_data) = storage.roles.get_mut(&role_id) {
+            role_data.members.remove(&target_account);
         }
         Ok(())
     }
@@ -141,7 +132,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// Sets `admin_role_id` as the admin role for `role_id`.
     ///
     /// Internal function without access restriction.
-    pub fn set_role_admin_unchecked(
+    fn set_role_admin_unchecked(
         &mut self,
         role_id: RoleId,
         admin_role_id: RoleId,

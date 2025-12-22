@@ -128,7 +128,7 @@ impl Program {
             .entry(DEFAULT_ADMIN_ROLE)
             .or_default()
             .members
-            .insert(deployer, true);
+            .insert(deployer);
 
         Self {
             access_control_roles: RefCell::new(access_control_roles),

@@ -41,7 +41,7 @@ impl Program {
             .entry(DEFAULT_ADMIN_ROLE)
             .or_default()
             .members
-            .insert(deployer, true);
+            .insert(deployer);
 
         Self {
             roles: RefCell::new(storage),
