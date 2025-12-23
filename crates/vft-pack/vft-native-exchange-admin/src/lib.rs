@@ -22,8 +22,8 @@
 
 #![no_std]
 
-use awesome_sails_access_control_service::RolesStorage;
-use awesome_sails_utils::{error::Error, ok_if, storage::StorageMut};
+use awesome_sails_access_control_service::{RolesStorage, error::Error};
+use awesome_sails_utils::{ok_if, storage::StorageMut};
 use awesome_sails_vft_admin_service::{self as vft_admin};
 use awesome_sails_vft_service::utils::{Allowances, Balances};
 use sails_rs::{gstd, prelude::*};

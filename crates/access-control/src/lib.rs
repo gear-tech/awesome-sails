@@ -46,11 +46,14 @@
 
 #![no_std]
 
-use awesome_sails_utils::{
-    ensure,
-    error::{BadOrigin, EmitError, Error},
-    storage::{StorageMut, StorageRefCell},
-};
+pub use awesome_sails_utils::ensure;
+
+pub mod error {
+    pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
+}
+
+use crate::error::{BadOrigin, EmitError, Error};
+use awesome_sails_utils::storage::{StorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::{
     collections::{BTreeMap, BTreeSet},
@@ -163,6 +166,16 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
             .unwrap_or(DEFAULT_ADMIN_ROLE)
     }
 
+    /// Ensures that `account_id` has `role_id`.
+    ///
+    /// Requirements:
+    ///
+    /// - `account_id` must have `role_id`.
+    pub fn require_role(&self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
+        ensure!(self.has_role(role_id, account_id), BadOrigin);
+        Ok(())
+    }
+
     /// Grants `role_id` to `target_account`.
     ///
     /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
@@ -173,11 +186,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// - the caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn grant_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        let admin_role_id = self.get_role_admin(role_id);
-        ensure!(
-            self.has_role(admin_role_id, Syscall::message_source()),
-            BadOrigin
-        );
+        self.require_role(self.get_role_admin(role_id), Syscall::message_source())?;
 
         if self.grant_role_unchecked(role_id, target_account)? {
             self.emit_event(Event::RoleGranted {
@@ -200,11 +209,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// - the caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn revoke_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        let admin_role_id = self.get_role_admin(role_id);
-        ensure!(
-            self.has_role(admin_role_id, Syscall::message_source()),
-            BadOrigin
-        );
+        self.require_role(self.get_role_admin(role_id), Syscall::message_source())?;
 
         if self.revoke_role_unchecked(role_id, target_account)? {
             self.emit_event(Event::RoleRevoked {
@@ -260,10 +265,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
         new_admin_role_id: RoleId,
     ) -> Result<(), Error> {
         let current_admin_role_id = self.get_role_admin(role_id);
-        ensure!(
-            self.has_role(current_admin_role_id, Syscall::message_source()),
-            BadOrigin
-        );
+        self.require_role(current_admin_role_id, Syscall::message_source())?;
 
         self.set_role_admin_unchecked(role_id, new_admin_role_id)?;
 

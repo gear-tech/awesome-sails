@@ -23,11 +23,10 @@
 #![no_std]
 
 use awesome_sails_access_control_service::{
-    self as access_control, DEFAULT_ADMIN_ROLE, RoleId, RolesStorage,
+    self as access_control, DEFAULT_ADMIN_ROLE, RoleId, RolesStorage, ensure,
+    error::{EmitError, Error},
 };
 use awesome_sails_utils::{
-    ensure,
-    error::{BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::{PausableRef, Pause, UnpausedError},
@@ -128,11 +127,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn append_allowances_shard(&mut self, capacity: u32) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(DEFAULT_ADMIN_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         self.allowances
             .get_mut()?
@@ -143,11 +139,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn append_balances_shard(&mut self, capacity: u32) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(DEFAULT_ADMIN_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         self.balances
             .get_mut()?
@@ -163,11 +156,8 @@ impl<
         spender: ActorId,
         value: U256,
     ) -> Result<bool, Error> {
-        ensure!(
-            self.access_control
-                .has_role(DEFAULT_ADMIN_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         ok_if!(owner == spender, false);
 
@@ -198,11 +188,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn burn(&mut self, from: ActorId, value: U256) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(BURNER_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(BURNER_ROLE, Syscall::message_source())?;
 
         self.balances
             .get_mut()?
@@ -224,11 +211,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(DEFAULT_ADMIN_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
         ensure!(self.is_paused(), UnpausedError);
 
         self.emit_event(Event::Exited(inheritor))
@@ -239,11 +223,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(MINTER_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(MINTER_ROLE, Syscall::message_source())?;
 
         unsafe {
             self.do_mint(to, value)?;
@@ -257,11 +238,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn pause(&mut self) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(PAUSER_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(PAUSER_ROLE, Syscall::message_source())?;
 
         if self.pause.pause() {
             self.emit_event(Event::Paused).map_err(|_| EmitError)?;
@@ -272,11 +250,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn resume(&mut self) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(PAUSER_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(PAUSER_ROLE, Syscall::message_source())?;
 
         if self.pause.resume() {
             self.emit_event(Event::Resumed).map_err(|_| EmitError)?;
@@ -287,11 +262,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn set_expiry_period(&mut self, period: u32) -> Result<(), Error> {
-        ensure!(
-            self.access_control
-                .has_role(DEFAULT_ADMIN_ROLE, Syscall::message_source()),
-            BadOrigin
-        );
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         self.allowances.get_mut()?.set_expiry_period(period);
 
