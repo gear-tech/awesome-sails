@@ -371,6 +371,7 @@ version = "0.1.0"
 dependencies = [
  "awesome-sails-utils",
  "sails-rs",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

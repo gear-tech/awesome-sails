@@ -48,11 +48,7 @@
 
 pub use awesome_sails_utils::ensure;
 
-pub mod error {
-    pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
-}
-
-use crate::error::{BadOrigin, EmitError, Error};
+use crate::error::{AccessDenied, EmitError, Error, NotAccountOwner};
 use awesome_sails_utils::storage::{StorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::{
@@ -172,7 +168,13 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     ///
     /// - `account_id` must have `role_id`.
     pub fn require_role(&self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
-        ensure!(self.has_role(role_id, account_id), BadOrigin);
+        ensure!(
+            self.has_role(role_id, account_id),
+            AccessDenied {
+                account_id,
+                role_id,
+            }
+        );
         Ok(())
     }
 
@@ -186,13 +188,14 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// - the caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn grant_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        self.require_role(self.get_role_admin(role_id), Syscall::message_source())?;
+        let message_source = Syscall::message_source();
+        self.require_role(self.get_role_admin(role_id), message_source)?;
 
         if self.grant_role_unchecked(role_id, target_account)? {
             self.emit_event(Event::RoleGranted {
                 role_id,
                 target_account,
-                sender: Syscall::message_source(),
+                sender: message_source,
             })
             .map_err(|_| EmitError)?;
         }
@@ -209,13 +212,14 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// - the caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn revoke_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        self.require_role(self.get_role_admin(role_id), Syscall::message_source())?;
+        let message_source = Syscall::message_source();
+        self.require_role(self.get_role_admin(role_id), message_source)?;
 
         if self.revoke_role_unchecked(role_id, target_account)? {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account,
-                sender: Syscall::message_source(),
+                sender: message_source,
             })
             .map_err(|_| EmitError)?;
         }
@@ -237,13 +241,20 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
     /// - the caller must be `account_id`.
     #[export(unwrap_result)]
     pub fn renounce_role(&mut self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
-        ensure!(account_id == Syscall::message_source(), BadOrigin);
+        let message_source = Syscall::message_source();
+        ensure!(
+            account_id == message_source,
+            NotAccountOwner {
+                account_id,
+                message_source,
+            }
+        );
 
         if self.revoke_role_unchecked(role_id, account_id)? {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,
-                sender: Syscall::message_source(),
+                sender: message_source,
             })
             .map_err(|_| EmitError)?;
         }
@@ -300,4 +311,32 @@ pub enum Event {
         previous_admin_role_id: RoleId,
         new_admin_role_id: RoleId,
     },
+}
+
+pub mod error {
+    use crate::RoleId;
+    pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
+    use sails_rs::{
+        ActorId,
+        scale_codec::{Decode, Encode},
+        scale_info::TypeInfo,
+    };
+
+    #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[error("Access denied: account {account_id:?} does not have role {role_id:?}")]
+    #[scale_info(crate = sails_rs::scale_info)]
+    pub struct AccessDenied {
+        pub account_id: ActorId,
+        pub role_id: RoleId,
+    }
+
+    #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[error("Not account owner: account {account_id:?}, message source {message_source:?}")]
+    #[scale_info(crate = sails_rs::scale_info)]
+    pub struct NotAccountOwner {
+        pub account_id: ActorId,
+        pub message_source: ActorId,
+    }
 }

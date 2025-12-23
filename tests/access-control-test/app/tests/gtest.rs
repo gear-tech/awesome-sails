@@ -112,7 +112,10 @@ async fn grant_role_fail_unauthorized() {
         .grant_role(MINTER_ROLE, DAVE)
         .with_actor_id(CHARLIE)
         .await;
-    assert_str_panic(res.unwrap_err(), "incorrect message origin");
+    assert_str_panic(
+        res.unwrap_err(),
+        "Access denied: account 0x0000000000000000000000002c00000000000000000000000000000000000000 does not have role [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+    );
 
     // Dave should not have MINTER_ROLE
     let has_role = access_control_service.has_role(MINTER_ROLE, DAVE).await;
@@ -136,7 +139,10 @@ async fn revoke_role_fail_unauthorized() {
         .revoke_role(MINTER_ROLE, BOB)
         .with_actor_id(CHARLIE)
         .await;
-    assert_str_panic(res.unwrap_err(), "incorrect message origin");
+    assert_str_panic(
+        res.unwrap_err(),
+        "Access denied: account 0x0000000000000000000000002c00000000000000000000000000000000000000 does not have role [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+    );
 
     // Bob should still have MINTER_ROLE
     let has_role = access_control_service.has_role(MINTER_ROLE, BOB).await;
@@ -198,7 +204,10 @@ async fn renounce_role_fail_other_account() {
         .renounce_role(PAUSER_ROLE, CHARLIE)
         .with_actor_id(BOB)
         .await;
-    assert_str_panic(res.unwrap_err(), "incorrect message origin");
+    assert_str_panic(
+        res.unwrap_err(),
+        "Not account owner: account 0x0000000000000000000000002c00000000000000000000000000000000000000, message source 0x0000000000000000000000002b00000000000000000000000000000000000000",
+    );
 
     // Charlie should still have PAUSER_ROLE
     let has_role = access_control_service.has_role(PAUSER_ROLE, CHARLIE).await;
@@ -263,7 +272,10 @@ async fn set_role_admin_success() {
         .grant_role(MINTER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
         .await;
-    assert_str_panic(res.unwrap_err(), "incorrect message origin");
+    assert_str_panic(
+        res.unwrap_err(),
+        "Access denied: account 0x0000000000000000000000002a00000000000000000000000000000000000000 does not have role [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]",
+    );
 
     // Revert admin role to DEFAULT_ADMIN_ROLE
     access_control_service
@@ -294,7 +306,10 @@ async fn set_role_admin_fail_unauthorized() {
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(CHARLIE)
         .await;
-    assert_str_panic(res.unwrap_err(), "incorrect message origin");
+    assert_str_panic(
+        res.unwrap_err(),
+        "Access denied: account 0x0000000000000000000000002c00000000000000000000000000000000000000 does not have role [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+    );
 
     // Admin for MINTER_ROLE should still be DEFAULT_ADMIN_ROLE
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
