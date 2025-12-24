@@ -8,8 +8,9 @@ on:
 env:
   GITHUB_USER_NAME: github-actions[bot]
   GITHUB_USER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+  BINARYEN_VERSION: version_116
   # List of programs to build assets for (WASM/IDL)
-  RELEASE_PROGRAMS: "vft-pack-test-app access-control-test-app"
+  RELEASE_PROGRAMS: "vft-pack-test-app"
 
 jobs:
   prepare:
@@ -89,7 +90,9 @@ jobs:
         run: rustup component add rust-src --toolchain stable
 
       - name: Install wasm-opt
-        run: npm install -g wasm-opt
+        run: |
+          sudo wget -c https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz -O - | sudo tar -xz -C .
+          sudo cp binaryen-$BINARYEN_VERSION/bin/wasm-opt /usr/bin/
 
       - name: Build and Prepare Assets
         run: |
@@ -146,8 +149,7 @@ jobs:
       - name: Publish Workspace
         if: env.CRATES_TOKEN != ''
         run: |
-          cargo login ${{ secrets.CRATES_IO_TOKEN }}
-          cargo publish --workspace
+          cargo publish --workspace --allow-dirty
 
       - name: Skip Publish Warning
         if: env.CRATES_TOKEN == ''
