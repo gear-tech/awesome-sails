@@ -1,0 +1,223 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'pin/v*'
+
+env:
+  GITHUB_USER_NAME: github-actions[bot]
+  GITHUB_USER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+  # List of programs to build assets for (WASM/IDL)
+  RELEASE_PROGRAMS: "vft-pack-test-app access-control-test-app"
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      rc_branch: ${{ steps.rc_branch.outputs.branch }}
+      version: ${{ steps.release_info.outputs.version }}
+      tag: v${{ steps.release_info.outputs.version }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Release Info
+        id: release_info
+        run: |
+          PIN_TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${PIN_TAG#pin/v}
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.]+)?$ ]]; then
+            echo "'$VERSION' is not a valid semver version"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create RC Branch
+        id: rc_branch
+        run: |
+          RC_BRANCH="rc/v${{ steps.release_info.outputs.version }}"
+          git config --global user.name "$GITHUB_USER_NAME"
+          git config --global user.email "$GITHUB_USER_EMAIL"
+          git checkout -b "$RC_BRANCH"
+          git push origin "$RC_BRANCH" --force
+          echo "branch=$RC_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Set Workspace Version & Update Dependencies
+        run: |
+          VERSION=${{ steps.release_info.outputs.version }}
+          # Update workspace package version
+          sed -i 's/^version = ".*"/version = "'$VERSION'"/' Cargo.toml
+          # Update internal dependencies
+          sed -i "/^awesome-sails-/ s/version = \"[^\"]*\"/version = \"$VERSION\"/" Cargo.toml
+          
+          git add Cargo.toml
+          if ! git diff --cached --quiet; then
+            git commit -m "build: update version to v$VERSION"
+            git push origin "${{ steps.rc_branch.outputs.branch }}"
+          fi
+          # Clean up the trigger pin-tag
+          git push origin --delete ${GITHUB_REF#refs/tags/}
+
+  assets:
+    name: Build Assets
+    runs-on: ubuntu-latest
+    needs: prepare
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout Code from Release Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.rc_branch }}
+
+      - name: Set up Rust
+        uses: dsherret/rust-toolchain-file@v1
+
+      - name: Set up Rust for wasm
+        run: rustup component add rust-src --toolchain stable
+
+      - name: Install wasm-opt
+        run: npm install -g wasm-opt
+
+      - name: Build and Prepare Assets
+        run: |
+          mkdir -p ./assets
+          for PROG in ${{ env.RELEASE_PROGRAMS }}; do
+            echo "Building $PROG..."
+            cargo build -p "$PROG" --release
+            
+            PROG_SNAKE=$(echo "$PROG" | tr '-' '_')
+            WASM_PATH="target/wasm32-gear/release/${PROG_SNAKE}.opt.wasm"
+            [ ! -f "$WASM_PATH" ] && WASM_PATH="target/wasm32-gear/release/${PROG_SNAKE}.wasm"
+            
+            if [ -f "$WASM_PATH" ]; then
+              FINAL_NAME=$(echo "$PROG_SNAKE" | sed 's/_test_app//')
+              wasm-opt -O4 -o "./assets/${FINAL_NAME}.wasm" "$WASM_PATH"
+              
+              IDL_NAME="${PROG_SNAKE/_app/_client}.idl"
+              IDL_SOURCE=$(find tests -name "$IDL_NAME" | head -n 1)
+              if [ -n "$IDL_SOURCE" ]; then
+                cp "$IDL_SOURCE" "./assets/${FINAL_NAME}.idl"
+              fi
+            fi
+          done
+
+      - name: Upload Assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: ./assets/
+
+  publish:
+    name: Publish Crates
+    runs-on: ubuntu-latest
+    needs: prepare
+    defaults:
+      run:
+        shell: bash
+    env:
+      CRATES_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+    steps:
+      - name: Checkout Code from Release Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.rc_branch }}
+
+      - name: Set up Rust
+        uses: dsherret/rust-toolchain-file@v1
+
+      - name: Login to Crates.io
+        if: env.CRATES_TOKEN != ''
+        run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish Workspace
+        if: env.CRATES_TOKEN != ''
+        run: |
+          cargo login ${{ secrets.CRATES_IO_TOKEN }}
+          cargo publish --workspace
+
+      - name: Skip Publish Warning
+        if: env.CRATES_TOKEN == ''
+        run: echo "Skipping publishing because CRATES_IO_TOKEN is not set."
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    needs: [prepare, assets, publish]
+    defaults:
+      run:
+        shell: bash
+    env:
+      R_NAME: Awesome-Sails v${{ needs.prepare.outputs.version }}
+
+    steps:
+      - name: Checkout Code from Release Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.rc_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: ./assets
+
+      - name: Create Release Tag
+        run: |
+          R_TAG=${{ needs.prepare.outputs.tag }}
+          git config --global user.name "$GITHUB_USER_NAME"
+          git config --global user.email "$GITHUB_USER_EMAIL"
+          if git rev-parse "$R_TAG" >/dev/null 2>&1; then
+             git tag -f -a "$R_TAG" -m "Release v${{ needs.prepare.outputs.version }}"
+             git push origin "$R_TAG" --force
+          else
+             git tag -a "$R_TAG" -m "Release v${{ needs.prepare.outputs.version }}"
+             git push origin "$R_TAG"
+          fi
+
+      - name: Install GitHub CLI
+        run: sudo apt-get install -y gh
+
+      - name: Create Sync PR
+        id: sync_pr
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          BASE_BRANCH="master" 
+          EXISTING_PR=$(gh pr list --head ${{ needs.prepare.outputs.rc_branch }} --base $BASE_BRANCH --json url --jq '.[0].url')
+          if [ -z "$EXISTING_PR" ]; then
+            PR_URL=$(gh pr create --title "release: sync ${{ env.R_NAME }} to $BASE_BRANCH" --body "This PR was created by GitHub Actions" --base $BASE_BRANCH --head ${{ needs.prepare.outputs.rc_branch }})
+            echo "url=$PR_URL" >> $GITHUB_OUTPUT
+          else
+            echo "url=$EXISTING_PR" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ env.R_NAME }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          draft: true
+          generate_release_notes: true
+          body: |
+            :exclamation: This is a draft release.
+            :exclamation: Please write/generate change notes and publish the release.
+            :exclamation: Please also check this [PR](${{ steps.sync_pr.outputs.url }}) to sync the changes to master.
+          files: assets/*
+          token: ${{ secrets.GITHUB_TOKEN }}
