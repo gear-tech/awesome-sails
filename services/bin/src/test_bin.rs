@@ -11,12 +11,14 @@ pub struct TestBinFactory<R> {
     #[allow(dead_code)]
     remoting: R,
 }
+
 impl<R> TestBinFactory<R> {
     #[allow(unused)]
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::TestBinFactory for TestBinFactory<R> {
     type Args = R::Args;
     fn new(&self) -> impl Activation<Args = R::Args> {
@@ -30,12 +32,14 @@ pub mod test_bin_factory {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct New(());
+
         impl New {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <New as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for New {
             const ROUTE: &'static [u8] = &[12, 78, 101, 119];
             type Params = ();
@@ -46,11 +50,13 @@ pub mod test_bin_factory {
 pub struct Test<R> {
     remoting: R,
 }
+
 impl<R> Test<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::Test for Test<R> {
     type Args = R::Args;
     fn set(
@@ -74,6 +80,7 @@ pub mod test {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct Set(());
+
         impl Set {
             #[allow(dead_code)]
             pub fn encode_call(
@@ -90,6 +97,7 @@ pub mod test {
                 ))
             }
         }
+
         impl ActionIo for Set {
             const ROUTE: &'static [u8] = &[16, 84, 101, 115, 116, 12, 83, 101, 116];
             type Params = (
@@ -105,11 +113,13 @@ pub mod test {
 pub struct Vft<R> {
     remoting: R,
 }
+
 impl<R> Vft<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::Vft for Vft<R> {
     type Args = R::Args;
     fn approve(
@@ -152,24 +162,28 @@ pub mod vft {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct Approve(());
+
         impl Approve {
             #[allow(dead_code)]
             pub fn encode_call(spender: ActorId, value: U256) -> Vec<u8> {
                 <Approve as ActionIo>::encode_call(&(spender, value))
             }
         }
+
         impl ActionIo for Approve {
             const ROUTE: &'static [u8] = &[12, 86, 102, 116, 28, 65, 112, 112, 114, 111, 118, 101];
             type Params = (ActorId, U256);
             type Reply = bool;
         }
         pub struct Transfer(());
+
         impl Transfer {
             #[allow(dead_code)]
             pub fn encode_call(to: ActorId, value: U256) -> Vec<u8> {
                 <Transfer as ActionIo>::encode_call(&(to, value))
             }
         }
+
         impl ActionIo for Transfer {
             const ROUTE: &'static [u8] =
                 &[12, 86, 102, 116, 32, 84, 114, 97, 110, 115, 102, 101, 114];
@@ -177,12 +191,14 @@ pub mod vft {
             type Reply = bool;
         }
         pub struct TransferFrom(());
+
         impl TransferFrom {
             #[allow(dead_code)]
             pub fn encode_call(from: ActorId, to: ActorId, value: U256) -> Vec<u8> {
                 <TransferFrom as ActionIo>::encode_call(&(from, to, value))
             }
         }
+
         impl ActionIo for TransferFrom {
             const ROUTE: &'static [u8] = &[
                 12, 86, 102, 116, 48, 84, 114, 97, 110, 115, 102, 101, 114, 70, 114, 111, 109,
@@ -191,12 +207,14 @@ pub mod vft {
             type Reply = bool;
         }
         pub struct Allowance(());
+
         impl Allowance {
             #[allow(dead_code)]
             pub fn encode_call(owner: ActorId, spender: ActorId) -> Vec<u8> {
                 <Allowance as ActionIo>::encode_call(&(owner, spender))
             }
         }
+
         impl ActionIo for Allowance {
             const ROUTE: &'static [u8] = &[
                 12, 86, 102, 116, 36, 65, 108, 108, 111, 119, 97, 110, 99, 101,
@@ -205,12 +223,14 @@ pub mod vft {
             type Reply = U256;
         }
         pub struct BalanceOf(());
+
         impl BalanceOf {
             #[allow(dead_code)]
             pub fn encode_call(account: ActorId) -> Vec<u8> {
                 <BalanceOf as ActionIo>::encode_call(&account)
             }
         }
+
         impl ActionIo for BalanceOf {
             const ROUTE: &'static [u8] =
                 &[12, 86, 102, 116, 36, 66, 97, 108, 97, 110, 99, 101, 79, 102];
@@ -218,12 +238,14 @@ pub mod vft {
             type Reply = U256;
         }
         pub struct TotalSupply(());
+
         impl TotalSupply {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <TotalSupply as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for TotalSupply {
             const ROUTE: &'static [u8] = &[
                 12, 86, 102, 116, 44, 84, 111, 116, 97, 108, 83, 117, 112, 112, 108, 121,
@@ -260,6 +282,7 @@ pub mod vft {
             ];
             type Event = Self;
         }
+
         pub fn listener<R: Listener<Vec<u8>>>(remoting: R) -> impl Listener<VftEvents> {
             RemotingListener::<_, VftEvents>::new(remoting)
         }
@@ -268,11 +291,13 @@ pub mod vft {
 pub struct VftAdmin<R> {
     remoting: R,
 }
+
 impl<R> VftAdmin<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::VftAdmin for VftAdmin<R> {
     type Args = R::Args;
     fn append_allowances_shard(&mut self, capacity: u32) -> impl Call<Output = (), Args = R::Args> {
@@ -355,12 +380,14 @@ pub mod vft_admin {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct AppendAllowancesShard(());
+
         impl AppendAllowancesShard {
             #[allow(dead_code)]
             pub fn encode_call(capacity: u32) -> Vec<u8> {
                 <AppendAllowancesShard as ActionIo>::encode_call(&capacity)
             }
         }
+
         impl ActionIo for AppendAllowancesShard {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 84, 65, 112, 112, 101, 110, 100, 65, 108,
@@ -370,12 +397,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct AppendBalancesShard(());
+
         impl AppendBalancesShard {
             #[allow(dead_code)]
             pub fn encode_call(capacity: u32) -> Vec<u8> {
                 <AppendBalancesShard as ActionIo>::encode_call(&capacity)
             }
         }
+
         impl ActionIo for AppendBalancesShard {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 76, 65, 112, 112, 101, 110, 100, 66, 97,
@@ -385,12 +414,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct ApproveFrom(());
+
         impl ApproveFrom {
             #[allow(dead_code)]
             pub fn encode_call(owner: ActorId, spender: ActorId, value: U256) -> Vec<u8> {
                 <ApproveFrom as ActionIo>::encode_call(&(owner, spender, value))
             }
         }
+
         impl ActionIo for ApproveFrom {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 44, 65, 112, 112, 114, 111, 118, 101, 70,
@@ -400,12 +431,14 @@ pub mod vft_admin {
             type Reply = bool;
         }
         pub struct Burn(());
+
         impl Burn {
             #[allow(dead_code)]
             pub fn encode_call(from: ActorId, value: U256) -> Vec<u8> {
                 <Burn as ActionIo>::encode_call(&(from, value))
             }
         }
+
         impl ActionIo for Burn {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 16, 66, 117, 114, 110,
@@ -414,12 +447,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct Exit(());
+
         impl Exit {
             #[allow(dead_code)]
             pub fn encode_call(inheritor: ActorId) -> Vec<u8> {
                 <Exit as ActionIo>::encode_call(&inheritor)
             }
         }
+
         impl ActionIo for Exit {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 16, 69, 120, 105, 116,
@@ -428,12 +463,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct Mint(());
+
         impl Mint {
             #[allow(dead_code)]
             pub fn encode_call(to: ActorId, value: U256) -> Vec<u8> {
                 <Mint as ActionIo>::encode_call(&(to, value))
             }
         }
+
         impl ActionIo for Mint {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 16, 77, 105, 110, 116,
@@ -442,12 +479,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct Pause(());
+
         impl Pause {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Pause as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Pause {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 20, 80, 97, 117, 115, 101,
@@ -456,12 +495,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct Resume(());
+
         impl Resume {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Resume as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Resume {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 24, 82, 101, 115, 117, 109, 101,
@@ -470,12 +511,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct SetAdmin(());
+
         impl SetAdmin {
             #[allow(dead_code)]
             pub fn encode_call(admin: ActorId) -> Vec<u8> {
                 <SetAdmin as ActionIo>::encode_call(&admin)
             }
         }
+
         impl ActionIo for SetAdmin {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 32, 83, 101, 116, 65, 100, 109, 105, 110,
@@ -484,12 +527,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct SetBurner(());
+
         impl SetBurner {
             #[allow(dead_code)]
             pub fn encode_call(burner: ActorId) -> Vec<u8> {
                 <SetBurner as ActionIo>::encode_call(&burner)
             }
         }
+
         impl ActionIo for SetBurner {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 36, 83, 101, 116, 66, 117, 114, 110, 101,
@@ -499,12 +544,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct SetExpiryPeriod(());
+
         impl SetExpiryPeriod {
             #[allow(dead_code)]
             pub fn encode_call(period: u32) -> Vec<u8> {
                 <SetExpiryPeriod as ActionIo>::encode_call(&period)
             }
         }
+
         impl ActionIo for SetExpiryPeriod {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 60, 83, 101, 116, 69, 120, 112, 105, 114,
@@ -514,12 +561,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct SetMinimumBalance(());
+
         impl SetMinimumBalance {
             #[allow(dead_code)]
             pub fn encode_call(value: U256) -> Vec<u8> {
                 <SetMinimumBalance as ActionIo>::encode_call(&value)
             }
         }
+
         impl ActionIo for SetMinimumBalance {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 68, 83, 101, 116, 77, 105, 110, 105, 109,
@@ -529,12 +578,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct SetMinter(());
+
         impl SetMinter {
             #[allow(dead_code)]
             pub fn encode_call(minter: ActorId) -> Vec<u8> {
                 <SetMinter as ActionIo>::encode_call(&minter)
             }
         }
+
         impl ActionIo for SetMinter {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 36, 83, 101, 116, 77, 105, 110, 116, 101,
@@ -544,12 +595,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct SetPauser(());
+
         impl SetPauser {
             #[allow(dead_code)]
             pub fn encode_call(pauser: ActorId) -> Vec<u8> {
                 <SetPauser as ActionIo>::encode_call(&pauser)
             }
         }
+
         impl ActionIo for SetPauser {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 36, 83, 101, 116, 80, 97, 117, 115, 101,
@@ -559,12 +612,14 @@ pub mod vft_admin {
             type Reply = ();
         }
         pub struct Admin(());
+
         impl Admin {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Admin as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Admin {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 20, 65, 100, 109, 105, 110,
@@ -573,12 +628,14 @@ pub mod vft_admin {
             type Reply = ActorId;
         }
         pub struct Burner(());
+
         impl Burner {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Burner as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Burner {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 24, 66, 117, 114, 110, 101, 114,
@@ -587,12 +644,14 @@ pub mod vft_admin {
             type Reply = ActorId;
         }
         pub struct IsPaused(());
+
         impl IsPaused {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <IsPaused as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for IsPaused {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 32, 73, 115, 80, 97, 117, 115, 101, 100,
@@ -601,12 +660,14 @@ pub mod vft_admin {
             type Reply = bool;
         }
         pub struct Minter(());
+
         impl Minter {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Minter as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Minter {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 24, 77, 105, 110, 116, 101, 114,
@@ -615,12 +676,14 @@ pub mod vft_admin {
             type Reply = ActorId;
         }
         pub struct Pauser(());
+
         impl Pauser {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Pauser as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Pauser {
             const ROUTE: &'static [u8] = &[
                 32, 86, 102, 116, 65, 100, 109, 105, 110, 24, 80, 97, 117, 115, 101, 114,
@@ -683,6 +746,7 @@ pub mod vft_admin {
             ];
             type Event = Self;
         }
+
         pub fn listener<R: Listener<Vec<u8>>>(remoting: R) -> impl Listener<VftAdminEvents> {
             RemotingListener::<_, VftAdminEvents>::new(remoting)
         }
@@ -691,11 +755,13 @@ pub mod vft_admin {
 pub struct VftExtension<R> {
     remoting: R,
 }
+
 impl<R> VftExtension<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::VftExtension for VftExtension<R> {
     type Args = R::Args;
     fn allocate_next_allowances_shard(&mut self) -> impl Call<Output = bool, Args = R::Args> {
@@ -781,12 +847,14 @@ pub mod vft_extension {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct AllocateNextAllowancesShard(());
+
         impl AllocateNextAllowancesShard {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <AllocateNextAllowancesShard as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for AllocateNextAllowancesShard {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 108, 65, 108, 108,
@@ -797,12 +865,14 @@ pub mod vft_extension {
             type Reply = bool;
         }
         pub struct AllocateNextBalancesShard(());
+
         impl AllocateNextBalancesShard {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <AllocateNextBalancesShard as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for AllocateNextBalancesShard {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 100, 65, 108, 108,
@@ -813,12 +883,14 @@ pub mod vft_extension {
             type Reply = bool;
         }
         pub struct RemoveExpiredAllowance(());
+
         impl RemoveExpiredAllowance {
             #[allow(dead_code)]
             pub fn encode_call(owner: ActorId, spender: ActorId) -> Vec<u8> {
                 <RemoveExpiredAllowance as ActionIo>::encode_call(&(owner, spender))
             }
         }
+
         impl ActionIo for RemoveExpiredAllowance {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 88, 82, 101, 109,
@@ -829,12 +901,14 @@ pub mod vft_extension {
             type Reply = bool;
         }
         pub struct TransferAll(());
+
         impl TransferAll {
             #[allow(dead_code)]
             pub fn encode_call(to: ActorId) -> Vec<u8> {
                 <TransferAll as ActionIo>::encode_call(&to)
             }
         }
+
         impl ActionIo for TransferAll {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 44, 84, 114, 97, 110,
@@ -844,12 +918,14 @@ pub mod vft_extension {
             type Reply = bool;
         }
         pub struct TransferAllFrom(());
+
         impl TransferAllFrom {
             #[allow(dead_code)]
             pub fn encode_call(from: ActorId, to: ActorId) -> Vec<u8> {
                 <TransferAllFrom as ActionIo>::encode_call(&(from, to))
             }
         }
+
         impl ActionIo for TransferAllFrom {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 60, 84, 114, 97, 110,
@@ -859,12 +935,14 @@ pub mod vft_extension {
             type Reply = bool;
         }
         pub struct AllowanceOf(());
+
         impl AllowanceOf {
             #[allow(dead_code)]
             pub fn encode_call(owner: ActorId, spender: ActorId) -> Vec<u8> {
                 <AllowanceOf as ActionIo>::encode_call(&(owner, spender))
             }
         }
+
         impl ActionIo for AllowanceOf {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 44, 65, 108, 108,
@@ -874,12 +952,14 @@ pub mod vft_extension {
             type Reply = Option<(U256, u32)>;
         }
         pub struct Allowances(());
+
         impl Allowances {
             #[allow(dead_code)]
             pub fn encode_call(cursor: u32, len: u32) -> Vec<u8> {
                 <Allowances as ActionIo>::encode_call(&(cursor, len))
             }
         }
+
         impl ActionIo for Allowances {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 40, 65, 108, 108,
@@ -889,12 +969,14 @@ pub mod vft_extension {
             type Reply = Vec<((ActorId, ActorId), (U256, u32))>;
         }
         pub struct BalanceOf(());
+
         impl BalanceOf {
             #[allow(dead_code)]
             pub fn encode_call(account: ActorId) -> Vec<u8> {
                 <BalanceOf as ActionIo>::encode_call(&account)
             }
         }
+
         impl ActionIo for BalanceOf {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 36, 66, 97, 108, 97,
@@ -904,12 +986,14 @@ pub mod vft_extension {
             type Reply = Option<U256>;
         }
         pub struct Balances(());
+
         impl Balances {
             #[allow(dead_code)]
             pub fn encode_call(cursor: u32, len: u32) -> Vec<u8> {
                 <Balances as ActionIo>::encode_call(&(cursor, len))
             }
         }
+
         impl ActionIo for Balances {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 32, 66, 97, 108, 97,
@@ -919,12 +1003,14 @@ pub mod vft_extension {
             type Reply = Vec<(ActorId, U256)>;
         }
         pub struct ExpiryPeriod(());
+
         impl ExpiryPeriod {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <ExpiryPeriod as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for ExpiryPeriod {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 48, 69, 120, 112,
@@ -934,12 +1020,14 @@ pub mod vft_extension {
             type Reply = u32;
         }
         pub struct MinimumBalance(());
+
         impl MinimumBalance {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <MinimumBalance as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for MinimumBalance {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 56, 77, 105, 110,
@@ -949,12 +1037,14 @@ pub mod vft_extension {
             type Reply = U256;
         }
         pub struct UnusedValue(());
+
         impl UnusedValue {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <UnusedValue as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for UnusedValue {
             const ROUTE: &'static [u8] = &[
                 48, 86, 102, 116, 69, 120, 116, 101, 110, 115, 105, 111, 110, 44, 85, 110, 117,
@@ -968,11 +1058,13 @@ pub mod vft_extension {
 pub struct VftMetadata<R> {
     remoting: R,
 }
+
 impl<R> VftMetadata<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::VftMetadata for VftMetadata<R> {
     type Args = R::Args;
     /// Returns the number of decimals of the VFT.
@@ -996,12 +1088,14 @@ pub mod vft_metadata {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct Decimals(());
+
         impl Decimals {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Decimals as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Decimals {
             const ROUTE: &'static [u8] = &[
                 44, 86, 102, 116, 77, 101, 116, 97, 100, 97, 116, 97, 32, 68, 101, 99, 105, 109,
@@ -1011,12 +1105,14 @@ pub mod vft_metadata {
             type Reply = u8;
         }
         pub struct Name(());
+
         impl Name {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Name as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Name {
             const ROUTE: &'static [u8] = &[
                 44, 86, 102, 116, 77, 101, 116, 97, 100, 97, 116, 97, 16, 78, 97, 109, 101,
@@ -1025,12 +1121,14 @@ pub mod vft_metadata {
             type Reply = String;
         }
         pub struct Symbol(());
+
         impl Symbol {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Symbol as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Symbol {
             const ROUTE: &'static [u8] = &[
                 44, 86, 102, 116, 77, 101, 116, 97, 100, 97, 116, 97, 24, 83, 121, 109, 98, 111,
@@ -1044,11 +1142,13 @@ pub mod vft_metadata {
 pub struct VftNativeExchange<R> {
     remoting: R,
 }
+
 impl<R> VftNativeExchange<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::VftNativeExchange for VftNativeExchange<R> {
     type Args = R::Args;
     fn burn(&mut self, value: U256) -> impl Call<Output = (), Args = R::Args> {
@@ -1069,12 +1169,14 @@ pub mod vft_native_exchange {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct Burn(());
+
         impl Burn {
             #[allow(dead_code)]
             pub fn encode_call(value: U256) -> Vec<u8> {
                 <Burn as ActionIo>::encode_call(&value)
             }
         }
+
         impl ActionIo for Burn {
             const ROUTE: &'static [u8] = &[
                 68, 86, 102, 116, 78, 97, 116, 105, 118, 101, 69, 120, 99, 104, 97, 110, 103, 101,
@@ -1084,12 +1186,14 @@ pub mod vft_native_exchange {
             type Reply = ();
         }
         pub struct BurnAll(());
+
         impl BurnAll {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <BurnAll as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for BurnAll {
             const ROUTE: &'static [u8] = &[
                 68, 86, 102, 116, 78, 97, 116, 105, 118, 101, 69, 120, 99, 104, 97, 110, 103, 101,
@@ -1099,12 +1203,14 @@ pub mod vft_native_exchange {
             type Reply = ();
         }
         pub struct Mint(());
+
         impl Mint {
             #[allow(dead_code)]
             pub fn encode_call() -> Vec<u8> {
                 <Mint as ActionIo>::encode_call(&())
             }
         }
+
         impl ActionIo for Mint {
             const ROUTE: &'static [u8] = &[
                 68, 86, 102, 116, 78, 97, 116, 105, 118, 101, 69, 120, 99, 104, 97, 110, 103, 101,
@@ -1118,11 +1224,13 @@ pub mod vft_native_exchange {
 pub struct VftNativeExchangeAdmin<R> {
     remoting: R,
 }
+
 impl<R> VftNativeExchangeAdmin<R> {
     pub fn new(remoting: R) -> Self {
         Self { remoting }
     }
 }
+
 impl<R: Remoting + Clone> traits::VftNativeExchangeAdmin for VftNativeExchangeAdmin<R> {
     type Args = R::Args;
     fn burn_from(&mut self, from: ActorId, value: U256) -> impl Call<Output = (), Args = R::Args> {
@@ -1140,12 +1248,14 @@ pub mod vft_native_exchange_admin {
         use super::*;
         use sails_rs::calls::ActionIo;
         pub struct BurnFrom(());
+
         impl BurnFrom {
             #[allow(dead_code)]
             pub fn encode_call(from: ActorId, value: U256) -> Vec<u8> {
                 <BurnFrom as ActionIo>::encode_call(&(from, value))
             }
         }
+
         impl ActionIo for BurnFrom {
             const ROUTE: &'static [u8] = &[
                 88, 86, 102, 116, 78, 97, 116, 105, 118, 101, 69, 120, 99, 104, 97, 110, 103, 101,
@@ -1175,6 +1285,7 @@ pub mod vft_native_exchange_admin {
                 &[&[40, 70, 97, 105, 108, 101, 100, 77, 105, 110, 116]];
             type Event = Self;
         }
+
         pub fn listener<R: Listener<Vec<u8>>>(
             remoting: R,
         ) -> impl Listener<VftNativeExchangeAdminEvents> {
