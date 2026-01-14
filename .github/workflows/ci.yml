@@ -3,7 +3,29 @@ name: CI
 on:
   push:
     branches: [master]
+    paths:
+      - '.cargo/**'
+      - '.github/workflows/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'utils/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'rustfmt.toml'
+      - '!**.md'
   pull_request:
+    paths:
+      - '.cargo/**'
+      - '.github/workflows/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'utils/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'rustfmt.toml'
+      - '!**.md'
   workflow_call:
     inputs:
       ref:
