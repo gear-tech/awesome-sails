@@ -107,12 +107,13 @@ jobs:
             
             if [ -f "$WASM_PATH" ]; then
               FINAL_NAME=$(echo "$PROG_SNAKE" | sed 's/_test_app//')
-              wasm-opt -O4 -o "./assets/${FINAL_NAME}.wasm" "$WASM_PATH"
+              mkdir -p "./assets/${FINAL_NAME}"
+              wasm-opt -O4 -o "./assets/${FINAL_NAME}/${FINAL_NAME}.wasm" "$WASM_PATH"
               
               IDL_NAME="${PROG_SNAKE/_app/_client}.idl"
               IDL_SOURCE=$(find tests -name "$IDL_NAME" | head -n 1)
               if [ -n "$IDL_SOURCE" ]; then
-                cp "$IDL_SOURCE" "./assets/${FINAL_NAME}.idl"
+                cp "$IDL_SOURCE" "./assets/${FINAL_NAME}/${FINAL_NAME}.idl"
               fi
             fi
           done
@@ -221,5 +222,5 @@ jobs:
             :exclamation: This is a draft release.
             :exclamation: Please write/generate change notes and publish the release.
             :exclamation: Please also check this [PR](${{ steps.sync_pr.outputs.url }}) to sync the changes to master.
-          files: assets/*
+          files: assets/**/*
           token: ${{ secrets.GITHUB_TOKEN }}
