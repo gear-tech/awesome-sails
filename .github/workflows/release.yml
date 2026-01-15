@@ -8,7 +8,7 @@ on:
 env:
   GITHUB_USER_NAME: github-actions[bot]
   GITHUB_USER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
-  BINARYEN_VERSION: version_116
+  BINARYEN_VERSION: version_123
   # List of programs to build assets for (WASM/IDL)
   RELEASE_PROGRAMS: "vft-pack-test-app"
 
