@@ -1,0 +1,48 @@
+# .github/release.yml
+changelog:
+  exclude:
+    labels:
+      - "skip-changelog"
+    authors:
+      - "github-actions[bot]"
+      - "dependabot[bot]"
+
+  categories:
+    - title: "💥 Breaking Changes"
+      labels:
+        - "breaking"
+
+    - title: "🚀 New Features"
+      labels:
+        - "feat"
+
+    - title: "🐛 Bug Fixes"
+      labels:
+        - "fix"
+
+    - title: "🚜 Refactoring"
+      labels:
+        - "refactor"
+
+    - title: "⚡ Performance Improvements"
+      labels:
+        - "performance"
+
+    - title: "📖 Documentation"
+      labels:
+        - "docs"
+
+    - title: "🛠️ Refactoring & Maintenance"
+      labels:
+        - "chore"
+        - "ci"
+        - "style"
+        - "test"
+
+    - title: "📦 Dependency Updates"
+      labels:
+        - "build"
+
+    - title: "Other Changes"
+      labels:
+        - "*"
