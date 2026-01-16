@@ -3,9 +3,39 @@ name: CI
 on:
   push:
     branches: [master]
-
+    paths:
+      - '.cargo/**'
+      - '.github/workflows/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'utils/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'rustfmt.toml'
+      - '!**.md'
   pull_request:
-    branches: [master]
+    paths:
+      - '.cargo/**'
+      - '.github/workflows/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'utils/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'rustfmt.toml'
+      - '!**.md'
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout"
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   BINARYEN_VERSION: version_123
@@ -19,6 +49,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Rust
         uses: dsherret/rust-toolchain-file@v1
