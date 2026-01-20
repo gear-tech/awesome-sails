@@ -97,6 +97,7 @@ service AccessControl {
       role_id: [u8, 32],
       previous_admin_role_id: [u8, 32],
       new_admin_role_id: [u8, 32],
+      sender: actor_id,
     };
   }
 };

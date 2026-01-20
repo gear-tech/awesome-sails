@@ -354,6 +354,7 @@ pub mod access_control {
                 role_id: [u8; 32],
                 previous_admin_role_id: [u8; 32],
                 new_admin_role_id: [u8; 32],
+                sender: ActorId,
             },
         }
         impl sails_rs::client::Event for AccessControlEvents {

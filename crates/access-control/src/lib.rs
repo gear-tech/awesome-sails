@@ -407,8 +407,9 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
         role_id: RoleId,
         new_admin_role_id: RoleId,
     ) -> Result<(), Error> {
+        let message_source = Syscall::message_source();
         let current_admin_role_id = self.get_role_admin(role_id);
-        self.require_role(current_admin_role_id, Syscall::message_source())?;
+        self.require_role(current_admin_role_id, message_source)?;
 
         self.set_role_admin_unchecked(role_id, new_admin_role_id);
 
@@ -416,6 +417,7 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
             role_id,
             previous_admin_role_id: current_admin_role_id,
             new_admin_role_id,
+            sender: message_source,
         })
         .map_err(|_| EmitError)?;
 
@@ -452,6 +454,7 @@ pub enum Event {
         role_id: RoleId,
         previous_admin_role_id: RoleId,
         new_admin_role_id: RoleId,
+        sender: ActorId,
     },
 }
 

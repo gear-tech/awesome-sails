@@ -248,6 +248,7 @@ async fn set_role_admin_success() {
             role_id: MINTER_ROLE,
             previous_admin_role_id: DEFAULT_ADMIN_ROLE,
             new_admin_role_id: MODERATOR_ROLE,
+            sender: ALICE,
         }
     );
 
