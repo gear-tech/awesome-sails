@@ -267,15 +267,16 @@ async fn set_role_admin_success() {
     let has_role = access_control_service.has_role(MINTER_ROLE, BOB).await;
     assert_ok!(has_role, true);
 
-    // Alice (as DEFAULT_ADMIN_ROLE) should no longer be able to grant MINTER_ROLE (if she doesn't have MODERATOR_ROLE)
-    let res = access_control_service
+    // Alice (as DEFAULT_ADMIN_ROLE) should STILL be able to grant MINTER_ROLE (because she is super admin)
+    access_control_service
         .grant_role(MINTER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
-        .await;
-    assert_str_panic(
-        res.unwrap_err(),
-        "Access denied: account 0x0000000000000000000000002a00000000000000000000000000000000000000 does not have role [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]",
-    );
+        .await
+        .expect("Alice (super admin) should still be able to grant roles");
+    events.next().await.unwrap(); // Consume RoleGranted event
+
+    let has_role = access_control_service.has_role(MINTER_ROLE, CHARLIE).await;
+    assert_ok!(has_role, true);
 
     // Revert admin role to DEFAULT_ADMIN_ROLE
     access_control_service
@@ -287,12 +288,12 @@ async fn set_role_admin_success() {
 
     // Alice should now be able to grant MINTER_ROLE again
     access_control_service
-        .grant_role(MINTER_ROLE, CHARLIE)
+        .grant_role(MINTER_ROLE, DAVE)
         .with_actor_id(ALICE)
         .await
-        .expect("Failed for Alice to grant MINTER_ROLE to Charlie after revert");
+        .expect("Failed for Alice to grant MINTER_ROLE to Dave after revert");
     events.next().await.unwrap(); // Consume RoleGranted event
-    let has_role = access_control_service.has_role(MINTER_ROLE, CHARLIE).await;
+    let has_role = access_control_service.has_role(MINTER_ROLE, DAVE).await;
     assert_ok!(has_role, true);
 }
 

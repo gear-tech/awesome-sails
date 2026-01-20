@@ -192,20 +192,21 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
         self.storage.get().get_role_member(role_id, index)
     }
 
-    /// Ensures that `account_id` has `role_id`.
+    /// Ensures that `account_id` has `role_id` or is a super admin.
     ///
     /// Requirements:
     ///
-    /// - `account_id` must have `role_id`.
+    /// - `account_id` must have `role_id` or `DEFAULT_ADMIN_ROLE`.
     pub fn require_role(&self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
-        ensure!(
-            self.has_role(role_id, account_id),
-            AccessDenied {
+        if self.has_role(role_id, account_id) || self.has_role(DEFAULT_ADMIN_ROLE, account_id) {
+            Ok(())
+        } else {
+            Err(AccessDenied {
                 account_id,
                 role_id,
             }
-        );
-        Ok(())
+            .into())
+        }
     }
 
     /// Grants `role_id` to `target_account`.
