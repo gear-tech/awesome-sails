@@ -18,31 +18,25 @@
 
 //! Awesome Access Control service.
 //!
-//! This service allows for implementing role-based access control mechanisms
-//! for a hierarchy of roles.
+//! This service implements a role-based access control (RBAC) mechanism with support for 
+//! role hierarchies, enumeration, and batch operations.
 //!
-//! # Role-Based Access Control (RBAC) Hierarchy
+//! # Role Hierarchy
 //!
 //! * **Super Admin (`DEFAULT_ADMIN_ROLE`)**:
-//!     * Is the admin for itself.
-//!     * Is the default admin for all new roles.
-//!     * Can: Grant/revoke `DEFAULT_ADMIN_ROLE` (to/from others).
-//!     * Can: Grant/revoke any role (e.g., `MINTER_ROLE`) if that role's admin is `DEFAULT_ADMIN_ROLE`.
-//!     * Can: Change the admin of any role (`set_role_admin`).
+//!     * Acts as a **Master Key**: an account with this role passes any `require_role` check, 
+//!       regardless of the specific role requested.
+//!     * Is the default administrator for all new roles.
+//!     * Can grant/revoke any role and change any role's administrator.
 //!
-//! * **Sub-Admin (e.g., `MINTER_ADMIN_ROLE`)**:
-//!     * If configured as the admin for `MINTER_ROLE`.
-//!     * Can: Grant/revoke `MINTER_ROLE`.
-//!     * Cannot: Change the admin of the role (only the role's admin admin can do this).
+//! * **Role Admin**:
+//!     * Each role has an associated administrator role (by default, the Super Admin role).
+//!     * Only accounts with the administrator role can grant or revoke the managed role.
+//!     * Administrator roles can be changed via `set_role_admin` to create complex 
+//!       permission structures.
 //!
-//! ## FAQ: Can the Super Admin revoke roles from users managed by a Sub-Admin?
-//! **Answer:** It depends on the configuration.
-//! * If `MINTER_ROLE`'s admin is `DEFAULT_ADMIN_ROLE`: Yes, the Super Admin can do everything.
-//! * If `MINTER_ROLE`'s admin was changed to `MINTER_ADMIN_ROLE`:
-//!     1. The Super Admin **CANNOT** directly revoke `MINTER_ROLE` (as they lack `MINTER_ADMIN_ROLE`).
-//!     2. BUT, the Super Admin **CAN** grant themselves `MINTER_ADMIN_ROLE` (since the admin of `MINTER_ADMIN` is `DEFAULT_ADMIN`).
-//!     3. Once they have the sub-admin role, they can revoke the target role.
-//!        Alternatively, they can simply change the role's admin back to themselves.
+//! The service uses deterministic storage (`BTreeMap`) and provides methods to enumerate 
+//! all roles and their members, as well as perform bulk updates via batch functions.
 
 #![no_std]
 
