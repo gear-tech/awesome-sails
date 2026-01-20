@@ -346,3 +346,63 @@ async fn multiple_roles() {
     let has_pauser_role = access_control_service.has_role(PAUSER_ROLE, BOB).await;
     assert_ok!(has_pauser_role, true);
 }
+
+#[tokio::test]
+async fn enumeration_success() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // Initial roles should contain at least DEFAULT_ADMIN_ROLE
+    let role_count = access_control_service.get_role_count().await;
+    assert_ok!(role_count, 1);
+
+    let role_id = access_control_service.get_role_id(0).await;
+    assert_ok!(role_id, Some(DEFAULT_ADMIN_ROLE));
+
+    // Alice should be the only member of DEFAULT_ADMIN_ROLE
+    let member_count = access_control_service
+        .get_role_member_count(DEFAULT_ADMIN_ROLE)
+        .await;
+    assert_ok!(member_count, 1);
+
+    let member = access_control_service
+        .get_role_member(DEFAULT_ADMIN_ROLE, 0)
+        .await;
+    assert_ok!(member, Some(ALICE));
+
+    // Alice grants MINTER_ROLE to Bob and Charlie
+    access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    access_control_service
+        .grant_role(MINTER_ROLE, CHARLIE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    // Now MINTER_ROLE should have 2 members
+    let member_count = access_control_service
+        .get_role_member_count(MINTER_ROLE)
+        .await;
+    assert_ok!(member_count, 2);
+
+    // Check members by index (BTreeMap/BTreeSet ensures order)
+    let m0 = access_control_service
+        .get_role_member(MINTER_ROLE, 0)
+        .await
+        .expect("get_role_member failed");
+    let m1 = access_control_service
+        .get_role_member(MINTER_ROLE, 1)
+        .await
+        .expect("get_role_member failed");
+
+    let mut members = [m0.unwrap(), m1.unwrap()];
+    members.sort(); // ActorIds in BTreeSet are sorted
+
+    let mut expected = [BOB, CHARLIE];
+    expected.sort();
+
+    assert_eq!(members, expected);
+}

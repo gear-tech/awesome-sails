@@ -43,6 +43,14 @@ service AccessControl {
   SetRoleAdmin : (role_id: [u8, 32], new_admin_role_id: [u8, 32]) -> null;
   /// Returns the admin role ID that controls `role_id`.
   query GetRoleAdmin : (role_id: [u8, 32]) -> [u8, 32];
+  /// Returns the number of roles in the system.
+  query GetRoleCount : () -> u32;
+  /// Returns the role ID at the specified index.
+  query GetRoleId : (index: u32) -> opt [u8, 32];
+  /// Returns the member at the specified index in the specified role.
+  query GetRoleMember : (role_id: [u8, 32], index: u32) -> opt actor_id;
+  /// Returns the number of members in the specified role.
+  query GetRoleMemberCount : (role_id: [u8, 32]) -> u32;
   /// Returns `true` if `account_id` has been granted `role_id`.
   query HasRole : (role_id: [u8, 32], account_id: actor_id) -> bool;
 

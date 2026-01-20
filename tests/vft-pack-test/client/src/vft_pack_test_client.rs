@@ -173,6 +173,24 @@ pub mod access_control {
             &self,
             role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::GetRoleAdmin, Self::Env>;
+        /// Returns the number of roles in the system.
+        fn get_role_count(&self) -> sails_rs::client::PendingCall<io::GetRoleCount, Self::Env>;
+        /// Returns the role ID at the specified index.
+        fn get_role_id(
+            &self,
+            index: u32,
+        ) -> sails_rs::client::PendingCall<io::GetRoleId, Self::Env>;
+        /// Returns the member at the specified index in the specified role.
+        fn get_role_member(
+            &self,
+            role_id: [u8; 32],
+            index: u32,
+        ) -> sails_rs::client::PendingCall<io::GetRoleMember, Self::Env>;
+        /// Returns the number of members in the specified role.
+        fn get_role_member_count(
+            &self,
+            role_id: [u8; 32],
+        ) -> sails_rs::client::PendingCall<io::GetRoleMemberCount, Self::Env>;
         /// Returns `true` if `account_id` has been granted `role_id`.
         fn has_role(
             &self,
@@ -219,6 +237,28 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::GetRoleAdmin, Self::Env> {
             self.pending_call((role_id,))
         }
+        fn get_role_count(&self) -> sails_rs::client::PendingCall<io::GetRoleCount, Self::Env> {
+            self.pending_call(())
+        }
+        fn get_role_id(
+            &self,
+            index: u32,
+        ) -> sails_rs::client::PendingCall<io::GetRoleId, Self::Env> {
+            self.pending_call((index,))
+        }
+        fn get_role_member(
+            &self,
+            role_id: [u8; 32],
+            index: u32,
+        ) -> sails_rs::client::PendingCall<io::GetRoleMember, Self::Env> {
+            self.pending_call((role_id, index))
+        }
+        fn get_role_member_count(
+            &self,
+            role_id: [u8; 32],
+        ) -> sails_rs::client::PendingCall<io::GetRoleMemberCount, Self::Env> {
+            self.pending_call((role_id,))
+        }
         fn has_role(
             &self,
             role_id: [u8; 32],
@@ -235,6 +275,10 @@ pub mod access_control {
         sails_rs::io_struct_impl!(RevokeRole (role_id: [u8; 32], target_account: ActorId) -> ());
         sails_rs::io_struct_impl!(SetRoleAdmin (role_id: [u8; 32], new_admin_role_id: [u8; 32]) -> ());
         sails_rs::io_struct_impl!(GetRoleAdmin (role_id: [u8; 32]) -> [u8; 32]);
+        sails_rs::io_struct_impl!(GetRoleCount () -> u32);
+        sails_rs::io_struct_impl!(GetRoleId (index: u32) -> Option<[u8; 32]>);
+        sails_rs::io_struct_impl!(GetRoleMember (role_id: [u8; 32], index: u32) -> Option<ActorId>);
+        sails_rs::io_struct_impl!(GetRoleMemberCount (role_id: [u8; 32]) -> u32);
         sails_rs::io_struct_impl!(HasRole (role_id: [u8; 32], account_id: ActorId) -> bool);
     }
 

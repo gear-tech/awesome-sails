@@ -85,6 +85,28 @@ impl RolesStorage {
             .unwrap_or(DEFAULT_ADMIN_ROLE)
     }
 
+    pub fn get_role_count(&self) -> u32 {
+        self.roles.len() as u32
+    }
+
+    pub fn get_role_id(&self, index: u32) -> Option<RoleId> {
+        self.roles.keys().nth(index as usize).copied()
+    }
+
+    pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
+        self.roles
+            .get(&role_id)
+            .map(|data| data.members.len() as u32)
+            .unwrap_or(0)
+    }
+
+    pub fn get_role_member(&self, role_id: RoleId, index: u32) -> Option<ActorId> {
+        self.roles
+            .get(&role_id)
+            .and_then(|data| data.members.iter().nth(index as usize))
+            .copied()
+    }
+
     pub fn grant_initial_admin(&mut self, deployer: ActorId) {
         self.roles
             .entry(DEFAULT_ADMIN_ROLE)
@@ -144,6 +166,30 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
     #[export]
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
         self.storage.get().get_role_admin(role_id)
+    }
+
+    /// Returns the number of roles in the system.
+    #[export]
+    pub fn get_role_count(&self) -> u32 {
+        self.storage.get().get_role_count()
+    }
+
+    /// Returns the role ID at the specified index.
+    #[export]
+    pub fn get_role_id(&self, index: u32) -> Option<RoleId> {
+        self.storage.get().get_role_id(index)
+    }
+
+    /// Returns the number of members in the specified role.
+    #[export]
+    pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
+        self.storage.get().get_role_member_count(role_id)
+    }
+
+    /// Returns the member at the specified index in the specified role.
+    #[export]
+    pub fn get_role_member(&self, role_id: RoleId, index: u32) -> Option<ActorId> {
+        self.storage.get().get_role_member(role_id, index)
     }
 
     /// Ensures that `account_id` has `role_id`.
