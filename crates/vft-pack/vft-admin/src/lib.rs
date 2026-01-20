@@ -30,7 +30,7 @@ use awesome_sails_utils::{
     math::{Max, NonZero, Zero},
     ok_if,
     pause::{PausableRef, Pause, UnpausedError},
-    storage::{StorageMut, StorageRefCell},
+    storage::{InfallibleStorageMut, StorageMut, StorageRefCell},
 };
 use awesome_sails_vft_service::{
     self as vft,
@@ -51,7 +51,7 @@ pub const PAUSER_ROLE: RoleId = keccak_const::Keccak256::new()
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,
-    ACS: StorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>,
+    ACS: InfallibleStorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>,
     A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
     B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
@@ -64,7 +64,7 @@ pub struct Service<
 
 impl<
     'a,
-    ACS: StorageMut<Item = RolesStorage>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 > Service<'a, ACS, A, B>
@@ -112,7 +112,7 @@ impl<
 #[service(events = Event)]
 impl<
     'a,
-    ACS: StorageMut<Item = RolesStorage>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 > Service<'a, ACS, A, B>

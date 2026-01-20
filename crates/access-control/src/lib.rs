@@ -49,7 +49,7 @@
 pub use awesome_sails_utils::ensure;
 
 use crate::error::{AccessDenied, EmitError, Error, NotAccountOwner};
-use awesome_sails_utils::storage::{StorageMut, StorageRefCell};
+use awesome_sails_utils::storage::{InfallibleStorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::{
     collections::{BTreeMap, BTreeSet},
@@ -94,12 +94,15 @@ impl RolesStorage {
     }
 }
 
-pub struct Service<'a, S: StorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>> {
+pub struct Service<
+    'a,
+    S: InfallibleStorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>,
+> {
     storage: S,
     _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
+impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
     pub fn new(storage: S) -> Self {
         Self {
             storage,
@@ -107,59 +110,40 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
         }
     }
 
-    fn grant_role_unchecked(
-        &mut self,
-        role_id: RoleId,
-        target_account: ActorId,
-    ) -> Result<bool, Error> {
-        let mut storage = self.storage.get_mut()?;
+    fn grant_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
+        let mut storage = self.storage.get_mut();
         let role_data = storage.roles.entry(role_id).or_default();
-        Ok(role_data.members.insert(target_account))
+        role_data.members.insert(target_account)
     }
 
-    fn revoke_role_unchecked(
-        &mut self,
-        role_id: RoleId,
-        target_account: ActorId,
-    ) -> Result<bool, Error> {
-        let mut storage = self.storage.get_mut()?;
+    fn revoke_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
+        let mut storage = self.storage.get_mut();
         if let Some(role_data) = storage.roles.get_mut(&role_id) {
-            Ok(role_data.members.remove(&target_account))
+            role_data.members.remove(&target_account)
         } else {
-            Ok(false)
+            false
         }
     }
 
-    fn set_role_admin_unchecked(
-        &mut self,
-        role_id: RoleId,
-        admin_role_id: RoleId,
-    ) -> Result<(), Error> {
-        let mut storage = self.storage.get_mut()?;
+    fn set_role_admin_unchecked(&mut self, role_id: RoleId, admin_role_id: RoleId) {
+        let mut storage = self.storage.get_mut();
         let role_data = storage.roles.entry(role_id).or_default();
         role_data.admin_role_id = admin_role_id;
-        Ok(())
     }
 }
 
 #[service(events = Event)]
-impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
+impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
     /// Returns `true` if `account_id` has been granted `role_id`.
     #[export]
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
-        self.storage
-            .get()
-            .map(|s| s.has_role(role_id, account_id))
-            .unwrap_or(false)
+        self.storage.get().has_role(role_id, account_id)
     }
 
     /// Returns the admin role ID that controls `role_id`.
     #[export]
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        self.storage
-            .get()
-            .map(|s| s.get_role_admin(role_id))
-            .unwrap_or(DEFAULT_ADMIN_ROLE)
+        self.storage.get().get_role_admin(role_id)
     }
 
     /// Ensures that `account_id` has `role_id`.
@@ -191,7 +175,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
         let message_source = Syscall::message_source();
         self.require_role(self.get_role_admin(role_id), message_source)?;
 
-        if self.grant_role_unchecked(role_id, target_account)? {
+        if self.grant_role_unchecked(role_id, target_account) {
             self.emit_event(Event::RoleGranted {
                 role_id,
                 target_account,
@@ -215,7 +199,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
         let message_source = Syscall::message_source();
         self.require_role(self.get_role_admin(role_id), message_source)?;
 
-        if self.revoke_role_unchecked(role_id, target_account)? {
+        if self.revoke_role_unchecked(role_id, target_account) {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account,
@@ -250,7 +234,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
             }
         );
 
-        if self.revoke_role_unchecked(role_id, account_id)? {
+        if self.revoke_role_unchecked(role_id, account_id) {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,
@@ -278,7 +262,7 @@ impl<'a, S: StorageMut<Item = RolesStorage>> Service<'a, S> {
         let current_admin_role_id = self.get_role_admin(role_id);
         self.require_role(current_admin_role_id, Syscall::message_source())?;
 
-        self.set_role_admin_unchecked(role_id, new_admin_role_id)?;
+        self.set_role_admin_unchecked(role_id, new_admin_role_id);
 
         self.emit_event(Event::RoleAdminChanged {
             role_id,

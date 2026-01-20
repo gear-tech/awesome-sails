@@ -23,7 +23,10 @@
 #![no_std]
 
 use awesome_sails_access_control_service::{RolesStorage, error::Error};
-use awesome_sails_utils::{ok_if, storage::StorageMut};
+use awesome_sails_utils::{
+    ok_if,
+    storage::{InfallibleStorageMut, StorageMut},
+};
 use awesome_sails_vft_admin_service::{self as vft_admin};
 use awesome_sails_vft_service::utils::{Allowances, Balances};
 use sails_rs::{gstd, prelude::*};
@@ -31,7 +34,7 @@ use sails_rs::{gstd, prelude::*};
 /// Awesome VFT-Native-Exchange-Admin service itself.
 pub struct Service<'a, ACS, A, B>
 where
-    ACS: StorageMut<Item = RolesStorage>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
@@ -40,7 +43,7 @@ where
 
 impl<'a, ACS, A, B> Service<'a, ACS, A, B>
 where
-    ACS: StorageMut<Item = RolesStorage>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
@@ -53,7 +56,7 @@ where
 #[service(events = Event)]
 impl<'a, ACS, A, B> Service<'a, ACS, A, B>
 where
-    ACS: StorageMut<Item = RolesStorage>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
