@@ -127,6 +127,19 @@ pub mod access_control {
             role_id: [u8; 32],
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env>;
+        /// Grants `role_ids` to `target_accounts`.
+        ///
+        /// If any of the `target_accounts` had not been already granted any of the `role_ids`,
+        /// emits a `RolesGrantedBatch` event.
+        ///
+        /// Requirements:
+        ///
+        /// - the caller must have the admin role for all specified `role_ids`.
+        fn grant_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_accounts: Vec<ActorId>,
+        ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env>;
         /// Revokes `role_id` from the calling account.
         ///
         /// Roles are often managed via `grant_role` and `revoke_role`: this function's
@@ -156,6 +169,19 @@ pub mod access_control {
             role_id: [u8; 32],
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env>;
+        /// Revokes `role_ids` from `target_accounts`.
+        ///
+        /// If any of the `target_accounts` had been granted any of the `role_ids`,
+        /// emits a `RolesRevokedBatch` event.
+        ///
+        /// Requirements:
+        ///
+        /// - the caller must have the admin role for all specified `role_ids`.
+        fn revoke_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_accounts: Vec<ActorId>,
+        ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env>;
         /// Sets `new_admin_role_id` as the admin role for `role_id`.
         ///
         /// Emits a `RoleAdminChanged` event.
@@ -210,6 +236,13 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env> {
             self.pending_call((role_id, target_account))
         }
+        fn grant_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_accounts: Vec<ActorId>,
+        ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env> {
+            self.pending_call((role_ids, target_accounts))
+        }
         fn renounce_role(
             &mut self,
             role_id: [u8; 32],
@@ -223,6 +256,13 @@ pub mod access_control {
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env> {
             self.pending_call((role_id, target_account))
+        }
+        fn revoke_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_accounts: Vec<ActorId>,
+        ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env> {
+            self.pending_call((role_ids, target_accounts))
         }
         fn set_role_admin(
             &mut self,
@@ -271,8 +311,10 @@ pub mod access_control {
     pub mod io {
         use super::*;
         sails_rs::io_struct_impl!(GrantRole (role_id: [u8; 32], target_account: ActorId) -> ());
+        sails_rs::io_struct_impl!(GrantRolesBatch (role_ids: Vec<[u8; 32]>, target_accounts: Vec<ActorId>) -> ());
         sails_rs::io_struct_impl!(RenounceRole (role_id: [u8; 32], account_id: ActorId) -> ());
         sails_rs::io_struct_impl!(RevokeRole (role_id: [u8; 32], target_account: ActorId) -> ());
+        sails_rs::io_struct_impl!(RevokeRolesBatch (role_ids: Vec<[u8; 32]>, target_accounts: Vec<ActorId>) -> ());
         sails_rs::io_struct_impl!(SetRoleAdmin (role_id: [u8; 32], new_admin_role_id: [u8; 32]) -> ());
         sails_rs::io_struct_impl!(GetRoleAdmin (role_id: [u8; 32]) -> [u8; 32]);
         sails_rs::io_struct_impl!(GetRoleCount () -> u32);
@@ -298,6 +340,16 @@ pub mod access_control {
                 target_account: ActorId,
                 sender: ActorId,
             },
+            RolesGrantedBatch {
+                role_ids: Vec<[u8; 32]>,
+                target_accounts: Vec<ActorId>,
+                sender: ActorId,
+            },
+            RolesRevokedBatch {
+                role_ids: Vec<[u8; 32]>,
+                target_accounts: Vec<ActorId>,
+                sender: ActorId,
+            },
             RoleAdminChanged {
                 role_id: [u8; 32],
                 previous_admin_role_id: [u8; 32],
@@ -305,8 +357,13 @@ pub mod access_control {
             },
         }
         impl sails_rs::client::Event for AccessControlEvents {
-            const EVENT_NAMES: &'static [Route] =
-                &["RoleGranted", "RoleRevoked", "RoleAdminChanged"];
+            const EVENT_NAMES: &'static [Route] = &[
+                "RoleGranted",
+                "RoleRevoked",
+                "RolesGrantedBatch",
+                "RolesRevokedBatch",
+                "RoleAdminChanged",
+            ];
         }
         impl sails_rs::client::ServiceWithEvents for AccessControlImpl {
             type Event = AccessControlEvents;

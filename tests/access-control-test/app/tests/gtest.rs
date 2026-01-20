@@ -298,6 +298,69 @@ async fn set_role_admin_success() {
 }
 
 #[tokio::test]
+async fn batch_operations_success() {
+    let (program, _env, pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+    let listener = access_control_service.listener();
+    let mut events = listener.listen().await.unwrap();
+
+    let roles = vec![MINTER_ROLE, MODERATOR_ROLE];
+    let accounts = vec![BOB, CHARLIE];
+
+    // Alice (as admin) grants multiple roles to multiple accounts
+    access_control_service
+        .grant_roles_batch(roles.clone(), accounts.clone())
+        .with_actor_id(ALICE)
+        .await
+        .expect("Failed to grant roles batch");
+
+    let (actor, event) = events.next().await.unwrap();
+    assert_eq!(actor, pid);
+    assert_eq!(
+        event,
+        AccessControlEvents::RolesGrantedBatch {
+            role_ids: roles.clone(),
+            target_accounts: accounts.clone(),
+            sender: ALICE,
+        }
+    );
+
+    // Verify all roles are granted
+    for &role in &roles {
+        for &account in &accounts {
+            let has_role = access_control_service.has_role(role, account).await;
+            assert_ok!(has_role, true);
+        }
+    }
+
+    // Alice revokes roles in batch
+    access_control_service
+        .revoke_roles_batch(roles.clone(), accounts.clone())
+        .with_actor_id(ALICE)
+        .await
+        .expect("Failed to revoke roles batch");
+
+    let (actor, event) = events.next().await.unwrap();
+    assert_eq!(actor, pid);
+    assert_eq!(
+        event,
+        AccessControlEvents::RolesRevokedBatch {
+            role_ids: roles.clone(),
+            target_accounts: accounts.clone(),
+            sender: ALICE,
+        }
+    );
+
+    // Verify all roles are revoked
+    for &role in &roles {
+        for &account in &accounts {
+            let has_role = access_control_service.has_role(role, account).await;
+            assert_ok!(has_role, false);
+        }
+    }
+}
+
+#[tokio::test]
 async fn set_role_admin_fail_unauthorized() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
