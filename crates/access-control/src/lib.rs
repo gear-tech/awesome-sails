@@ -18,13 +18,13 @@
 
 //! Awesome Access Control service.
 //!
-//! This service implements a role-based access control (RBAC) mechanism with support for 
+//! This service implements a role-based access control (RBAC) mechanism with support for
 //! role hierarchies, enumeration, and batch operations.
 //!
 //! # Role Hierarchy
 //!
 //! * **Super Admin (`DEFAULT_ADMIN_ROLE`)**:
-//!     * Acts as a **Master Key**: an account with this role passes any `require_role` check, 
+//!     * Acts as a **Master Key**: an account with this role passes any `require_role` check,
 //!       regardless of the specific role requested.
 //!     * Is the default administrator for all new roles.
 //!     * Can grant/revoke any role and change any role's administrator.
@@ -32,10 +32,10 @@
 //! * **Role Admin**:
 //!     * Each role has an associated administrator role (by default, the Super Admin role).
 //!     * Only accounts with the administrator role can grant or revoke the managed role.
-//!     * Administrator roles can be changed via `set_role_admin` to create complex 
+//!     * Administrator roles can be changed via `set_role_admin` to create complex
 //!       permission structures.
 //!
-//! The service uses deterministic storage (`BTreeMap`) and provides methods to enumerate 
+//! The service uses deterministic storage (`BTreeMap`) and provides methods to enumerate
 //! all roles and their members, as well as perform bulk updates via batch functions.
 
 #![no_std]

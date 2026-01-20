@@ -471,3 +471,82 @@ async fn enumeration_success() {
 
     assert_eq!(members, expected);
 }
+
+#[tokio::test]
+async fn batch_operations_fail_atomicity() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // Alice grants MODERATOR_ROLE to Bob
+    access_control_service
+        .grant_role(MODERATOR_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    // Bob is admin for MODERATOR_ROLE only if we set it, but by default Alice is.
+    // Let's make MODERATOR_ROLE admin for MINTER_ROLE.
+    access_control_service
+        .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    // Bob now can grant MINTER_ROLE, but he CANNOT grant PAUSER_ROLE (Alice is admin for it)
+    let roles = vec![MINTER_ROLE, PAUSER_ROLE];
+    let accounts = vec![CHARLIE];
+
+    // Bob tries to grant both in batch. It should fail because he lacks rights for PAUSER_ROLE.
+    let res = access_control_service
+        .grant_roles_batch(roles, accounts)
+        .with_actor_id(BOB)
+        .await;
+
+    assert!(
+        res.is_err(),
+        "Batch should have failed due to lack of permissions for PAUSER_ROLE"
+    );
+
+    // CRITICAL: Charlie should not have received EVEN MINTER_ROLE because the batch should be atomic.
+    let has_minter = access_control_service.has_role(MINTER_ROLE, CHARLIE).await;
+    assert_ok!(has_minter, false);
+}
+
+#[tokio::test]
+async fn self_admin_role_success() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // Alice sets MINTER_ROLE as its own admin
+    access_control_service
+        .set_role_admin(MINTER_ROLE, MINTER_ROLE)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Failed to set self-admin role");
+
+    // 1. Alice (Super Admin) should still be able to grant MINTER_ROLE to Bob
+    // even though she doesn't have MINTER_ROLE herself.
+    access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Super Admin should be able to grant self-administered role");
+
+    assert_ok!(
+        access_control_service.has_role(MINTER_ROLE, BOB).await,
+        true
+    );
+
+    // 2. Bob (who has MINTER_ROLE) should now be able to grant it to Charlie
+    // because MINTER_ROLE is the admin for MINTER_ROLE.
+    access_control_service
+        .grant_role(MINTER_ROLE, CHARLIE)
+        .with_actor_id(BOB)
+        .await
+        .expect("Member of self-administered role should be able to grant it to others");
+
+    assert_ok!(
+        access_control_service.has_role(MINTER_ROLE, CHARLIE).await,
+        true
+    );
+}
