@@ -100,7 +100,7 @@ impl RolesStorage {
             .keys()
             .skip(offset)
             .take(limit)
-            .cloned()
+            .copied()
             .collect()
     }
 
@@ -116,16 +116,17 @@ impl RolesStorage {
             .map(|q| (q.offset as usize, q.limit as usize))
             .unwrap_or((0, usize::MAX));
 
-        let Some(data) = self.roles.get(&role_id) else {
-            return Vec::new();
-        };
-
-        data.members
-            .iter()
-            .skip(offset)
-            .take(limit)
-            .cloned()
-            .collect()
+        self.roles
+            .get(&role_id)
+            .map(|data| {
+                data.members
+                    .iter()
+                    .skip(offset)
+                    .take(limit)
+                    .copied()
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
