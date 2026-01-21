@@ -16,15 +16,15 @@ service AccessControl {
   /// 
   /// - the caller must have `role_id`'s admin role.
   GrantRole : (role_id: [u8, 32], target_account: actor_id) -> null;
-  /// Grants `role_ids` to `target_accounts`.
+  /// Grants `role_ids` to `target_account`.
   /// 
-  /// If any of the `target_accounts` had not been already granted any of the `role_ids`,
-  /// emits a `RolesGrantedBatch` event.
+  /// If `target_account` had not been already granted any of the `role_ids`,
+  /// emits a `RoleGranted` event for each newly granted role.
   /// 
   /// Requirements:
   /// 
   /// - the caller must have the admin role for all specified `role_ids`.
-  GrantRolesBatch : (role_ids: vec [u8, 32], target_accounts: vec actor_id) -> null;
+  GrantRolesBatch : (role_ids: vec [u8, 32], target_account: actor_id) -> null;
   /// Revokes `role_id` from the calling account.
   /// 
   /// Roles are often managed via `grant_role` and `revoke_role`: this function's
@@ -46,15 +46,15 @@ service AccessControl {
   /// 
   /// - the caller must have `role_id`'s admin role.
   RevokeRole : (role_id: [u8, 32], target_account: actor_id) -> null;
-  /// Revokes `role_ids` from `target_accounts`.
+  /// Revokes `role_ids` from `target_account`.
   /// 
-  /// If any of the `target_accounts` had been granted any of the `role_ids`,
-  /// emits a `RolesRevokedBatch` event.
+  /// If `target_account` had been granted any of the `role_ids`,
+  /// emits a `RoleRevoked` event for each newly revoked role.
   /// 
   /// Requirements:
   /// 
   /// - the caller must have the admin role for all specified `role_ids`.
-  RevokeRolesBatch : (role_ids: vec [u8, 32], target_accounts: vec actor_id) -> null;
+  RevokeRolesBatch : (role_ids: vec [u8, 32], target_account: actor_id) -> null;
   /// Sets `new_admin_role_id` as the admin role for `role_id`.
   /// 
   /// Emits a `RoleAdminChanged` event.
@@ -85,16 +85,6 @@ service AccessControl {
     RoleRevoked: struct {
       role_id: [u8, 32],
       target_account: actor_id,
-      sender: actor_id,
-    };
-    RolesGrantedBatch: struct {
-      role_ids: vec [u8, 32],
-      target_accounts: vec actor_id,
-      sender: actor_id,
-    };
-    RolesRevokedBatch: struct {
-      role_ids: vec [u8, 32],
-      target_accounts: vec actor_id,
       sender: actor_id,
     };
     RoleAdminChanged: struct {

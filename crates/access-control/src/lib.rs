@@ -141,7 +141,7 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
             .get_mut()
             .roles
             .get_mut(&role_id)
-            .map_or(false, |role_data| role_data.members.remove(&target_account))
+            .is_some_and(|role_data| role_data.members.remove(&target_account))
     }
 
     fn set_role_admin_unchecked(&mut self, role_id: RoleId, admin_role_id: RoleId) {
@@ -151,39 +151,6 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
             .entry(role_id)
             .or_default()
             .admin_role_id = admin_role_id;
-    }
-
-    fn grant_roles_batch_unchecked(
-        &mut self,
-        role_ids: &[RoleId],
-        target_accounts: &[ActorId],
-    ) -> bool {
-        let mut storage = self.storage.get_mut();
-        let mut changed = false;
-        for &role_id in role_ids {
-            let role_data = storage.roles.entry(role_id).or_default();
-            for &target_account in target_accounts {
-                changed |= role_data.members.insert(target_account);
-            }
-        }
-        changed
-    }
-
-    fn revoke_roles_batch_unchecked(
-        &mut self,
-        role_ids: &[RoleId],
-        target_accounts: &[ActorId],
-    ) -> bool {
-        let mut storage = self.storage.get_mut();
-        let mut changed = false;
-        for &role_id in role_ids {
-            if let Some(role_data) = storage.roles.get_mut(&role_id) {
-                for &target_account in target_accounts {
-                    changed |= role_data.members.remove(&target_account);
-                }
-            }
-        }
-        changed
     }
 }
 
@@ -267,10 +234,10 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
         Ok(())
     }
 
-    /// Grants `role_ids` to `target_accounts`.
+    /// Grants `role_ids` to `target_account`.
     ///
-    /// If any of the `target_accounts` had not been already granted any of the `role_ids`,
-    /// emits a `RolesGrantedBatch` event.
+    /// If `target_account` had not been already granted any of the `role_ids`,
+    /// emits a `RoleGranted` event for each newly granted role.
     ///
     /// Requirements:
     ///
@@ -279,20 +246,22 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
     pub fn grant_roles_batch(
         &mut self,
         role_ids: Vec<RoleId>,
-        target_accounts: Vec<ActorId>,
+        target_account: ActorId,
     ) -> Result<(), Error> {
         let message_source = Syscall::message_source();
         for &role_id in &role_ids {
             self.require_role(self.get_role_admin(role_id), message_source)?;
         }
 
-        if self.grant_roles_batch_unchecked(&role_ids, &target_accounts) {
-            self.emit_event(Event::RolesGrantedBatch {
-                role_ids,
-                target_accounts,
-                sender: message_source,
-            })
-            .map_err(|_| EmitError)?;
+        for role_id in role_ids {
+            if self.grant_role_unchecked(role_id, target_account) {
+                self.emit_event(Event::RoleGranted {
+                    role_id,
+                    target_account,
+                    sender: message_source,
+                })
+                .map_err(|_| EmitError)?;
+            }
         }
 
         Ok(())
@@ -322,10 +291,10 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
         Ok(())
     }
 
-    /// Revokes `role_ids` from `target_accounts`.
+    /// Revokes `role_ids` from `target_account`.
     ///
-    /// If any of the `target_accounts` had been granted any of the `role_ids`,
-    /// emits a `RolesRevokedBatch` event.
+    /// If `target_account` had been granted any of the `role_ids`,
+    /// emits a `RoleRevoked` event for each newly revoked role.
     ///
     /// Requirements:
     ///
@@ -334,20 +303,22 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
     pub fn revoke_roles_batch(
         &mut self,
         role_ids: Vec<RoleId>,
-        target_accounts: Vec<ActorId>,
+        target_account: ActorId,
     ) -> Result<(), Error> {
         let message_source = Syscall::message_source();
         for &role_id in &role_ids {
             self.require_role(self.get_role_admin(role_id), message_source)?;
         }
 
-        if self.revoke_roles_batch_unchecked(&role_ids, &target_accounts) {
-            self.emit_event(Event::RolesRevokedBatch {
-                role_ids,
-                target_accounts,
-                sender: message_source,
-            })
-            .map_err(|_| EmitError)?;
+        for role_id in role_ids {
+            if self.revoke_role_unchecked(role_id, target_account) {
+                self.emit_event(Event::RoleRevoked {
+                    role_id,
+                    target_account,
+                    sender: message_source,
+                })
+                .map_err(|_| EmitError)?;
+            }
         }
 
         Ok(())
@@ -432,16 +403,6 @@ pub enum Event {
     RoleRevoked {
         role_id: RoleId,
         target_account: ActorId,
-        sender: ActorId,
-    },
-    RolesGrantedBatch {
-        role_ids: Vec<RoleId>,
-        target_accounts: Vec<ActorId>,
-        sender: ActorId,
-    },
-    RolesRevokedBatch {
-        role_ids: Vec<RoleId>,
-        target_accounts: Vec<ActorId>,
         sender: ActorId,
     },
     RoleAdminChanged {

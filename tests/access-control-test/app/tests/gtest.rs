@@ -299,69 +299,6 @@ async fn set_role_admin_success() {
 }
 
 #[tokio::test]
-async fn batch_operations_success() {
-    let (program, _env, pid) = deploy_program().await;
-    let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
-
-    let roles = vec![MINTER_ROLE, MODERATOR_ROLE];
-    let accounts = vec![BOB, CHARLIE];
-
-    // Alice (as admin) grants multiple roles to multiple accounts
-    access_control_service
-        .grant_roles_batch(roles.clone(), accounts.clone())
-        .with_actor_id(ALICE)
-        .await
-        .expect("Failed to grant roles batch");
-
-    let (actor, event) = events.next().await.unwrap();
-    assert_eq!(actor, pid);
-    assert_eq!(
-        event,
-        AccessControlEvents::RolesGrantedBatch {
-            role_ids: roles.clone(),
-            target_accounts: accounts.clone(),
-            sender: ALICE,
-        }
-    );
-
-    // Verify all roles are granted
-    for &role in &roles {
-        for &account in &accounts {
-            let has_role = access_control_service.has_role(role, account).await;
-            assert_ok!(has_role, true);
-        }
-    }
-
-    // Alice revokes roles in batch
-    access_control_service
-        .revoke_roles_batch(roles.clone(), accounts.clone())
-        .with_actor_id(ALICE)
-        .await
-        .expect("Failed to revoke roles batch");
-
-    let (actor, event) = events.next().await.unwrap();
-    assert_eq!(actor, pid);
-    assert_eq!(
-        event,
-        AccessControlEvents::RolesRevokedBatch {
-            role_ids: roles.clone(),
-            target_accounts: accounts.clone(),
-            sender: ALICE,
-        }
-    );
-
-    // Verify all roles are revoked
-    for &role in &roles {
-        for &account in &accounts {
-            let has_role = access_control_service.has_role(role, account).await;
-            assert_ok!(has_role, false);
-        }
-    }
-}
-
-#[tokio::test]
 async fn set_role_admin_fail_unauthorized() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
@@ -473,46 +410,6 @@ async fn enumeration_success() {
 }
 
 #[tokio::test]
-async fn batch_operations_fail_atomicity() {
-    let (program, _env, _pid) = deploy_program().await;
-    let mut access_control_service = program.access_control();
-
-    // Alice grants MODERATOR_ROLE to Bob
-    access_control_service
-        .grant_role(MODERATOR_ROLE, BOB)
-        .with_actor_id(ALICE)
-        .await
-        .unwrap();
-
-    // Bob is admin for MODERATOR_ROLE only if we set it, but by default Alice is.
-    // Let's make MODERATOR_ROLE admin for MINTER_ROLE.
-    access_control_service
-        .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
-        .with_actor_id(ALICE)
-        .await
-        .unwrap();
-
-    // Bob now can grant MINTER_ROLE, but he CANNOT grant PAUSER_ROLE (Alice is admin for it)
-    let roles = vec![MINTER_ROLE, PAUSER_ROLE];
-    let accounts = vec![CHARLIE];
-
-    // Bob tries to grant both in batch. It should fail because he lacks rights for PAUSER_ROLE.
-    let res = access_control_service
-        .grant_roles_batch(roles, accounts)
-        .with_actor_id(BOB)
-        .await;
-
-    assert!(
-        res.is_err(),
-        "Batch should have failed due to lack of permissions for PAUSER_ROLE"
-    );
-
-    // CRITICAL: Charlie should not have received EVEN MINTER_ROLE because the batch should be atomic.
-    let has_minter = access_control_service.has_role(MINTER_ROLE, CHARLIE).await;
-    assert_ok!(has_minter, false);
-}
-
-#[tokio::test]
 async fn self_admin_role_success() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
@@ -548,5 +445,82 @@ async fn self_admin_role_success() {
     assert_ok!(
         access_control_service.has_role(MINTER_ROLE, CHARLIE).await,
         true
+    );
+}
+
+#[tokio::test]
+async fn batch_grant_success() {
+    let (program, _env, pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+    let listener = access_control_service.listener();
+    let mut events = listener.listen().await.unwrap();
+
+    let roles = vec![MINTER_ROLE, MODERATOR_ROLE, PAUSER_ROLE];
+
+    // Alice (Super Admin) grants 3 roles to Bob in batch
+    access_control_service
+        .grant_roles_batch(roles.clone(), BOB)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Batch grant should succeed");
+
+    // Check that 3 separate events were emitted
+    for &role_id in &roles {
+        let (actor, event) = events.next().await.unwrap();
+        assert_eq!(actor, pid);
+        assert_eq!(
+            event,
+            AccessControlEvents::RoleGranted {
+                role_id,
+                target_account: BOB,
+                sender: ALICE,
+            }
+        );
+    }
+
+    // Verify Bob has all roles
+    for &role in &roles {
+        assert_ok!(access_control_service.has_role(role, BOB).await, true);
+    }
+}
+
+#[tokio::test]
+async fn batch_grant_atomic_failure() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // Setup: Alice makes Bob admin for MINTER_ROLE but NOT for PAUSER_ROLE
+    access_control_service
+        .grant_role(MODERATOR_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    access_control_service
+        .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    let roles = vec![MINTER_ROLE, PAUSER_ROLE];
+
+    // Bob tries to grant both roles to Charlie. This must fail because he isn't admin for PAUSER_ROLE.
+    let res = access_control_service
+        .grant_roles_batch(roles, CHARLIE)
+        .with_actor_id(BOB)
+        .await;
+
+    assert!(
+        res.is_err(),
+        "Batch should fail due to missing permission for PAUSER_ROLE"
+    );
+
+    // CRITICAL: Charlie should NOT have received MINTER_ROLE because the batch must be atomic
+    assert_ok!(
+        access_control_service.has_role(MINTER_ROLE, CHARLIE).await,
+        false
+    );
+    assert_ok!(
+        access_control_service.has_role(PAUSER_ROLE, CHARLIE).await,
+        false
     );
 }
