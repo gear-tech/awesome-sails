@@ -18,13 +18,13 @@
 
 #![no_std]
 
-use awesome_sails_access_control_service::{RolesStorage, Service as AccessControlService};
 use awesome_sails_utils::{
     error::Error,
     pause::{PausableRef, Pause},
     storage::{StorageMut, StorageRefCell},
 };
 use awesome_sails_vft_pack::{
+    access_control::{RolesStorage, Service as AccessControlService},
     vft,
     vft::utils::{Allowance, Allowances, Balance, Balances},
     vft_admin, vft_extension, vft_metadata,

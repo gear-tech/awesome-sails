@@ -18,8 +18,8 @@
 
 #![no_std]
 
-use awesome_sails_access_control_service::{RolesStorage, Service as AccessControlService};
 use awesome_sails_utils::storage::StorageRefCell;
+use awesome_sails_vft_pack::access_control::{RolesStorage, Service as AccessControlService};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]

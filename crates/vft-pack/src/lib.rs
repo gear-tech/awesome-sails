@@ -20,3 +20,6 @@ pub use awesome_sails_vft_native_exchange_service as vft_native_exchange;
 
 #[cfg(feature = "vft-native-exchange-admin-service")]
 pub use awesome_sails_vft_native_exchange_admin_service as vft_native_exchange_admin;
+
+#[cfg(feature = "access-control")]
+pub use awesome_sails_access_control_service as access_control;

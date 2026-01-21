@@ -4,7 +4,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-awesome-sails-access-control-service = { workspace = true }
+awesome-sails-vft-pack = { workspace = true, default-features = false, features = ["access-control"] }
 awesome-sails-utils = { workspace = true }
 sails-rs = { workspace = true }
 

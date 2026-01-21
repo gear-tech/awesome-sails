@@ -17,8 +17,8 @@ name = "access-control-test-app"
 version = "0.0.0"
 dependencies = [
  "access-control-test-client",
- "awesome-sails-access-control-service",
  "awesome-sails-utils",
+ "awesome-sails-vft-pack",
  "futures",
  "gtest",
  "sails-rs",
@@ -442,6 +442,7 @@ dependencies = [
 name = "awesome-sails-vft-pack"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-vft-admin-service",
  "awesome-sails-vft-extension-service",
  "awesome-sails-vft-metadata-service",
@@ -6561,7 +6562,6 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vft-pack-test-app"
 version = "0.0.0"
 dependencies = [
- "awesome-sails-access-control-service",
  "awesome-sails-utils",
  "awesome-sails-vft-pack",
  "futures",
