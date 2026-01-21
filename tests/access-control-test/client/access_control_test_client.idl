@@ -1,3 +1,8 @@
+type Pagination = struct {
+  offset: u32,
+  limit: u32,
+};
+
 constructor {
   New : ();
 };
@@ -59,16 +64,20 @@ service AccessControl {
   /// 
   /// - the caller must have `role_id`'s admin role.
   SetRoleAdmin : (role_id: [u8, 32], new_admin_role_id: [u8, 32]) -> null;
+  /// Returns the number of roles assigned to the specified member.
+  query GetMemberRoleCount : (member_id: actor_id) -> u32;
+  /// Returns a list of roles assigned to the specified member with pagination.
+  query GetMemberRoles : (member_id: actor_id, query: opt Pagination) -> vec [u8, 32];
   /// Returns the admin role ID that controls `role_id`.
   query GetRoleAdmin : (role_id: [u8, 32]) -> [u8, 32];
   /// Returns the number of roles in the system.
   query GetRoleCount : () -> u32;
-  /// Returns the role ID at the specified index.
-  query GetRoleId : (index: u32) -> opt [u8, 32];
-  /// Returns the member at the specified index in the specified role.
-  query GetRoleMember : (role_id: [u8, 32], index: u32) -> opt actor_id;
   /// Returns the number of members in the specified role.
   query GetRoleMemberCount : (role_id: [u8, 32]) -> u32;
+  /// Returns a list of members in the specified role with pagination.
+  query GetRoleMembers : (role_id: [u8, 32], query: opt Pagination) -> vec actor_id;
+  /// Returns a list of role IDs with pagination.
+  query GetRoles : (query: opt Pagination) -> vec [u8, 32];
   /// Returns `true` if `account_id` has been granted `role_id`.
   query HasRole : (role_id: [u8, 32], account_id: actor_id) -> bool;
 

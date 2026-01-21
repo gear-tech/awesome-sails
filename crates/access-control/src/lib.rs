@@ -65,6 +65,14 @@ pub struct RoleData {
     admin_role_id: RoleId,
 }
 
+#[derive(Encode, Decode, TypeInfo, Debug, Clone, Copy)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct Pagination {
+    pub offset: u32,
+    pub limit: u32,
+}
+
 impl RolesStorage {
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
         self.roles
@@ -83,22 +91,62 @@ impl RolesStorage {
         self.roles.len() as u32
     }
 
-    pub fn get_role_id(&self, index: u32) -> Option<RoleId> {
-        self.roles.keys().nth(index as usize).copied()
+    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
+        let (offset, limit) = query
+            .map(|q| (q.offset as usize, q.limit as usize))
+            .unwrap_or((0, usize::MAX));
+
+        self.roles
+            .keys()
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect()
     }
 
     pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
         self.roles
             .get(&role_id)
             .map(|data| data.members.len() as u32)
-            .unwrap_or(0)
+            .unwrap_or_default()
     }
 
-    pub fn get_role_member(&self, role_id: RoleId, index: u32) -> Option<ActorId> {
+    pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
+        let (offset, limit) = query
+            .map(|q| (q.offset as usize, q.limit as usize))
+            .unwrap_or((0, usize::MAX));
+
+        let Some(data) = self.roles.get(&role_id) else {
+            return Vec::new();
+        };
+
+        data.members
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect()
+    }
+
+    pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
         self.roles
-            .get(&role_id)
-            .and_then(|data| data.members.iter().nth(index as usize))
-            .copied()
+            .values()
+            .filter(|data| data.members.contains(&member_id))
+            .count() as u32
+    }
+
+    pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
+        let (offset, limit) = query
+            .map(|q| (q.offset as usize, q.limit as usize))
+            .unwrap_or((0, usize::MAX));
+
+        self.roles
+            .iter()
+            .filter(|(_, data)| data.members.contains(&member_id))
+            .map(|(&role_id, _)| role_id)
+            .skip(offset)
+            .take(limit)
+            .collect()
     }
 
     pub fn grant_initial_admin(&mut self, deployer: ActorId) {
@@ -174,10 +222,10 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
         self.storage.get().get_role_count()
     }
 
-    /// Returns the role ID at the specified index.
+    /// Returns a list of role IDs with pagination.
     #[export]
-    pub fn get_role_id(&self, index: u32) -> Option<RoleId> {
-        self.storage.get().get_role_id(index)
+    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
+        self.storage.get().get_roles(query)
     }
 
     /// Returns the number of members in the specified role.
@@ -186,10 +234,22 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> Service<'a, S> {
         self.storage.get().get_role_member_count(role_id)
     }
 
-    /// Returns the member at the specified index in the specified role.
+    /// Returns a list of members in the specified role with pagination.
     #[export]
-    pub fn get_role_member(&self, role_id: RoleId, index: u32) -> Option<ActorId> {
-        self.storage.get().get_role_member(role_id, index)
+    pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
+        self.storage.get().get_role_members(role_id, query)
+    }
+
+    /// Returns the number of roles assigned to the specified member.
+    #[export]
+    pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
+        self.storage.get().get_member_role_count(member_id)
+    }
+
+    /// Returns a list of roles assigned to the specified member with pagination.
+    #[export]
+    pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
+        self.storage.get().get_member_roles(member_id, query)
     }
 
     /// Ensures that `account_id` has `role_id` or is a super admin.

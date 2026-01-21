@@ -19,7 +19,7 @@
 mod common;
 
 use access_control_test_client::{
-    AccessControlTestClient,
+    AccessControlTestClient, Pagination,
     access_control::{AccessControl, events::AccessControlEvents},
 };
 use awesome_sails_access_control_service::{DEFAULT_ADMIN_ROLE, RoleId};
@@ -350,66 +350,6 @@ async fn multiple_roles() {
 }
 
 #[tokio::test]
-async fn enumeration_success() {
-    let (program, _env, _pid) = deploy_program().await;
-    let mut access_control_service = program.access_control();
-
-    // Initial roles should contain at least DEFAULT_ADMIN_ROLE
-    let role_count = access_control_service.get_role_count().await;
-    assert_ok!(role_count, 1);
-
-    let role_id = access_control_service.get_role_id(0).await;
-    assert_ok!(role_id, Some(DEFAULT_ADMIN_ROLE));
-
-    // Alice should be the only member of DEFAULT_ADMIN_ROLE
-    let member_count = access_control_service
-        .get_role_member_count(DEFAULT_ADMIN_ROLE)
-        .await;
-    assert_ok!(member_count, 1);
-
-    let member = access_control_service
-        .get_role_member(DEFAULT_ADMIN_ROLE, 0)
-        .await;
-    assert_ok!(member, Some(ALICE));
-
-    // Alice grants MINTER_ROLE to Bob and Charlie
-    access_control_service
-        .grant_role(MINTER_ROLE, BOB)
-        .with_actor_id(ALICE)
-        .await
-        .unwrap();
-    access_control_service
-        .grant_role(MINTER_ROLE, CHARLIE)
-        .with_actor_id(ALICE)
-        .await
-        .unwrap();
-
-    // Now MINTER_ROLE should have 2 members
-    let member_count = access_control_service
-        .get_role_member_count(MINTER_ROLE)
-        .await;
-    assert_ok!(member_count, 2);
-
-    // Check members by index (BTreeMap/BTreeSet ensures order)
-    let m0 = access_control_service
-        .get_role_member(MINTER_ROLE, 0)
-        .await
-        .expect("get_role_member failed");
-    let m1 = access_control_service
-        .get_role_member(MINTER_ROLE, 1)
-        .await
-        .expect("get_role_member failed");
-
-    let mut members = [m0.unwrap(), m1.unwrap()];
-    members.sort(); // ActorIds in BTreeSet are sorted
-
-    let mut expected = [BOB, CHARLIE];
-    expected.sort();
-
-    assert_eq!(members, expected);
-}
-
-#[tokio::test]
 async fn self_admin_role_success() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
@@ -457,15 +397,13 @@ async fn batch_grant_success() {
 
     let roles = vec![MINTER_ROLE, MODERATOR_ROLE, PAUSER_ROLE];
 
-    // Alice (Super Admin) grants 3 roles to Bob in batch
     access_control_service
         .grant_roles_batch(roles.clone(), BOB)
         .with_actor_id(ALICE)
         .await
-        .expect("Batch grant should succeed");
+        .expect("Batch grant failed");
 
-    // Check that 3 separate events were emitted
-    for &role_id in &roles {
+    for role_id in roles.clone() {
         let (actor, event) = events.next().await.unwrap();
         assert_eq!(actor, pid);
         assert_eq!(
@@ -478,9 +416,109 @@ async fn batch_grant_success() {
         );
     }
 
-    // Verify Bob has all roles
-    for &role in &roles {
+    for role in roles {
         assert_ok!(access_control_service.has_role(role, BOB).await, true);
+    }
+}
+
+#[tokio::test]
+async fn batch_revoke_success() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let roles = vec![MINTER_ROLE, MODERATOR_ROLE, PAUSER_ROLE];
+    access_control_service
+        .grant_roles_batch(roles.clone(), BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    access_control_service
+        .revoke_roles_batch(roles.clone(), BOB)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Batch revoke failed");
+
+    for role in roles {
+        assert_ok!(access_control_service.has_role(role, BOB).await, false);
+    }
+}
+
+#[tokio::test]
+async fn enumeration_roles_success() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let roles = vec![MINTER_ROLE, MODERATOR_ROLE, PAUSER_ROLE];
+    access_control_service
+        .grant_roles_batch(roles.clone(), BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    // count: admin + 3 new = 4
+    assert_ok!(access_control_service.get_role_count().await, 4);
+
+    let all_roles = access_control_service.get_roles(None).await.unwrap();
+    assert_eq!(all_roles.len(), 4);
+    assert!(all_roles.contains(&DEFAULT_ADMIN_ROLE));
+    for r in &roles {
+        assert!(all_roles.contains(r));
+    }
+}
+
+#[tokio::test]
+async fn enumeration_members_success() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let members = vec![BOB, CHARLIE, DAVE];
+    for &m in &members {
+        access_control_service
+            .grant_role(MINTER_ROLE, m)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+    }
+
+    assert_ok!(
+        access_control_service
+            .get_role_member_count(MINTER_ROLE)
+            .await,
+        3
+    );
+
+    let all_members = access_control_service
+        .get_role_members(MINTER_ROLE, None)
+        .await
+        .unwrap();
+    assert_eq!(all_members.len(), 3);
+    for m in &members {
+        assert!(all_members.contains(m));
+    }
+}
+
+#[tokio::test]
+async fn enumeration_member_roles_success() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let roles = vec![MINTER_ROLE, MODERATOR_ROLE, PAUSER_ROLE];
+    access_control_service
+        .grant_roles_batch(roles.clone(), BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    assert_ok!(access_control_service.get_member_role_count(BOB).await, 3);
+
+    let bob_roles = access_control_service
+        .get_member_roles(BOB, None)
+        .await
+        .unwrap();
+    assert_eq!(bob_roles.len(), 3);
+    for r in &roles {
+        assert!(bob_roles.contains(r));
     }
 }
 
@@ -489,7 +527,7 @@ async fn batch_grant_atomic_failure() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
 
-    // Setup: Alice makes Bob admin for MINTER_ROLE but NOT for PAUSER_ROLE
+    // 1. Setup: Bob is admin only for MINTER_ROLE
     access_control_service
         .grant_role(MODERATOR_ROLE, BOB)
         .with_actor_id(ALICE)
@@ -501,26 +539,94 @@ async fn batch_grant_atomic_failure() {
         .await
         .unwrap();
 
+    // 2. Bob tries to grant [MINTER_ROLE, PAUSER_ROLE] to Charlie.
+    // He has rights for the first, but NOT for the second.
     let roles = vec![MINTER_ROLE, PAUSER_ROLE];
-
-    // Bob tries to grant both roles to Charlie. This must fail because he isn't admin for PAUSER_ROLE.
     let res = access_control_service
         .grant_roles_batch(roles, CHARLIE)
         .with_actor_id(BOB)
         .await;
 
-    assert!(
-        res.is_err(),
-        "Batch should fail due to missing permission for PAUSER_ROLE"
-    );
+    // 3. Must fail
+    assert!(res.is_err());
 
-    // CRITICAL: Charlie should NOT have received MINTER_ROLE because the batch must be atomic
-    assert_ok!(
-        access_control_service.has_role(MINTER_ROLE, CHARLIE).await,
-        false
-    );
-    assert_ok!(
-        access_control_service.has_role(PAUSER_ROLE, CHARLIE).await,
-        false
-    );
+    // 4. Verification: Charlie must have NO roles (even MINTER_ROLE)
+    let charlie_roles = access_control_service
+        .get_member_roles(CHARLIE, None)
+        .await
+        .unwrap();
+    assert!(charlie_roles.is_empty());
+}
+
+#[tokio::test]
+async fn enumeration_pagination_logic() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // 1. Grant 10 roles to Bob (Total roles: 1 admin + 10 new = 11)
+    let roles: Vec<RoleId> = (1..=10).map(|i| [i as u8; 32]).collect();
+    access_control_service
+        .grant_roles_batch(roles, BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    // 2. Case: None (Get all)
+    let all = access_control_service.get_roles(None).await.unwrap();
+    assert_eq!(all.len(), 11);
+
+    // 3. Case: Offset 0, Limit 5 (First page)
+    let page1 = access_control_service
+        .get_roles(Some(Pagination {
+            offset: 0,
+            limit: 5,
+        }))
+        .await
+        .unwrap();
+    assert_eq!(page1.len(), 5);
+    assert_eq!(page1, all[0..5]);
+
+    // 4. Case: Offset 5, Limit 2 (Middle small page)
+    let page2 = access_control_service
+        .get_roles(Some(Pagination {
+            offset: 5,
+            limit: 2,
+        }))
+        .await
+        .unwrap();
+    assert_eq!(page2.len(), 2);
+    assert_eq!(page2, all[5..7]);
+
+    // 5. Case: Limit > Offset (e.g. Offset 2, Limit 10)
+    // Works fine: starts at index 2 and tries to take 10.
+    let page3 = access_control_service
+        .get_roles(Some(Pagination {
+            offset: 2,
+            limit: 10,
+        }))
+        .await
+        .unwrap();
+    assert_eq!(page3.len(), 9); // only 9 left from index 2 to 10
+    assert_eq!(page3, all[2..11]);
+
+    // 6. Case: Offset at the end, Large Limit
+    let last = access_control_service
+        .get_roles(Some(Pagination {
+            offset: 10,
+            limit: 100,
+        }))
+        .await
+        .unwrap();
+    assert_eq!(last.len(), 1);
+    assert_eq!(last[0], all[10]);
+
+    // 7. Case: Offset out of bounds
+    let empty = access_control_service
+        .get_roles(Some(Pagination {
+            offset: 100,
+            limit: 10,
+        }))
+        .await
+        .unwrap();
+    assert!(empty.is_empty());
 }

@@ -127,6 +127,17 @@ pub mod access_control {
             role_id: [u8; 32],
             new_admin_role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env>;
+        /// Returns the number of roles assigned to the specified member.
+        fn get_member_role_count(
+            &self,
+            member_id: ActorId,
+        ) -> sails_rs::client::PendingCall<io::GetMemberRoleCount, Self::Env>;
+        /// Returns a list of roles assigned to the specified member with pagination.
+        fn get_member_roles(
+            &self,
+            member_id: ActorId,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetMemberRoles, Self::Env>;
         /// Returns the admin role ID that controls `role_id`.
         fn get_role_admin(
             &self,
@@ -134,22 +145,22 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::GetRoleAdmin, Self::Env>;
         /// Returns the number of roles in the system.
         fn get_role_count(&self) -> sails_rs::client::PendingCall<io::GetRoleCount, Self::Env>;
-        /// Returns the role ID at the specified index.
-        fn get_role_id(
-            &self,
-            index: u32,
-        ) -> sails_rs::client::PendingCall<io::GetRoleId, Self::Env>;
-        /// Returns the member at the specified index in the specified role.
-        fn get_role_member(
-            &self,
-            role_id: [u8; 32],
-            index: u32,
-        ) -> sails_rs::client::PendingCall<io::GetRoleMember, Self::Env>;
         /// Returns the number of members in the specified role.
         fn get_role_member_count(
             &self,
             role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::GetRoleMemberCount, Self::Env>;
+        /// Returns a list of members in the specified role with pagination.
+        fn get_role_members(
+            &self,
+            role_id: [u8; 32],
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetRoleMembers, Self::Env>;
+        /// Returns a list of role IDs with pagination.
+        fn get_roles(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetRoles, Self::Env>;
         /// Returns `true` if `account_id` has been granted `role_id`.
         fn has_role(
             &self,
@@ -204,6 +215,19 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env> {
             self.pending_call((role_id, new_admin_role_id))
         }
+        fn get_member_role_count(
+            &self,
+            member_id: ActorId,
+        ) -> sails_rs::client::PendingCall<io::GetMemberRoleCount, Self::Env> {
+            self.pending_call((member_id,))
+        }
+        fn get_member_roles(
+            &self,
+            member_id: ActorId,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetMemberRoles, Self::Env> {
+            self.pending_call((member_id, query))
+        }
         fn get_role_admin(
             &self,
             role_id: [u8; 32],
@@ -213,24 +237,24 @@ pub mod access_control {
         fn get_role_count(&self) -> sails_rs::client::PendingCall<io::GetRoleCount, Self::Env> {
             self.pending_call(())
         }
-        fn get_role_id(
-            &self,
-            index: u32,
-        ) -> sails_rs::client::PendingCall<io::GetRoleId, Self::Env> {
-            self.pending_call((index,))
-        }
-        fn get_role_member(
-            &self,
-            role_id: [u8; 32],
-            index: u32,
-        ) -> sails_rs::client::PendingCall<io::GetRoleMember, Self::Env> {
-            self.pending_call((role_id, index))
-        }
         fn get_role_member_count(
             &self,
             role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::GetRoleMemberCount, Self::Env> {
             self.pending_call((role_id,))
+        }
+        fn get_role_members(
+            &self,
+            role_id: [u8; 32],
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetRoleMembers, Self::Env> {
+            self.pending_call((role_id, query))
+        }
+        fn get_roles(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetRoles, Self::Env> {
+            self.pending_call((query,))
         }
         fn has_role(
             &self,
@@ -249,11 +273,13 @@ pub mod access_control {
         sails_rs::io_struct_impl!(RevokeRole (role_id: [u8; 32], target_account: ActorId) -> ());
         sails_rs::io_struct_impl!(RevokeRolesBatch (role_ids: Vec<[u8; 32]>, target_account: ActorId) -> ());
         sails_rs::io_struct_impl!(SetRoleAdmin (role_id: [u8; 32], new_admin_role_id: [u8; 32]) -> ());
+        sails_rs::io_struct_impl!(GetMemberRoleCount (member_id: ActorId) -> u32);
+        sails_rs::io_struct_impl!(GetMemberRoles (member_id: ActorId, query: Option<super::Pagination>) -> Vec<[u8; 32]>);
         sails_rs::io_struct_impl!(GetRoleAdmin (role_id: [u8; 32]) -> [u8; 32]);
         sails_rs::io_struct_impl!(GetRoleCount () -> u32);
-        sails_rs::io_struct_impl!(GetRoleId (index: u32) -> Option<[u8; 32]>);
-        sails_rs::io_struct_impl!(GetRoleMember (role_id: [u8; 32], index: u32) -> Option<ActorId>);
         sails_rs::io_struct_impl!(GetRoleMemberCount (role_id: [u8; 32]) -> u32);
+        sails_rs::io_struct_impl!(GetRoleMembers (role_id: [u8; 32], query: Option<super::Pagination>) -> Vec<ActorId>);
+        sails_rs::io_struct_impl!(GetRoles (query: Option<super::Pagination>) -> Vec<[u8; 32]>);
         sails_rs::io_struct_impl!(HasRole (role_id: [u8; 32], account_id: ActorId) -> bool);
     }
 
@@ -288,4 +314,11 @@ pub mod access_control {
             type Event = AccessControlEvents;
         }
     }
+}
+#[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct Pagination {
+    pub offset: u32,
+    pub limit: u32,
 }
