@@ -16,18 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use access_control_test_client::{AccessControlTestClientCtors, AccessControlTestClientProgram};
 use sails_rs::{
-    ActorId, U256,
+    ActorId,
     client::{Actor, GearEnv, GtestEnv, GtestError},
     gtest::System,
     prelude::*,
-};
-use vft_pack_test_client::{
-    VftPackTestClient, // Import VftPackTestClient trait
-    VftPackTestClientCtors,
-    VftPackTestClientProgram,
-    test::Test,                  // Restore Test service import
-    vft_extension::VftExtension, // Restore VftExtension import
 };
 
 const fn actor_id(id: u8) -> ActorId {
@@ -36,7 +30,7 @@ const fn actor_id(id: u8) -> ActorId {
     ActorId::new(bytes)
 }
 
-/// Alice account id. Alice is admin of the program.
+/// Alice account id. Alice is the deployer and initial admin of the program.
 pub const ALICE: ActorId = actor_id(42);
 
 /// Bob account id.
@@ -53,10 +47,10 @@ pub const BALANCE: u128 = 100_000_000_000_000_000;
 
 #[cfg(debug_assertions)]
 pub(crate) const DEMO_WASM_PATH: &str =
-    "../../../target/wasm32-gear/debug/vft_pack_test_app.opt.wasm";
+    "../../../target/wasm32-gear/debug/access_control_test_app.opt.wasm";
 #[cfg(not(debug_assertions))]
 pub(crate) const DEMO_WASM_PATH: &str =
-    "../../../target/wasm32-gear/release/vft_pack_test_app.opt.wasm";
+    "../../../target/wasm32-gear/release/access_control_test_app.opt.wasm";
 
 /// Deploys a new program in the test environment and returns the program client, GtestEnv and program ID.
 pub fn deploy_env() -> (GtestEnv, CodeId, GasUnit) {
@@ -76,40 +70,20 @@ pub fn deploy_env() -> (GtestEnv, CodeId, GasUnit) {
     (env, program_code_id, gas_limit)
 }
 
-pub async fn deploy_with_data(
-    allowances: Vec<(ActorId, ActorId, U256, u32)>,
-    balances: Vec<(ActorId, U256)>,
-    expiry_period: u32,
-) -> (Actor<VftPackTestClientProgram, GtestEnv>, GtestEnv, ActorId) {
+pub async fn deploy_program() -> (
+    Actor<AccessControlTestClientProgram, GtestEnv>,
+    GtestEnv,
+    ActorId,
+) {
     let (env, code_id, _gas_limit) = deploy_env();
 
     let program = env
-        .deploy::<VftPackTestClientProgram>(code_id, b"salt".to_vec())
+        .deploy::<AccessControlTestClientProgram>(code_id, b"salt".to_vec())
         .new()
         .await
         .expect("failed to deploy program");
 
     let program_id = program.id();
-
-    let mut vft_extension = program.vft_extension();
-
-    while vft_extension
-        .allocate_next_balances_shard()
-        .await
-        .expect("failed to allocate next balances shard")
-    {}
-
-    while vft_extension
-        .allocate_next_allowances_shard()
-        .await
-        .expect("failed to allocate next balances shard")
-    {}
-
-    program
-        .test()
-        .set(allowances, balances, expiry_period)
-        .await
-        .expect("failed to set data");
 
     (program, env, program_id)
 }

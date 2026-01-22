@@ -22,10 +22,13 @@ members = [
     "crates/vft-pack/vft-metadata",
     "crates/vft-pack/vft-native-exchange",
     "crates/vft-pack/vft-native-exchange-admin",
+    "crates/vft-pack/access-control",
 
     # tests
     "tests/vft-pack-test/app",
     "tests/vft-pack-test/client",
+    "tests/access-control-test/app",
+    "tests/access-control-test/client",
 ]
 
 
@@ -45,6 +48,7 @@ primitive-types = { version = "0.12.2", default-features = false }
 scale-info = { version = "2.11.6", default-features = false }
 thiserror = { version = "=2.0.17", default-features = false }
 tokio = { version = "=1.48", default-features = false }
+keccak-const = { version = "0.2", default-features = false }
 
 
 # vft-pack
@@ -56,3 +60,4 @@ awesome-sails-vft-extension-service = { path = "crates/vft-pack/vft-extension", 
 awesome-sails-vft-metadata-service = { path = "crates/vft-pack/vft-metadata", version = "0.1.0", default-features = false }
 awesome-sails-vft-native-exchange-service = { path = "crates/vft-pack/vft-native-exchange", version = "0.1.0", default-features = false }
 awesome-sails-vft-native-exchange-admin-service = { path = "crates/vft-pack/vft-native-exchange-admin", version = "0.1.0", default-features = false }
+awesome-sails-access-control-service = { path = "crates/vft-pack/access-control", version = "0.1.0", default-features = false }

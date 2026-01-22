@@ -17,3 +17,4 @@ sails-rs = { workspace = true, features = ["gstd"] }
 awesome-sails-utils = { workspace = true }
 awesome-sails-vft-service.workspace = true
 awesome-sails-vft-admin-service.workspace = true
+awesome-sails-access-control-service = { workspace = true }

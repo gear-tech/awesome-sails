@@ -18,6 +18,4 @@ awesome-sails-utils = { workspace = true }
 awesome-sails-vft-service-utils.workspace = true
 
 [features]
-test = [
-    "awesome-sails-vft-service-utils/test",
-]
+test = ["awesome-sails-vft-service-utils/test"]

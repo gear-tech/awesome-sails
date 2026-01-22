@@ -18,13 +18,15 @@
 
 //! Awesome VFT-Admin service.
 //!
-//! This service provides admin functionality to VFT.
+//! This service provides admin functionality to VFT using Role-Based Access Control.
 
 #![no_std]
 
+use awesome_sails_access_control_service::{
+    self as access_control, DEFAULT_ADMIN_ROLE, RoleId, RolesStorage, ensure,
+    error::{EmitError, Error},
+};
 use awesome_sails_utils::{
-    ensure,
-    error::{BadOrigin, EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::{PausableRef, Pause, UnpausedError},
@@ -36,14 +38,24 @@ use awesome_sails_vft_service::{
 };
 use sails_rs::prelude::*;
 
+pub const MINTER_ROLE: RoleId = keccak_const::Keccak256::new()
+    .update(b"MINTER_ROLE")
+    .finalize();
+pub const BURNER_ROLE: RoleId = keccak_const::Keccak256::new()
+    .update(b"BURNER_ROLE")
+    .finalize();
+pub const PAUSER_ROLE: RoleId = keccak_const::Keccak256::new()
+    .update(b"PAUSER_ROLE")
+    .finalize();
+
 /// Awesome VFT-Admin service itself.
 pub struct Service<
     'a,
-    S: InfallibleStorageMut<Item = Authorities> = StorageRefCell<'a, Authorities>,
+    ACS: InfallibleStorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>,
     A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
     B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
-    authorities: S,
+    access_control: access_control::ServiceExposure<access_control::Service<'a, ACS>>,
     allowances: A,
     balances: B,
     pause: &'a Pause,
@@ -52,21 +64,21 @@ pub struct Service<
 
 impl<
     'a,
-    S: InfallibleStorageMut<Item = Authorities>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
-> Service<'a, S, A, B>
+> Service<'a, ACS, A, B>
 {
     /// Constructor for [`Self`].
     pub fn new(
-        authorities: S,
+        access_control: access_control::ServiceExposure<access_control::Service<'a, ACS>>,
         allowances: A,
         balances: B,
         pause: &'a Pause,
         vft: vft::ServiceExposure<vft::Service<'a, A, B>>,
     ) -> Self {
         Self {
-            authorities,
+            access_control,
             allowances,
             balances,
             pause,
@@ -100,10 +112,10 @@ impl<
 #[service(events = Event)]
 impl<
     'a,
-    S: InfallibleStorageMut<Item = Authorities>,
+    ACS: InfallibleStorageMut<Item = RolesStorage>,
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
-> Service<'a, S, A, B>
+> Service<'a, ACS, A, B>
 {
     /// Mints VFTs to the specified address.
     ///
@@ -115,7 +127,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn append_allowances_shard(&mut self, capacity: u32) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         self.allowances
             .get_mut()?
@@ -126,7 +139,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn append_balances_shard(&mut self, capacity: u32) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         self.balances
             .get_mut()?
@@ -142,7 +156,8 @@ impl<
         spender: ActorId,
         value: U256,
     ) -> Result<bool, Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         ok_if!(owner == spender, false);
 
@@ -173,7 +188,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn burn(&mut self, from: ActorId, value: U256) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.burner(), BadOrigin);
+        self.access_control
+            .require_role(BURNER_ROLE, Syscall::message_source())?;
 
         self.balances
             .get_mut()?
@@ -195,7 +211,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
         ensure!(self.is_paused(), UnpausedError);
 
         self.emit_event(Event::Exited(inheritor))
@@ -206,7 +223,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn mint(&mut self, to: ActorId, value: U256) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.minter(), BadOrigin);
+        self.access_control
+            .require_role(MINTER_ROLE, Syscall::message_source())?;
 
         unsafe {
             self.do_mint(to, value)?;
@@ -220,7 +238,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn pause(&mut self) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
+        self.access_control
+            .require_role(PAUSER_ROLE, Syscall::message_source())?;
 
         if self.pause.pause() {
             self.emit_event(Event::Paused).map_err(|_| EmitError)?;
@@ -231,7 +250,8 @@ impl<
 
     #[export(unwrap_result)]
     pub fn resume(&mut self) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
+        self.access_control
+            .require_role(PAUSER_ROLE, Syscall::message_source())?;
 
         if self.pause.resume() {
             self.emit_event(Event::Resumed).map_err(|_| EmitError)?;
@@ -241,32 +261,9 @@ impl<
     }
 
     #[export(unwrap_result)]
-    pub fn set_admin(&mut self, admin: ActorId) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
-
-        self.authorities.get_mut().admin = admin;
-
-        self.emit_event(Event::AdminChanged(admin))
-            .map_err(|_| EmitError)?;
-
-        Ok(())
-    }
-
-    #[export(unwrap_result)]
-    pub fn set_burner(&mut self, burner: ActorId) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
-
-        self.authorities.get_mut().burner = burner;
-
-        self.emit_event(Event::BurnerChanged(burner))
-            .map_err(|_| EmitError)?;
-
-        Ok(())
-    }
-
-    #[export(unwrap_result)]
     pub fn set_expiry_period(&mut self, period: u32) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
+        self.access_control
+            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
 
         self.allowances.get_mut()?.set_expiry_period(period);
 
@@ -274,50 +271,6 @@ impl<
             .map_err(|_| EmitError)?;
 
         Ok(())
-    }
-
-    #[export(unwrap_result)]
-    pub fn set_minter(&mut self, minter: ActorId) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
-
-        self.authorities.get_mut().minter = minter;
-
-        self.emit_event(Event::MinterChanged(minter))
-            .map_err(|_| EmitError)?;
-
-        Ok(())
-    }
-
-    #[export(unwrap_result)]
-    pub fn set_pauser(&mut self, pauser: ActorId) -> Result<(), Error> {
-        ensure!(Syscall::message_source() == self.admin(), BadOrigin);
-
-        self.authorities.get_mut().pauser = pauser;
-
-        self.emit_event(Event::PauserChanged(pauser))
-            .map_err(|_| EmitError)?;
-
-        Ok(())
-    }
-
-    #[export]
-    pub fn admin(&self) -> ActorId {
-        self.authorities.get().admin()
-    }
-
-    #[export]
-    pub fn burner(&self) -> ActorId {
-        self.authorities.get().burner()
-    }
-
-    #[export]
-    pub fn minter(&self) -> ActorId {
-        self.authorities.get().minter()
-    }
-
-    #[export]
-    pub fn pauser(&self) -> ActorId {
-        self.authorities.get().pauser()
     }
 
     #[export]
@@ -331,77 +284,10 @@ impl<
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum Event {
-    AdminChanged(ActorId),
-    BurnerChanged(ActorId),
-    MinterChanged(ActorId),
-    PauserChanged(ActorId),
-
     BurnerTookPlace,
     MinterTookPlace,
-
     ExpiryPeriodChanged(u32),
-
     Exited(ActorId),
-
     Paused,
     Resumed,
-}
-
-/// Address book of the authorities.
-#[derive(Clone, Debug, Default)]
-pub struct Authorities {
-    admin: ActorId,
-    burner: ActorId,
-    minter: ActorId,
-    pauser: ActorId,
-}
-
-impl Authorities {
-    /// Creates a new [`Self`] instance.
-    pub fn new(admin: ActorId, burner: ActorId, minter: ActorId, pauser: ActorId) -> Self {
-        Self {
-            admin,
-            burner,
-            minter,
-            pauser,
-        }
-    }
-
-    /// Creates a new [`Self`] instance with all authorities set to the same address.
-    pub fn from_one(admin: ActorId) -> Self {
-        Self {
-            admin,
-            burner: admin,
-            minter: admin,
-            pauser: admin,
-        }
-    }
-
-    /// Returns the address of the admin.
-    ///
-    /// This address is eligible to change the authorities and other parameters.
-    pub fn admin(&self) -> ActorId {
-        self.admin
-    }
-
-    /// Returns the address of the burner.
-    ///
-    /// This address is eligible to burn.
-    pub fn burner(&self) -> ActorId {
-        self.burner
-    }
-
-    /// Returns the address of the minter.
-    ///
-    /// This address is eligible to mint.
-    pub fn minter(&self) -> ActorId {
-        self.minter
-    }
-
-    /// Returns the address of the pauser.
-    ///
-    /// This address is eligible to pause and resume.
-    pub fn pauser(&self) -> ActorId {
-        self.pauser
-    }
 }

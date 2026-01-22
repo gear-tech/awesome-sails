@@ -1,5 +1,5 @@
 [package]
-name = "awesome-sails-vft-admin-service"
+name = "awesome-sails-access-control-service"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -7,14 +7,12 @@ homepage.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "VFT Admin Service for Awesome Sails"
+description = "A role-based access control (RBAC) service for Awesome Sails"
 
 [dependencies]
 # Sails dependencies.
-sails-rs = { workspace = true, features = ["gstd"] }
+sails-rs = { workspace = true }
 
 # Local dependencies.
 awesome-sails-utils = { workspace = true }
-awesome-sails-vft-service.workspace = true
-awesome-sails-access-control-service = { workspace = true }
-keccak-const = { workspace = true }
+thiserror = { workspace = true }

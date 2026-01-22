@@ -13,6 +13,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "access-control-test-app"
+version = "0.0.0"
+dependencies = [
+ "access-control-test-client",
+ "awesome-sails-utils",
+ "awesome-sails-vft-pack",
+ "futures",
+ "gtest",
+ "sails-rs",
+ "tokio",
+]
+
+[[package]]
+name = "access-control-test-client"
+version = "0.1.0"
+dependencies = [
+ "access-control-test-app",
+ "mockall 0.14.0",
+ "sails-rs",
+]
+
+[[package]]
 name = "actor-system-error"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -344,6 +366,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "awesome-sails-access-control-service"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-utils",
+ "sails-rs",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "awesome-sails-utils"
 version = "0.1.0"
 dependencies = [
@@ -362,8 +393,10 @@ dependencies = [
 name = "awesome-sails-vft-admin-service"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-utils",
  "awesome-sails-vft-service",
+ "keccak-const",
  "sails-rs",
 ]
 
@@ -389,6 +422,7 @@ dependencies = [
 name = "awesome-sails-vft-native-exchange-admin-service"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-utils",
  "awesome-sails-vft-admin-service",
  "awesome-sails-vft-service",
@@ -408,6 +442,7 @@ dependencies = [
 name = "awesome-sails-vft-pack"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control-service",
  "awesome-sails-vft-admin-service",
  "awesome-sails-vft-extension-service",
  "awesome-sails-vft-metadata-service",
@@ -3133,6 +3168,12 @@ checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
 ]
+
+[[package]]
+name = "keccak-const"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d8d8ce877200136358e0bbff3a77965875db3af755a11e1fa6b1b3e2df13ea"
 
 [[package]]
 name = "lalrpop"

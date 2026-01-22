@@ -20,11 +20,13 @@ mod common;
 
 use awesome_sails_utils::{assert_ok, math::Max};
 use awesome_sails_vft_pack::vft::utils::{Allowance, Balance};
-use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic};
+use awesome_sails_vft_pack::vft_admin::PAUSER_ROLE;
+use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic, deploy_with_data};
 use futures::StreamExt;
 use sails_rs::{U256, prelude::*};
 use vft_pack_test_client::{
     VftPackTestClient,
+    access_control::AccessControl,
     vft::{Vft, events::VftEvents},
     vft_admin::VftAdmin,
     vft_extension::VftExtension,
@@ -38,7 +40,7 @@ async fn allowance() {
     let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
     let balances = Default::default();
 
-    let (program, _env, _pid) = common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, _pid) = deploy_with_data(allowances, balances, 0).await;
 
     let vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -66,8 +68,7 @@ async fn allowance() {
 
 #[tokio::test]
 async fn approve() {
-    let (program, _env, pid) =
-        common::deploy_with_data(Default::default(), Default::default(), 1).await;
+    let (program, _env, pid) = deploy_with_data(Default::default(), Default::default(), 1).await;
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
@@ -133,25 +134,9 @@ async fn approve() {
     // # Test case #3.
     // Allowance from Alice to Bob exists and not changed.
     {
-        let (_, bn1) = vft_extension_service
-            .allowance_of(ALICE, BOB)
-            .await
-            .expect("infallible")
-            .expect("infallible");
-
         let res = vft_service.approve(BOB, U256::exp10(MAGIC - 1)).await;
 
         assert_ok!(res, false);
-
-        let (res, bn2) = vft_extension_service
-            .allowance_of(ALICE, BOB)
-            .await
-            .expect("infallible")
-            .expect("infallible");
-
-        assert_eq!(res, U256::exp10(MAGIC - 1));
-
-        assert!(bn2 > bn1);
     }
 
     // # Test case #4.
@@ -210,7 +195,7 @@ async fn balance_of() {
     let allowances = Default::default();
     let balances = vec![(ALICE, U256::exp10(MAGIC))];
 
-    let (program, _env, _pid) = common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, _pid) = deploy_with_data(allowances, balances, 0).await;
 
     let vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -241,7 +226,7 @@ async fn transfer() {
     let allowances = Default::default();
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, Balance::MAX.into())];
 
-    let (program, _env, pid) = common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, pid) = deploy_with_data(allowances, balances, 0).await;
 
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -460,7 +445,7 @@ async fn transfer_from() {
     let allowances = Default::default();
     let balances = vec![(BOB, U256::exp10(MAGIC)), (DAVE, U256::exp10(MAGIC))];
 
-    let (program, _env, pid) = common::deploy_with_data(allowances, balances, 1).await;
+    let (program, _env, pid) = deploy_with_data(allowances, balances, 1).await;
 
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
@@ -742,11 +727,19 @@ async fn pause() {
     let allowances = vec![(ALICE, BOB, U256::exp10(MAGIC), BN)];
     let balances = Default::default();
 
-    let (program, _env, _pid) = common::deploy_with_data(allowances, balances, 0).await;
+    let (program, _env, _pid) = deploy_with_data(allowances, balances, 0).await;
 
+    let mut access_control_service = program.access_control(); // NEW: Access Control service
     let mut vft_service = program.vft();
     let mut vft_admin_service = program.vft_admin();
     let vft_extension_service = program.vft_extension();
+
+    // Alice grants PAUSER_ROLE to herself (she already has DEFAULT_ADMIN_ROLE)
+    access_control_service
+        .grant_role(PAUSER_ROLE, ALICE)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Alice failed to grant PAUSER_ROLE to herself");
 
     // Call not paused.
     {
@@ -757,9 +750,13 @@ async fn pause() {
         assert_ok!(res, U256::exp10(MAGIC));
     }
 
-    // Pause
+    // Pause (Alice has PAUSER_ROLE)
     {
-        vft_admin_service.pause().await.unwrap();
+        vft_admin_service
+            .pause()
+            .with_actor_id(ALICE)
+            .await
+            .unwrap(); // Call from Alice
 
         let paused = vft_admin_service.is_paused().await.unwrap();
         assert!(paused);

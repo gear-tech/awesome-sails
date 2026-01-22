@@ -24,11 +24,10 @@ use awesome_sails_utils::{
     storage::{StorageMut, StorageRefCell},
 };
 use awesome_sails_vft_pack::{
+    access_control::{RolesStorage, Service as AccessControlService},
     vft,
     vft::utils::{Allowance, Allowances, Balance, Balances},
-    vft_admin,
-    vft_admin::Authorities,
-    vft_extension, vft_metadata,
+    vft_admin, vft_extension, vft_metadata,
     vft_metadata::Metadata,
     vft_native_exchange, vft_native_exchange_admin,
 };
@@ -93,7 +92,7 @@ impl TestService<'_> {
 
 #[derive(Default)]
 pub struct Program {
-    authorities: RefCell<Authorities>,
+    access_control_roles: RefCell<RolesStorage>, // New field for access control
     allowances: RefCell<Allowances>,
     balances: RefCell<Balances>,
     metadata: Metadata,
@@ -108,15 +107,23 @@ impl Program {
     pub fn balances(&self) -> PausableRef<'_, Balances> {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
     }
+
+    pub fn access_control_storage(&self) -> StorageRefCell<'_, RolesStorage> {
+        StorageRefCell::new(&self.access_control_roles)
+    }
 }
 
 #[program]
 impl Program {
     pub fn new() -> Self {
         let pause = Pause::default();
+        let mut access_control_roles = RolesStorage::default();
+        let deployer = Syscall::message_source();
+
+        access_control_roles.grant_initial_admin(deployer);
 
         Self {
-            authorities: RefCell::new(Authorities::from_one(Syscall::message_source())),
+            access_control_roles: RefCell::new(access_control_roles),
             allowances: Default::default(),
             balances: Default::default(),
             metadata: Metadata::default(),
@@ -135,13 +142,24 @@ impl Program {
         }
     }
 
+    pub fn access_control(&self) -> AccessControlService<'_, StorageRefCell<'_, RolesStorage>> {
+        AccessControlService::new(self.access_control_storage())
+    }
+
     pub fn vft(&self) -> vft::Service<'_> {
         vft::Service::new(self.allowances(), self.balances())
     }
 
-    pub fn vft_admin(&self) -> vft_admin::Service<'_> {
+    pub fn vft_admin(
+        &self,
+    ) -> vft_admin::Service<
+        '_,
+        StorageRefCell<'_, RolesStorage>, // ACS generic
+        PausableRef<'_, Allowances>,
+        PausableRef<'_, Balances>,
+    > {
         vft_admin::Service::new(
-            StorageRefCell::new(&self.authorities),
+            self.access_control(), // Pass AccessControlService (it's already an exposure implicitly)
             self.allowances(),
             self.balances(),
             &self.pause,
@@ -168,10 +186,11 @@ impl Program {
         &self,
     ) -> vft_native_exchange_admin::Service<
         '_,
-        StorageRefCell<'_, Authorities>,
+        StorageRefCell<'_, RolesStorage>, // ACS generic for vft-admin
         PausableRef<'_, Allowances>,
         PausableRef<'_, Balances>,
     > {
+        // vft_native_exchange_admin now takes a vft_admin Service, so we pass that
         vft_native_exchange_admin::Service::new(self.vft_admin())
     }
 }
