@@ -1,10 +1,10 @@
 [package]
-name = "access-control-test-app"
+name = "awesome-sails-test-app"
 edition.workspace = true
 publish = false
 
 [dependencies]
-awesome-sails = { workspace = true, default-features = false, features = ["access-control"] }
+awesome-sails = { workspace = true, features = ["all", "test"] }
 awesome-sails-utils = { workspace = true }
 sails-rs = { workspace = true }
 
@@ -12,7 +12,7 @@ sails-rs = { workspace = true }
 sails-rs = { workspace = true, features = ["wasm-builder"] }
 
 [dev-dependencies]
-access-control-test-client = { path = "../client" }
+awesome-sails-test-client = { path = "../client" }
 futures.workspace = true
 gtest.workspace = true
 sails-rs = { workspace = true, features = ["gtest"] }

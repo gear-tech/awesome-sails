@@ -10,7 +10,7 @@ env:
   GITHUB_USER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
   BINARYEN_VERSION: version_123
   # List of programs to build assets for (WASM/IDL)
-  RELEASE_PROGRAMS: "vft-pack-test-app access-control-test-app"
+  RELEASE_PROGRAMS: "awesome-sails-test-app access-control-test-app"
 
 jobs:
   prepare:
@@ -59,7 +59,7 @@ jobs:
           # Update workspace package version
           sed -i 's/^version = ".*"/version = "'$VERSION'"/' Cargo.toml
           # Update internal dependencies
-          sed -i "/^awesome-sails-/ s/version = \"[^\"]*\"/version = \"$VERSION\"/" Cargo.toml
+          sed -i "/^awesome-sails/ s/version = \"[^\"]*\"/version = \"$VERSION\"/" Cargo.toml
           
           git add Cargo.toml
           if ! git diff --cached --quiet; then

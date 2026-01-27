@@ -13,20 +13,20 @@ resolver = "3"
 members = [
     "utils",
 
-    # vft-pack
-    "crates/vft-pack",
-    "crates/vft-pack/vft",
-    "crates/vft-pack/vft/utils",
-    "crates/vft-pack/vft-admin",
-    "crates/vft-pack/vft-extension",
-    "crates/vft-pack/vft-metadata",
-    "crates/vft-pack/vft-native-exchange",
-    "crates/vft-pack/vft-native-exchange-admin",
-    "crates/vft-pack/access-control",
+    # awesome-sails
+    "crates/awesome-sails",
+    "crates/awesome-sails/vft",
+    "crates/awesome-sails/vft/utils",
+    "crates/awesome-sails/vft-admin",
+    "crates/awesome-sails/vft-extension",
+    "crates/awesome-sails/vft-metadata",
+    "crates/awesome-sails/vft-native-exchange",
+    "crates/awesome-sails/vft-native-exchange-admin",
+    "crates/awesome-sails/access-control",
 
     # tests
-    "tests/vft-pack-test/app",
-    "tests/vft-pack-test/client",
+    "tests/awesome-sails-test/app",
+    "tests/awesome-sails-test/client",
     "tests/access-control-test/app",
     "tests/access-control-test/client",
 ]
@@ -52,12 +52,12 @@ keccak-const = { version = "0.2", default-features = false }
 
 
 # vft-pack
-awesome-sails-vft-pack = { path = "crates/vft-pack", version = "0.1.0", default-features = false }
-awesome-sails-vft-service = { path = "crates/vft-pack/vft", version = "0.1.0", default-features = false }
-awesome-sails-vft-service-utils = { path = "crates/vft-pack/vft/utils", version = "0.1.0", default-features = false }
-awesome-sails-vft-admin-service = { path = "crates/vft-pack/vft-admin", version = "0.1.0", default-features = false }
-awesome-sails-vft-extension-service = { path = "crates/vft-pack/vft-extension", version = "0.1.0", default-features = false }
-awesome-sails-vft-metadata-service = { path = "crates/vft-pack/vft-metadata", version = "0.1.0", default-features = false }
-awesome-sails-vft-native-exchange-service = { path = "crates/vft-pack/vft-native-exchange", version = "0.1.0", default-features = false }
-awesome-sails-vft-native-exchange-admin-service = { path = "crates/vft-pack/vft-native-exchange-admin", version = "0.1.0", default-features = false }
-awesome-sails-access-control-service = { path = "crates/vft-pack/access-control", version = "0.1.0", default-features = false }
+awesome-sails = { path = "crates/awesome-sails", version = "0.1.0", default-features = false }
+awesome-sails-vft = { path = "crates/awesome-sails/vft", version = "0.1.0", default-features = false }
+awesome-sails-vft-utils = { path = "crates/awesome-sails/vft/utils", version = "0.1.0", default-features = false }
+awesome-sails-vft-admin = { path = "crates/awesome-sails/vft-admin", version = "0.1.0", default-features = false }
+awesome-sails-vft-extension = { path = "crates/awesome-sails/vft-extension", version = "0.1.0", default-features = false }
+awesome-sails-vft-metadata = { path = "crates/awesome-sails/vft-metadata", version = "0.1.0", default-features = false }
+awesome-sails-vft-native-exchange = { path = "crates/awesome-sails/vft-native-exchange", version = "0.1.0", default-features = false }
+awesome-sails-vft-native-exchange-admin = { path = "crates/awesome-sails/vft-native-exchange-admin", version = "0.1.0", default-features = false }
+awesome-sails-access-control = { path = "crates/awesome-sails/access-control", version = "0.1.0", default-features = false }
