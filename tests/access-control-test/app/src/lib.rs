@@ -18,8 +18,8 @@
 
 #![no_std]
 
+use awesome_sails::access_control::{AccessControl, RolesStorage};
 use awesome_sails_utils::storage::StorageRefCell;
-use awesome_sails_vft_pack::access_control::{RolesStorage, Service as AccessControlService};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
@@ -40,7 +40,7 @@ impl Program {
         }
     }
 
-    pub fn access_control(&self) -> AccessControlService<'_, StorageRefCell<'_, RolesStorage>> {
-        AccessControlService::new(StorageRefCell::new(&self.roles))
+    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
+        AccessControl::new(StorageRefCell::new(&self.roles))
     }
 }

@@ -17,8 +17,8 @@ name = "access-control-test-app"
 version = "0.0.0"
 dependencies = [
  "access-control-test-client",
+ "awesome-sails",
  "awesome-sails-utils",
- "awesome-sails-vft-pack",
  "futures",
  "gtest",
  "sails-rs",
@@ -366,12 +366,48 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "awesome-sails-access-control-service"
+name = "awesome-sails"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-access-control",
+ "awesome-sails-vft",
+ "awesome-sails-vft-admin",
+ "awesome-sails-vft-extension",
+ "awesome-sails-vft-metadata",
+ "awesome-sails-vft-native-exchange",
+ "awesome-sails-vft-native-exchange-admin",
+ "awesome-sails-vft-utils",
+]
+
+[[package]]
+name = "awesome-sails-access-control"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-utils",
  "sails-rs",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "awesome-sails-test-app"
+version = "0.0.0"
+dependencies = [
+ "awesome-sails",
+ "awesome-sails-test-client",
+ "awesome-sails-utils",
+ "futures",
+ "gtest",
+ "sails-rs",
+ "tokio",
+]
+
+[[package]]
+name = "awesome-sails-test-client"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-test-app",
+ "mockall 0.14.0",
+ "sails-rs",
 ]
 
 [[package]]
@@ -390,28 +426,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "awesome-sails-vft-admin-service"
+name = "awesome-sails-vft"
 version = "0.1.0"
 dependencies = [
- "awesome-sails-access-control-service",
  "awesome-sails-utils",
- "awesome-sails-vft-service",
+ "awesome-sails-vft-utils",
+ "sails-rs",
+]
+
+[[package]]
+name = "awesome-sails-vft-admin"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-access-control",
+ "awesome-sails-utils",
+ "awesome-sails-vft",
  "keccak-const",
  "sails-rs",
 ]
 
 [[package]]
-name = "awesome-sails-vft-extension-service"
+name = "awesome-sails-vft-extension"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-utils",
- "awesome-sails-vft-service",
+ "awesome-sails-vft",
  "sails-rs",
  "thiserror 2.0.17",
 ]
 
 [[package]]
-name = "awesome-sails-vft-metadata-service"
+name = "awesome-sails-vft-metadata"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-utils",
@@ -419,50 +464,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "awesome-sails-vft-native-exchange-admin-service"
+name = "awesome-sails-vft-native-exchange"
 version = "0.1.0"
 dependencies = [
- "awesome-sails-access-control-service",
  "awesome-sails-utils",
- "awesome-sails-vft-admin-service",
- "awesome-sails-vft-service",
+ "awesome-sails-vft",
  "sails-rs",
 ]
 
 [[package]]
-name = "awesome-sails-vft-native-exchange-service"
+name = "awesome-sails-vft-native-exchange-admin"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-access-control",
  "awesome-sails-utils",
- "awesome-sails-vft-service",
+ "awesome-sails-vft",
+ "awesome-sails-vft-admin",
  "sails-rs",
 ]
 
 [[package]]
-name = "awesome-sails-vft-pack"
-version = "0.1.0"
-dependencies = [
- "awesome-sails-access-control-service",
- "awesome-sails-vft-admin-service",
- "awesome-sails-vft-extension-service",
- "awesome-sails-vft-metadata-service",
- "awesome-sails-vft-native-exchange-admin-service",
- "awesome-sails-vft-native-exchange-service",
- "awesome-sails-vft-service",
- "awesome-sails-vft-service-utils",
-]
-
-[[package]]
-name = "awesome-sails-vft-service"
-version = "0.1.0"
-dependencies = [
- "awesome-sails-utils",
- "awesome-sails-vft-service-utils",
- "sails-rs",
-]
-
-[[package]]
-name = "awesome-sails-vft-service-utils"
+name = "awesome-sails-vft-utils"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-utils",
@@ -6557,28 +6579,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "vft-pack-test-app"
-version = "0.0.0"
-dependencies = [
- "awesome-sails-utils",
- "awesome-sails-vft-pack",
- "futures",
- "gtest",
- "sails-rs",
- "tokio",
- "vft-pack-test-client",
-]
-
-[[package]]
-name = "vft-pack-test-client"
-version = "0.1.0"
-dependencies = [
- "mockall 0.14.0",
- "sails-rs",
- "vft-pack-test-app",
-]
 
 [[package]]
 name = "w3f-bls"

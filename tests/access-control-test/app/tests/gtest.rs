@@ -22,8 +22,8 @@ use access_control_test_client::{
     AccessControlTestClient, Pagination,
     access_control::{AccessControl, events::AccessControlEvents},
 };
+use awesome_sails::access_control::{DEFAULT_ADMIN_ROLE, RoleId};
 use awesome_sails_utils::assert_ok;
-use awesome_sails_vft_pack::access_control::{DEFAULT_ADMIN_ROLE, RoleId};
 use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic, deploy_program};
 use futures::StreamExt;
 use sails_rs::prelude::*;

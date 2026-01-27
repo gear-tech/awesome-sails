@@ -1,0 +1,18 @@
+[package]
+name = "awesome-sails-access-control"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "A role-based access control (RBAC) service for Awesome Sails"
+
+[dependencies]
+# Sails dependencies.
+sails-rs = { workspace = true }
+
+# Local dependencies.
+awesome-sails-utils = { workspace = true }
+thiserror = { workspace = true }
