@@ -51,7 +51,7 @@ tokio = { version = "=1.48", default-features = false }
 keccak-const = { version = "0.2", default-features = false }
 
 
-# vft-pack
+# awesome-sails
 awesome-sails = { path = "crates/awesome-sails", version = "0.1.0", default-features = false }
 awesome-sails-vft = { path = "crates/awesome-sails/vft", version = "0.1.0", default-features = false }
 awesome-sails-vft-utils = { path = "crates/awesome-sails/vft/utils", version = "0.1.0", default-features = false }

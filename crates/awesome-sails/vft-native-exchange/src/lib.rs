@@ -18,7 +18,9 @@
 
 //! Awesome VFT-NativeExchange service.
 //!
-//! This service provides functionality of exchanging native tokens to VFT's.
+//! This service allows exchanging native tokens (Value) for VFT tokens and vice versa.
+//! Sending native value to `mint` creates VFT tokens. Calling `burn` destroys VFT tokens
+//! and sends back native value.
 
 #![no_std]
 
@@ -34,7 +36,7 @@ use awesome_sails_vft::{
 };
 use sails_rs::prelude::*;
 
-/// Awesome VFT-Native-Exchange service itself.
+/// The VFT Native Exchange service struct.
 pub struct VftNativeExchange<'a, A, B>
 where
     A: StorageMut<Item = Allowances>,
@@ -49,7 +51,12 @@ where
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
-    /// Constructor for [`Self`].
+    /// Creates a new instance of the VFT Native Exchange service.
+    ///
+    /// # Arguments
+    ///
+    /// * `balances` - Storage backend for balances.
+    /// * `vft` - Exposure of the base VFT service.
     pub fn new(balances: B, vft: vft::VftExposure<vft::Vft<'a, A, B>>) -> Self {
         Self { balances, vft }
     }
@@ -59,6 +66,15 @@ where
 impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
     VftNativeExchange<'a, A, B>
 {
+    /// Burns `value` amount of VFT tokens and returns the equivalent amount of native value to the caller.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The amount of VFT tokens to burn.
+    ///
+    /// # Returns
+    ///
+    /// A `CommandReply` containing the unit value `()` and transferring the native value.
     #[export(unwrap_result)]
     pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
         ok_if!(value.is_zero());
@@ -80,6 +96,11 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
         Ok(CommandReply::new(()).with_value(value.as_u128()))
     }
 
+    /// Burns all VFT tokens owned by the caller and returns the equivalent amount of native value.
+    ///
+    /// # Returns
+    ///
+    /// A `CommandReply` containing the unit value `()` and transferring the native value.
     #[export(unwrap_result)]
     pub fn burn_all(&mut self) -> Result<CommandReply<()>, Error> {
         let from = Syscall::message_source();
@@ -99,6 +120,11 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
         Ok(CommandReply::new(()).with_value(value.into()))
     }
 
+    /// Mints VFT tokens to the caller equal to the amount of native value attached to the message.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success.
     #[export(unwrap_result)]
     pub fn mint(&mut self) -> Result<(), Error> {
         let value = U256::from(Syscall::message_value());
