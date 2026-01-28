@@ -26,9 +26,8 @@ use awesome_sails_vft_admin::VftAdmin;
 use awesome_sails_access_control::{AccessControl, RolesStorage};
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
-use core::cell::RefCell;
-use sails_rs::prelude::*;
+use awesome_sails_utils::storage::StorageRefCell;
+use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
 pub struct Program {
@@ -39,7 +38,7 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
+    pub fn access_control(&self) -> AccessControl<'_> {
         AccessControl::new(StorageRefCell::new(&self.access_control))
     }
 
@@ -51,7 +50,7 @@ impl Program {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
     }
 
-    pub fn vft(&self) -> Vft<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft(&self) -> Vft<'_> {
         Vft::new(self.allowances(), self.balances())
     }
 }
@@ -62,7 +61,7 @@ impl Program {
         Self::default()
     }
 
-    pub fn vft_admin(&self) -> VftAdmin<'_, StorageRefCell<'_, RolesStorage>, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft_admin(&self) -> VftAdmin<'_> {
         VftAdmin::new(
             self.access_control(),
             self.allowances(),
@@ -76,35 +75,82 @@ impl Program {
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
-
-The admin service requires specific roles to be granted to the caller. The role IDs are available as public constants in the crate (e.g., `MINTER_ROLE`, `BURNER_ROLE`, `PAUSER_ROLE`).
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
-use awesome_sails_vft_admin::MINTER_ROLE;
+mod common; // Helpers defined in tests/common/mod.rs
+
+use awesome_sails::vft_admin::{BURNER_ROLE, MINTER_ROLE, PAUSER_ROLE};
+use awesome_sails_test_client::{
+    access_control::AccessControl,
+    vft::Vft,
+    vft_admin::VftAdmin,
+    AwesomeSailsTestClient,
+};
+use common::{ALICE, BOB, deploy_with_data};
+use sails_rs::prelude::*;
 
 #[tokio::test]
-async fn test_minting() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
-    let (program, _env, pid) = deploy_program().await;
-    let mut vft_admin_service = program.vft_admin();
+async fn test_vft_admin() {
+    // deploy_with_data is a helper from the common module
+    let (program, _env, _pid) = deploy_with_data(Default::default(), Default::default(), 1).await;
+
+    let mut vft_admin = program.vft_admin();
+    let vft = program.vft();
     let mut access_control = program.access_control();
 
-    // Grant MINTER_ROLE to Alice
-    // MINTER_ROLE is a public constant from the awesome-sails-vft-admin crate
-    access_control.grant_role(MINTER_ROLE, ALICE)
+    // 1. Grant MINTER_ROLE to ALICE
+    access_control
+        .grant_role(MINTER_ROLE, ALICE)
         .with_actor_id(ALICE)
         .await
-        .unwrap();
+        .expect("Grant MINTER_ROLE failed");
 
-    // Alice mints tokens to Bob
-    let res = vft_admin_service
+    // 2. Mint tokens to BOB
+    vft_admin
         .mint(BOB, 1000.into())
         .with_actor_id(ALICE)
-        .await;
+        .await
+        .expect("Mint failed");
 
-    assert!(res.is_ok());
+    // Verify balance
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 1000.into());
+
+    // 3. Grant BURNER_ROLE to ALICE and burn tokens from BOB
+    access_control
+        .grant_role(BURNER_ROLE, ALICE)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Grant BURNER_ROLE failed");
+
+    vft_admin
+        .burn(BOB, 500.into())
+        .with_actor_id(ALICE)
+        .await
+        .expect("Burn failed");
+
+    // Verify balance after burn
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 500.into());
+
+    // 4. Grant PAUSER_ROLE and pause the contract
+    access_control
+        .grant_role(PAUSER_ROLE, ALICE)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Grant PAUSER_ROLE failed");
+
+    vft_admin
+        .pause()
+        .with_actor_id(ALICE)
+        .await
+        .expect("Pause failed");
+
+    // Verify paused state
+    let is_paused = vft_admin.is_paused().await.unwrap();
+    assert!(is_paused);
 }
 ```

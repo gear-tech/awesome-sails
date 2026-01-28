@@ -8,6 +8,7 @@ Awesome Sails is a comprehensive collection of production-ready services and uti
 
 The workspace is organized into the following components:
 
+- **[Utils](utils/README.md):** Foundational utilities, math helpers, and storage abstractions.
 - **[Access Control](crates/awesome-sails/access-control/README.md):** A flexible Role-Based Access Control (RBAC) system.
 - **[VFT](crates/awesome-sails/vft/README.md):** Implementation of the Vara Fungible Token (VFT) standard (ERC-20 analogous).
 - **[VFT Admin](crates/awesome-sails/vft-admin/README.md):** Administrative extensions for VFT (minting, burning, pausing).
@@ -15,7 +16,6 @@ The workspace is organized into the following components:
 - **[VFT Metadata](crates/awesome-sails/vft-metadata/README.md):** Metadata storage for VFTs.
 - **[VFT Native Exchange](crates/awesome-sails/vft-native-exchange/README.md):** Native token to VFT exchange mechanism.
 - **[VFT Native Exchange Admin](crates/awesome-sails/vft-native-exchange-admin/README.md):** Administrative tools for the native exchange service.
-- **[Utils](utils/README.md):** Foundational utilities, math helpers, and storage abstractions.
 
 ## Usage
 

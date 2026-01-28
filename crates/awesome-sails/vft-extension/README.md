@@ -25,9 +25,8 @@ To use the VFT Extension service, instantiate it with references to the allowanc
 use awesome_sails_vft_extension::VftExtension;
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
-use core::cell::RefCell;
-use sails_rs::prelude::*;
+use awesome_sails_utils::storage::StorageRefCell;
+use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
 pub struct Program {
@@ -45,7 +44,7 @@ impl Program {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
     }
 
-    pub fn vft(&self) -> Vft<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft(&self) -> Vft<'_> {
         Vft::new(self.allowances(), self.balances())
     }
 }
@@ -56,7 +55,7 @@ impl Program {
         Self::default()
     }
 
-    pub fn vft_extension(&self) -> VftExtension<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft_extension(&self) -> VftExtension<'_> {
         VftExtension::new(self.allowances(), self.balances(), self.vft())
     }
 }
@@ -64,28 +63,57 @@ impl Program {
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
-#[tokio::test]
-async fn test_transfer_all() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
-    let (program, _env, pid) = deploy_program().await;
-    let mut vft_extension_service = program.vft_extension();
-    let mut vft_service = program.vft();
+mod common; // Helpers defined in tests/common/mod.rs
 
-    // Alice transfers all her tokens to Bob
-    let res = vft_extension_service
+use awesome_sails_test_client::{
+    AwesomeSailsTestClient,
+    vft::Vft,
+    vft_extension::VftExtension,
+};
+use common::{ALICE, BOB, deploy_with_data};
+use sails_rs::prelude::*;
+
+#[tokio::test]
+async fn test_vft_extension() {
+    // deploy_with_data is a helper from the common module
+    // Deploy with ALICE having 1000 tokens
+    let (program, _env, _pid) = deploy_with_data(Default::default(), vec![(ALICE, 1000.into())], 1).await;
+    
+    let mut vft_extension = program.vft_extension();
+    let vft = program.vft();
+
+    // 1. Transfer all tokens from ALICE to BOB
+    vft_extension
         .transfer_all(BOB)
         .with_actor_id(ALICE)
-        .await;
+        .await
+        .expect("Transfer all failed");
 
-    assert!(res.is_ok());
-
-    // Alice's balance should be 0
-    let balance_alice = vft_service.balance_of(ALICE).await.unwrap();
+    // Verify balances
+    let balance_alice = vft.balance_of(ALICE).await.unwrap();
     assert_eq!(balance_alice, 0.into());
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 1000.into());
+
+    // 2. Check detailed allowance
+    let mut vft_mut = program.vft();
+    vft_mut.approve(BOB, 500.into())
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+
+    let allowance_detail = vft_extension.allowance_of(ALICE, BOB).await.unwrap();
+    assert!(allowance_detail.is_some());
+    let (amount, _expiry) = allowance_detail.unwrap();
+    assert_eq!(amount, 500.into());
+
+    // 3. List balances with pagination
+    let balances = vft_extension.balances(0, 10).await.unwrap();
+    assert!(balances.iter().any(|(id, amt)| *id == BOB && *amt == 1000.into()));
 }
 ```

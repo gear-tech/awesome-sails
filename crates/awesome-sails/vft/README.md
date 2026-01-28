@@ -24,18 +24,16 @@ To use the VFT service, your program needs to manage storage for allowances and 
 
 use awesome_sails_vft::{Vft, utils::{Allowances, Balances}};
 use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
-use core::cell::RefCell;
-use sails_rs::prelude::*;
+use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
 pub struct Program {
     allowances: RefCell<Allowances>,
     balances: RefCell<Balances>,
-    pause: Pause, // Optional: for pausability
+    pause: Pause,
 }
 
 impl Program {
-    // Helper to create pausable references (or just use StorageRefCell directly)
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
     }
@@ -51,7 +49,7 @@ impl Program {
         Self::default()
     }
 
-    pub fn vft(&self) -> Vft<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft(&self) -> Vft<'_> {
         Vft::new(self.allowances(), self.balances())
     }
 }
@@ -59,27 +57,60 @@ impl Program {
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
-#[tokio::test]
-async fn test_vft_transfer() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
-    let (program, _env, pid) = deploy_program().await;
-    let mut vft_service = program.vft();
+mod common; // Helpers defined in tests/common/mod.rs
 
-    // Alice transfers 100 tokens to Bob
-    let res = vft_service
-        .transfer(BOB, 100.into())
+use awesome_sails_test_client::{
+    AwesomeSailsTestClient,
+    vft::Vft,
+};
+use awesome_sails_utils::assert_ok;
+use common::{ALICE, BOB, deploy_with_data};
+use sails_rs::prelude::*;
+
+#[tokio::test]
+async fn test_vft() {
+    // deploy_with_data is a helper from the common module
+    // Deploy with ALICE having 2000 tokens
+    let (program, _env, _pid) = deploy_with_data(Default::default(), vec![(ALICE, 2000.into())], 1).await;
+    let mut vft = program.vft();
+
+    // 1. Transfer from ALICE to BOB
+    let res = vft.transfer(BOB, 1000.into())
         .with_actor_id(ALICE)
         .await;
+    assert_ok!(res, true);
 
-    assert!(res.is_ok());
+    // Verify balance
+    let balance_alice = vft.balance_of(ALICE).await.unwrap();
+    assert_eq!(balance_alice, 1000.into());
 
-    // Check Bob's balance
-    let balance = vft_service.balance_of(BOB).await.unwrap();
-    assert_eq!(balance, 100.into());
+    // 2. Approve BOB to spend 500 tokens
+    let res = vft.approve(BOB, 500.into())
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res, true);
+
+    // Check allowance
+    let remaining = vft.allowance(ALICE, BOB).await.unwrap();
+    assert_eq!(remaining, 500.into());
+
+    // 3. Transfer from ALICE to BOB using allowance (called by BOB as spender)
+    let res = vft.transfer_from(ALICE, BOB, 200.into())
+        .with_actor_id(BOB)
+        .await;
+    assert_ok!(res, true);
+
+    // Verify final balance
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 1200.into());
+
+    // 4. Verify total supply
+    let supply = vft.total_supply().await.unwrap();
+    assert_eq!(supply, 2000.into());
 }
 ```

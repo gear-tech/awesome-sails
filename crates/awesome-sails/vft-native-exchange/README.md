@@ -26,8 +26,7 @@ use awesome_sails_vft_native_exchange::VftNativeExchange;
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
-use core::cell::RefCell;
-use sails_rs::prelude::*;
+use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
 pub struct Program {
@@ -45,7 +44,7 @@ impl Program {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
     }
 
-    pub fn vft(&self) -> Vft<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft(&self) -> Vft<'_> {
         Vft::new(self.allowances(), self.balances())
     }
 }
@@ -64,42 +63,61 @@ impl Program {
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
-#[tokio::test]
-async fn test_native_exchange() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
-    let (program, _env, pid) = deploy_program().await;
-    let mut exchange_service = program.vft_native_exchange();
-    let mut vft_service = program.vft();
+mod common; // Helpers defined in tests/common/mod.rs
 
-    // Bob sends 100 native tokens to mint VFT
-    exchange_service
+use awesome_sails_test_client::{
+    AwesomeSailsTestClient,
+    vft::Vft,
+    vft_native_exchange::VftNativeExchange,
+};
+use common::{BOB, deploy_with_data};
+use sails_rs::prelude::*;
+
+#[tokio::test]
+async fn test_vft_native_exchange() {
+    // deploy_with_data is a helper from the common module
+    let (program, _env, _pid) = deploy_with_data(Default::default(), Default::default(), 1).await;
+    
+    let mut exchange = program.vft_native_exchange();
+    let vft = program.vft();
+
+    // 1. Bob sends 1000 native tokens to mint VFT
+    exchange
         .mint()
         .with_actor_id(BOB)
-        .with_value(100.into())
+        .with_value(1000)
         .await
         .expect("Mint failed");
 
-    // Bob should have 100 VFT tokens
-    let balance = vft_service.balance_of(BOB).await.unwrap();
-    assert_eq!(balance, 100.into());
+    // Verify VFT balance
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 1000.into());
 
-    // Bob burns 50 VFT tokens to get back native value
-    exchange_service
-        .burn(50.into())
+    // 2. Bob burns 400 VFT tokens to get back native value
+    exchange
+        .burn(400.into())
         .with_actor_id(BOB)
         .await
         .expect("Burn failed");
 
-    // Bob burns all remaining VFT tokens
-    exchange_service
+    // Verify VFT balance after burn
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 600.into());
+
+    // 3. Bob burns all remaining VFT tokens
+    exchange
         .burn_all()
         .with_actor_id(BOB)
         .await
         .expect("Burn all failed");
+
+    // Verify VFT balance is 0
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 0.into());
 }
 ```

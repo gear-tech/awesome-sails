@@ -28,8 +28,7 @@ use awesome_sails_vft::Vft;
 use awesome_sails_access_control::{AccessControl, RolesStorage};
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
-use core::cell::RefCell;
-use sails_rs::prelude::*;
+use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
 pub struct Program {
@@ -40,25 +39,33 @@ pub struct Program {
 }
 
 impl Program {
-    // ... helpers for storage references ...
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
+    pub fn access_control(&self) -> AccessControl<'_> {
         AccessControl::new(StorageRefCell::new(&self.access_control))
     }
+
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
     }
+
     pub fn balances(&self) -> PausableRef<'_, Balances> {
         PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
     }
-    pub fn vft(&self) -> Vft<'_, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+
+    pub fn vft(&self) -> Vft<'_> {
         Vft::new(self.allowances(), self.balances())
     }
 
-    pub fn vft_admin(&self) -> VftAdmin<'_, StorageRefCell<'_, RolesStorage>, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
-        VftAdmin::new(self.access_control(), self.allowances(), self.balances(), &self.pause, self.vft())
+    pub fn vft_admin(&self) -> VftAdmin<'_> {
+        VftAdmin::new(
+            self.access_control(),
+            self.allowances(),
+            self.balances(),
+            &self.pause,
+            self.vft(),
+        )
     }
 
-    pub fn vft_native_exchange_admin(&self) -> VftNativeExchangeAdmin<'_, StorageRefCell<'_, RolesStorage>, PausableRef<'_, Allowances>, PausableRef<'_, Balances>> {
+    pub fn vft_native_exchange_admin(&self) -> VftNativeExchangeAdmin<'_> {
         VftNativeExchangeAdmin::new(self.vft_admin())
     }
 }
@@ -69,36 +76,66 @@ impl Program {
         Self::default()
     }
 
-    // Important: Hook up handle_reply
     pub fn handle_reply(&mut self) {
         self.vft_native_exchange_admin().handle_reply();
     }
-
-    // ... expose services ...
 }
 ```
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
+mod common; // Helpers defined in tests/common/mod.rs
+
+use awesome_sails::vft_admin::BURNER_ROLE;
+use awesome_sails_test_client::{
+    access_control::AccessControl,
+    AwesomeSailsTestClient,
+    vft::Vft,
+    vft_native_exchange::VftNativeExchange,
+    vft_native_exchange_admin::VftNativeExchangeAdmin,
+};
+use common::{ALICE, BOB, deploy_with_data};
+use sails_rs::prelude::*;
+
 #[tokio::test]
-async fn test_burn_from() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
-    let (program, _env, pid) = deploy_program().await;
-    let mut exchange_admin_service = program.vft_native_exchange_admin();
+async fn test_vft_native_exchange_admin() {
+    // deploy_with_data is a helper from the common module
+    let (program, _env, _pid) = deploy_with_data(Default::default(), Default::default(), 1).await;
+    
+    let mut exchange_admin = program.vft_native_exchange_admin();
+    let mut exchange = program.vft_native_exchange();
+    let vft = program.vft();
+    let mut access_control = program.access_control();
 
-    // Grant BURNER_ROLE to Admin first...
+    // 1. Bob mints some VFT first
+    exchange
+        .mint()
+        .with_actor_id(BOB)
+        .with_value(1000)
+        .await
+        .unwrap();
 
-    // Admin burns 50 tokens from Bob, sending native value to Bob
-    let res = exchange_admin_service
-        .burn_from(BOB, 50.into())
+    // 2. Grant BURNER_ROLE to ALICE
+    access_control
+        .grant_role(BURNER_ROLE, ALICE)
         .with_actor_id(ALICE)
-        .await;
+        .await
+        .unwrap();
 
-    assert!(res.is_ok());
+    // 3. Admin (ALICE) burns tokens from BOB
+    exchange_admin
+        .burn_from(BOB, 400.into())
+        .with_actor_id(ALICE)
+        .await
+        .expect("Burn from failed");
+
+    // Verify VFT balance
+    let balance_bob = vft.balance_of(BOB).await.unwrap();
+    assert_eq!(balance_bob, 600.into());
 }
 ```

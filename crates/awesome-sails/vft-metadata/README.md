@@ -46,15 +46,24 @@ impl Program {
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
+mod common; // Helpers defined in tests/common/mod.rs
+
+use awesome_sails_test_client::{
+    AwesomeSailsTestClient,
+    vft_metadata::VftMetadata,
+};
+use common::deploy_with_data;
+use sails_rs::prelude::*;
+
 #[tokio::test]
-async fn test_metadata() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
-    let (program, _env, _pid) = deploy_program().await;
+async fn test_vft_metadata() {
+    // deploy_with_data is a helper from the common module
+    let (program, _env, _pid) = deploy_with_data(Default::default(), Default::default(), 1).await;
     let service = program.vft_metadata();
 
     let name = service.name().await.unwrap();

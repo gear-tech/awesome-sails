@@ -15,16 +15,16 @@ awesome-sails = { version = "x.y.z", features = ["all"] }
 
 ## Available Services
 
-| Service Name | Crate Name | Feature Flag | Description |
-|---|---|---|---|
-| Access Control | `awesome-sails-access-control` | `access-control` | Role-Based Access Control (RBAC) service. |
-| VFT | `awesome-sails-vft` | `vft` | Core Vara Fungible Token implementation. |
-| VFT Admin | `awesome-sails-vft-admin` | `vft-admin` | Administrative functionality (mint, burn, pause). |
-| VFT Extension | `awesome-sails-vft-extension` | `vft-extension` | Extended features (transfer all, cleanup, enumeration). |
-| VFT Metadata | `awesome-sails-vft-metadata` | `vft-metadata` | Metadata service (name, symbol, decimals). |
-| VFT Native Exchange | `awesome-sails-vft-native-exchange` | `vft-native-exchange` | Native token to VFT exchange service. |
-| VFT Native Exchange Admin | `awesome-sails-vft-native-exchange-admin` | `vft-native-exchange-admin` | Administrative recovery for Native Exchange. |
-| VFT Utils | `awesome-sails-vft-utils` | `vft-utils` | Shared utilities for VFT storage (Allowances, Balances). |
+| Service Name              | Crate Name                                | Feature Flag                | Description                                              |
+| ------------------------- | ----------------------------------------- | --------------------------- | -------------------------------------------------------- |
+| Access Control            | `awesome-sails-access-control`            | `access-control`            | Role-Based Access Control (RBAC) service.                |
+| VFT                       | `awesome-sails-vft`                       | `vft`                       | Core Vara Fungible Token implementation.                 |
+| VFT Admin                 | `awesome-sails-vft-admin`                 | `vft-admin`                 | Administrative functionality (mint, burn, pause).        |
+| VFT Extension             | `awesome-sails-vft-extension`             | `vft-extension`             | Extended features (transfer all, cleanup, enumeration).  |
+| VFT Metadata              | `awesome-sails-vft-metadata`              | `vft-metadata`              | Metadata service (name, symbol, decimals).               |
+| VFT Native Exchange       | `awesome-sails-vft-native-exchange`       | `vft-native-exchange`       | Native token to VFT exchange service.                    |
+| VFT Native Exchange Admin | `awesome-sails-vft-native-exchange-admin` | `vft-native-exchange-admin` | Administrative recovery for Native Exchange.             |
+| VFT Utils                 | `awesome-sails-vft-utils`                 | `vft-utils`                 | Shared utilities for VFT storage (Allowances, Balances). |
 
 ## Usage
 

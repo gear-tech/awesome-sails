@@ -46,7 +46,7 @@ impl Program {
     }
 
     // Expose the Access Control service
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
+    pub fn access_control(&self) -> AccessControl<'_> {
         AccessControl::new(StorageRefCell::new(&self.roles))
     }
 }
@@ -54,33 +54,85 @@ impl Program {
 
 ### Testing (Off-Chain Interaction via Gtest)
 
-The following examples demonstrate how to verify service logic using the gtest framework.
+The following example demonstrates how to verify service logic using the gtest framework.
 
 > **Note:** For more details on testing with `gtest`, refer to the [gtest documentation](https://docs.rs/gtest/latest/gtest/).
 
 ```rust
+mod common; // Helpers defined in tests/common/mod.rs
+
+use access_control_test_client::{
+    AccessControlTestClient, Pagination,
+    access_control::AccessControl,
+};
+use awesome_sails::access_control::RoleId;
+use common::{ALICE, BOB, CHARLIE, deploy_program};
+use sails_rs::prelude::*;
+
+const MINTER_ROLE: RoleId = [1u8; 32];
+const BURNER_ROLE: RoleId = [2u8; 32];
+const MODERATOR_ROLE: RoleId = [3u8; 32];
+
 #[tokio::test]
 async fn test_access_control() {
-    // Note: deploy_program() is a helper function typically defined in tests/common/mod.rs
     let (program, _env, _pid) = deploy_program().await;
-    let mut access_control_service = program.access_control();
+    let mut access_control = program.access_control();
 
-    // Define roles (32-byte arrays)
-    const MINTER_ROLE: [u8; 32] = [1u8; 32];
-
-    // Grant MINTER_ROLE to Bob
-    access_control_service
+    // 1. Grant a role
+    access_control
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
-        .unwrap();
+        .expect("Grant failed");
 
-    // Check if Bob has the role
-    let has_role = access_control_service
-        .has_role(MINTER_ROLE, BOB)
+    // Verify Bob has the role
+    let has_role = access_control.has_role(MINTER_ROLE, BOB).await.unwrap();
+    assert!(has_role);
+
+    // 2. Grant multiple roles at once
+    access_control
+        .grant_roles_batch(vec![MINTER_ROLE, BURNER_ROLE], CHARLIE)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Batch grant failed");
+
+    // Verify Charlie has roles
+    assert!(access_control.has_role(MINTER_ROLE, CHARLIE).await.unwrap());
+    assert!(access_control.has_role(BURNER_ROLE, CHARLIE).await.unwrap());
+
+    // 3. Set MODERATOR_ROLE as the admin for MINTER_ROLE
+    access_control
+        .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
+        .with_actor_id(ALICE)
+        .await
+        .expect("Set admin failed");
+
+    // Verify admin role
+    let admin = access_control.get_role_admin(MINTER_ROLE).await.unwrap();
+    assert_eq!(admin, MODERATOR_ROLE);
+
+    // 4. Enumeration
+    let count = access_control.get_role_count().await.unwrap();
+    // Default admin, MINTER_ROLE (granted to BOB), BURNER_ROLE (granted to CHARLIE)
+    assert_eq!(count, 3);
+
+    // Get roles with pagination
+    let roles = access_control
+        .get_roles(Some(Pagination {
+            offset: 0,
+            limit: 10,
+        }))
         .await
         .unwrap();
+    assert_eq!(roles.len(), 3);
 
-    assert!(has_role);
+    // Get members of MINTER_ROLE
+    let members = access_control
+        .get_role_members(MINTER_ROLE, None)
+        .await
+        .unwrap();
+    assert_eq!(members.len(), 2);
+    assert!(members.contains(&BOB));
+    assert!(members.contains(&CHARLIE));
 }
 ```
