@@ -16,14 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome errors definition module.
+//! Defines the error types used throughout the `awesome-sails` workspace.
+//!
+//! This module provides a generic `Error` type wrapping a string message,
+//! as well as specific error unit structs for common failure scenarios
+//! such as invalid input, incorrect origin, bad value, and event emission failures.
 
 use alloc::string::{String, ToString};
 use core::fmt;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
-/// Error type for the `awesome-sails` library.
+/// Represents a generic error type within the `awesome-sails` ecosystem.
+///
+/// This struct wraps a string message providing details about the error.
 #[derive(Clone, Decode, Encode, TypeInfo, derive_more::Display)]
 #[codec(crate = parity_scale_codec)]
 #[scale_info(crate = scale_info)]
@@ -37,7 +43,15 @@ impl fmt::Debug for Error {
 }
 
 impl Error {
-    /// Creates a new [`Self`] instance with the given message.
+    /// Creates a new `Error` instance with the provided message.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - A value that can be converted into a `String`, describing the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `Error` instance containing the converted message string.
     pub fn new(message: impl ToString) -> Self {
         Self(message.to_string())
     }
@@ -49,28 +63,37 @@ impl<E: core::error::Error> From<E> for Error {
     }
 }
 
-/// Arbitrary error type for incorrect input argument.
+/// Indicates an incorrect input argument was provided.
+///
+/// This error is typically returned when an argument does not meet the expected criteria.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect input argument")]
 #[scale_info(crate = scale_info)]
 pub struct BadInput;
 
-/// Arbitrary error type for incorrect origin.
+/// Indicates an operation was attempted by an incorrect origin.
+///
+/// This error is typically returned when the message sender does not have the required permissions
+/// or is not the expected entity.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect message origin")]
 #[scale_info(crate = scale_info)]
 pub struct BadOrigin;
 
-/// Arbitrary error type for incorrect (e.g. insufficient) value applied to the message.
+/// Indicates an incorrect value was attached to the message.
+///
+/// This error is typically returned when the transferred value is insufficient or invalid for the operation.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect message value")]
 #[scale_info(crate = scale_info)]
 pub struct BadValue;
 
-/// Error type for inability to emit event.
+/// Indicates a failure occurred while attempting to emit an event.
+///
+/// This error is typically returned when the event emission mechanism encounters an issue.
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("emit event error")]

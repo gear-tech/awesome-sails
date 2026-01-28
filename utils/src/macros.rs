@@ -16,8 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome macros definition module.
+//! Macros definitions for the `awesome-sails` workspace.
+//!
+//! This module contains helper macros for error handling, assertions, and
+//! implementation of math wrappers.
 
+/// Asserts that a `Result` is `Ok` and compares its inner value to an expected value.
+///
+/// # Panics
+///
+/// Panics if the result is `Err` or if the inner value does not match the expected value.
 #[macro_export]
 macro_rules! assert_ok {
     ( $x:expr, $y: expr $(,)? ) => {
@@ -25,6 +33,11 @@ macro_rules! assert_ok {
     };
 }
 
+/// Asserts that a `Result` is `Err` and compares its inner error to an expected error.
+///
+/// # Panics
+///
+/// Panics if the result is `Ok` or if the inner error does not match the expected error.
 #[macro_export]
 macro_rules! assert_err {
     ( $x:expr, $y: expr $(,)? ) => {
@@ -32,6 +45,9 @@ macro_rules! assert_err {
     };
 }
 
+/// Returns early with an error converted from the provided expression.
+///
+/// This macro is equivalent to `return Err(From::from($err))`.
 #[macro_export]
 macro_rules! bail {
     ($err: expr) => {
@@ -39,6 +55,10 @@ macro_rules! bail {
     };
 }
 
+/// Returns early with an error if a condition is not met.
+///
+/// If the condition is false, it returns `Err`. The error can be a string literal (which will be converted to an `Error`)
+/// or an expression that converts into the return error type.
 #[macro_export]
 macro_rules! ensure {
     ($cond: expr, $err: literal) => {
@@ -52,6 +72,9 @@ macro_rules! ensure {
     };
 }
 
+/// Returns early with `Ok` if a condition is met.
+///
+/// If the condition is true, it returns `Ok(value.into())`. If no value is provided, it defaults to `()`.
 #[macro_export]
 macro_rules! ok_if {
     ($cond: expr) => {
@@ -64,6 +87,11 @@ macro_rules! ok_if {
     };
 }
 
+/// Unwraps a `Result` that is statically known to be infallible (cannot be `Err`).
+///
+/// # Panics
+///
+/// This macro uses an unreachable pattern match for the `Err` variant, which should be optimized away.
 #[macro_export]
 macro_rules! unwrap_infallible {
     ($res: expr) => {
@@ -74,6 +102,7 @@ macro_rules! unwrap_infallible {
     };
 }
 
+/// Implements `TryFrom` and `From` traits for converting between a type and its `NonZero` wrapper.
 #[macro_export]
 macro_rules! impl_non_zero_conversion {
     ($($name: ident),*) => {
@@ -95,25 +124,22 @@ macro_rules! impl_non_zero_conversion {
                 };
             }
 
-/// Verifies that given wrapper is small enough (< 16 bytes)
-/// to be used with default math operations.
+/// Generates a newtype wrapper around `LeBytes` with math trait implementations.
 ///
-/// Usage: `impl_math_wrapper!(WrapperName, LeBytes<AMOUNT_OF_BYTES>);`
+/// Verifies that the given wrapper is small enough (< 16 bytes) to be used with default math operations.
 ///
-/// Requires:
-/// - `PartialEq`
+/// # Usage
+/// `impl_math_wrapper!(WrapperName, LeBytes<AMOUNT_OF_BYTES>);`
 ///
-/// Derives:
-/// - `TryFrom<u128>`
-/// - `TryFrom<U256>`
-/// - `Into<u128>`
-/// - `Into<U256>`
+/// # Requirements
+/// - `PartialEq` must be implemented or derived.
+///
+/// # Derives
+/// - `TryFrom<u128>`, `TryFrom<U256>`
+/// - `Into<u128>`, `Into<U256>`
 /// - `TryInto<NonZero<Self>>`
 /// - `From<NonZero<Self>>`
-/// - `Max`
-/// - `Min`
-/// - `One`
-/// - `Zero`
+/// - `Max`, `Min`, `One`, `Zero`
 /// - `CheckedMath`
 #[macro_export]
 macro_rules! impl_math_wrapper {

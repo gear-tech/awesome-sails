@@ -18,7 +18,10 @@
 
 //! Awesome VFT-Metadata service.
 //!
-//! This metadata is direct analog of ERC20 metadata.
+//! This service provides access to the metadata (name, symbol, decimals) of a
+//! Volatile Fungible Token (VFT), following the ERC-20 metadata standard.
+//! It is typically designed to be immutable after deployment, though the storage backend
+//! determines mutability.
 
 #![no_std]
 
@@ -26,21 +29,31 @@ use awesome_sails_utils::storage::InfallibleStorage;
 use core::ops::Deref;
 use sails_rs::prelude::*;
 
-/// Awesome VFT-Metadata service itself.
+/// The VFT Metadata service struct.
+///
+/// Wraps the metadata storage to provide read access via the service interface.
 pub struct VftMetadata<M> {
     // Metadata storage.
     metadata: M,
 }
 
 impl<M> VftMetadata<M> {
-    /// Constructor for [`Self`].
+    /// Creates a new instance of the VFT Metadata service.
+    ///
+    /// # Arguments
+    ///
+    /// * `metadata` - The storage backend containing the [`Metadata`].
     pub fn new(metadata: M) -> Self {
         Self { metadata }
     }
 }
 
 impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
-    /// Returns a reference to the [`Metadata`].
+    /// Retrieves a reference to the inner metadata object from storage.
+    ///
+    /// # Returns
+    ///
+    /// A dereferenceable wrapper around [`Metadata`].
     pub fn metadata(&self) -> impl Deref<Target = Metadata> {
         self.metadata.get()
     }
@@ -49,18 +62,30 @@ impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
 #[service]
 impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
     /// Returns the name of the VFT.
+    ///
+    /// # Returns
+    ///
+    /// The name as a `String`.
     #[export]
     pub fn name(&self) -> String {
         self.metadata().name().into()
     }
 
     /// Returns the symbol of the VFT.
+    ///
+    /// # Returns
+    ///
+    /// The symbol as a `String`.
     #[export]
     pub fn symbol(&self) -> String {
         self.metadata().symbol().into()
     }
 
-    /// Returns the number of decimals of the VFT.
+    /// Returns the number of decimals used by the VFT.
+    ///
+    /// # Returns
+    ///
+    /// The decimals as a `u8`.
     #[export]
     pub fn decimals(&self) -> u8 {
         self.metadata().decimals()
@@ -78,7 +103,13 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    /// Creates a new metadata with given parameters.
+    /// Creates a new metadata instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The full name of the token.
+    /// * `symbol` - The abbreviated symbol of the token.
+    /// * `decimals` - The precision of the token (e.g., 18).
     pub const fn new(name: String, symbol: String, decimals: u8) -> Self {
         Self {
             name,

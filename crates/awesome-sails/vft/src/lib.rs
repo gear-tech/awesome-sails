@@ -18,7 +18,8 @@
 
 //! Awesome VFT (Vara Fungible Token) service.
 //!
-//! This standard is direct analog of ERC20 standard.
+//! This service implements the Vara Fungible Token (VFT) standard, which is analogous to the ERC-20 standard on Ethereum.
+//! It provides core functionalities for token transfers, approvals, and balance queries.
 
 #![no_std]
 
@@ -32,10 +33,12 @@ use awesome_sails_utils::{
 use awesome_sails_vft_utils::{Allowance, Allowances, Balance, Balances};
 use sails_rs::prelude::*;
 
-/// Re-exporting the utils module for easier access.
+/// Re-exporting the utils module for easier access to helper types.
 pub use awesome_sails_vft_utils as utils;
 
-/// Awesome VFT service itself.
+/// The VFT service struct.
+///
+/// Wraps the allowances and balances storage to provide the VFT interface.
 pub struct Vft<'a, A = PausableRef<'a, Allowances>, B = PausableRef<'a, Balances>> {
     // Allowances storage.
     allowances: A,
@@ -45,7 +48,12 @@ pub struct Vft<'a, A = PausableRef<'a, Allowances>, B = PausableRef<'a, Balances
 }
 
 impl<A, B> Vft<'_, A, B> {
-    /// Constructor for [`Self`].
+    /// Creates a new instance of the VFT service.
+    ///
+    /// # Arguments
+    ///
+    /// * `allowances` - The storage backend for managing allowances.
+    /// * `balances` - The storage backend for managing balances.
     pub fn new(allowances: A, balances: B) -> Self {
         Self {
             allowances,
@@ -57,6 +65,19 @@ impl<A, B> Vft<'_, A, B> {
 
 #[service(events = Event)]
 impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A, B> {
+    /// Approves `spender` to spend `value` amount of tokens on behalf of the caller.
+    ///
+    /// If `value` is `U256::MAX`, the allowance is treated as infinite.
+    /// Emits an `Approval` event if the allowance value changes.
+    ///
+    /// # Arguments
+    ///
+    /// * `spender` - The account to be allowed to spend tokens.
+    /// * `value` - The amount of tokens to approve.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the approval value was changed, `false` otherwise.
     #[export(unwrap_result)]
     pub fn approve(&mut self, spender: ActorId, value: U256) -> Result<bool, Error> {
         let owner = Syscall::message_source();
@@ -87,6 +108,18 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
         Ok(changed)
     }
 
+    /// Transfers `value` amount of tokens from the caller to `to`.
+    ///
+    /// Emits a `Transfer` event.
+    ///
+    /// # Arguments
+    ///
+    /// * `to` - The recipient of the tokens.
+    /// * `value` - The amount of tokens to transfer.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the transfer was successful.
     #[export(unwrap_result)]
     pub fn transfer(&mut self, to: ActorId, value: U256) -> Result<bool, Error> {
         let from = Syscall::message_source();
@@ -105,6 +138,20 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
         Ok(true)
     }
 
+    /// Transfers `value` amount of tokens from `from` to `to` using the allowance mechanism.
+    ///
+    /// The caller (spender) must have sufficient allowance from `from` (owner).
+    /// Emits a `Transfer` event.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - The account to transfer tokens from.
+    /// * `to` - The recipient of the tokens.
+    /// * `value` - The amount of tokens to transfer.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the transfer was successful.
     #[export(unwrap_result)]
     pub fn transfer_from(
         &mut self,
@@ -139,6 +186,16 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
         Ok(true)
     }
 
+    /// Returns the amount of tokens that `spender` is allowed to spend on behalf of `owner`.
+    ///
+    /// # Arguments
+    ///
+    /// * `owner` - The account that owns the tokens.
+    /// * `spender` - The account allowed to spend the tokens.
+    ///
+    /// # Returns
+    ///
+    /// The remaining allowance as `U256`.
     #[export(unwrap_result)]
     pub fn allowance(&self, owner: ActorId, spender: ActorId) -> Result<U256, Error> {
         let allowance = self
@@ -155,28 +212,45 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
         Ok(allowance)
     }
 
+    /// Returns the token balance of `account`.
+    ///
+    /// # Arguments
+    ///
+    /// * `account` - The account to query the balance of.
+    ///
+    /// # Returns
+    ///
+    /// The balance as `U256`.
     #[export(unwrap_result)]
     pub fn balance_of(&self, account: ActorId) -> Result<U256, Error> {
         Ok(self.balances.get()?.get(account.try_into()?).into())
     }
 
+    /// Returns the total supply of tokens.
+    ///
+    /// # Returns
+    ///
+    /// The total supply as `U256`.
     #[export(unwrap_result)]
     pub fn total_supply(&self) -> Result<U256, Error> {
         Ok(self.balances.get()?.total_supply())
     }
 }
 
+/// Events emitted by the VFT service.
 #[event]
 #[derive(Clone, Debug, PartialEq, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum Event {
+    /// Emitted when an approval is granted or updated.
     Approval {
         owner: ActorId,
         spender: ActorId,
         value: U256,
     },
 
+    /// Emitted when tokens are transferred.
     Transfer {
         from: ActorId,
         to: ActorId,

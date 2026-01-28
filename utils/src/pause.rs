@@ -16,7 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome pausable storage primitive.
+//! Implements a pausable storage wrapper.
+//!
+//! This module provides a mechanism to wrap any storage implementation and add a
+//! pause/resume functionality. This is useful for emergency stops or maintenance modes
+//! in smart contracts.
 
 use crate::{
     ensure,
@@ -30,12 +34,16 @@ use core::{
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
-/// Wrapper for Storage trait implementor in order to provide pause functionality.
+/// A wrapper around a storage type that adds pause functionality.
+///
+/// When paused, mutating operations on the storage will fail with `PausableError::Paused`.
+/// Read-only operations are typically still allowed.
 pub struct Pausable<S: StorageMut, P: InfallibleStorage<Item = Pause>> {
     storage: S,
     pause: P,
 }
 
+/// A convenience type alias for a `Pausable` utilizing reference cells for storage and pause state.
 pub type PausableRef<'a, T> = Pausable<StorageRefCell<'a, T>, PauseRef<'a>>;
 
 impl<S, P> Clone for Pausable<S, P>
@@ -52,12 +60,21 @@ where
 }
 
 impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> Pausable<S, P> {
-    /// Creates a new `Pausable` instance linked to a `Pause` instance.
+    /// Creates a new `Pausable` wrapper.
+    ///
+    /// # Arguments
+    ///
+    /// * `pause` - The storage component holding the pause state.
+    /// * `storage` - The underlying storage component to be wrapped.
     pub fn new(pause: P, storage: S) -> Self {
         Self { pause, storage }
     }
 
-    /// Creates a new `Pausable` instance with a default storage value.
+    /// Creates a new `Pausable` wrapper with default storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `pause` - The storage component holding the pause state.
     pub fn default(pause: P) -> Self
     where
         S: Default,
@@ -110,8 +127,9 @@ where
     }
 }
 
+/// A trait for storage types that support checking their pause state.
 pub trait PausableStorage: StorageMut {
-    /// Returns bool indicating if pause is on.
+    /// Returns `true` if the storage is currently paused.
     fn is_paused(&self) -> bool;
 }
 
@@ -126,55 +144,69 @@ where
     }
 }
 
-/// Struct representing a pause switch.
+/// A type representing a simple boolean pause switch.
 ///
-/// This struct is used to create a pausable storage instance.
+/// Wraps a `Cell<bool>` to allow interior mutability for the pause state.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Pause(Cell<bool>);
 
+/// A type alias for a reference to a `Pause` instance.
 pub type PauseRef<'a> = &'a Pause;
 
 impl Pause {
     /// Creates a new `Pause` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `paused` - The initial state (true for paused, false for unpaused).
     pub fn new(paused: bool) -> Self {
         Self(Cell::new(paused))
     }
 
-    /// Switches pause on.
+    /// Sets the state to paused.
     ///
-    /// Returns bool indicating if state was changed.
+    /// # Returns
+    ///
+    /// `true` if the state was changed (i.e., it was previously not paused).
     pub fn pause(&self) -> bool {
         !self.0.replace(true)
     }
 
-    /// Switches pause off.
+    /// Sets the state to unpaused.
     ///
-    /// Returns bool indicating if state was changed.
+    /// # Returns
+    ///
+    /// `true` if the state was changed (i.e., it was previously paused).
     pub fn resume(&self) -> bool {
         self.0.replace(false)
     }
 
-    /// Returns bool indicating if pause is on.
+    /// Checks if the current state is paused.
+    ///
+    /// # Returns
+    ///
+    /// `true` if currently paused, `false` otherwise.
     pub fn is_paused(&self) -> bool {
         self.0.get()
     }
 }
 
-/// Error type for the `Pausable` storage.
+/// Error type for operations on pausable storage.
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
 #[codec(crate = parity_scale_codec)]
 #[scale_info(crate = scale_info)]
 pub enum PausableError<E: error::Error> {
-    /// Error indicating that the storage is paused.
+    /// The operation failed because the storage is paused.
     #[error("storage is paused")]
     Paused,
-    /// Error indicating inner storage error.
+    /// An error occurred in the underlying storage.
     #[error("storage error: {0}")]
     Storage(#[from] E),
 }
 
+/// Error indicating that an operation required the system to be unpaused, but it was paused.
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
@@ -183,6 +215,7 @@ pub enum PausableError<E: error::Error> {
 #[scale_info(crate = scale_info)]
 pub struct PausedError;
 
+/// Error indicating that an operation required the system to be paused, but it was unpaused.
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
