@@ -9,8 +9,14 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[[bin]]
+name = "bench-analyzer"
+path = "src/bin/analyzer.rs"
+
 [dependencies]
 anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+cli-table = "0.5"
 fs2 = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
