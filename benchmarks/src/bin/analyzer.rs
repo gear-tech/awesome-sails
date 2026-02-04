@@ -57,16 +57,16 @@ fn main() -> Result<()> {
 
             results.push(MetricResult {
                 path: path.clone(),
-                current: cur_val.to_string(),
-                baseline: oth_val.to_string(),
-                change: format!("{:+#}", diff),
+                current: format_number(*cur_val),
+                baseline: format_number(*oth_val),
+                change: format_diff(diff),
                 percent: format!("{:.2}%", percent),
                 status: format!("{} {}", emoji, st_text),
             });
         } else {
             results.push(MetricResult {
                 path: path.clone(),
-                current: cur_val.to_string(),
+                current: format_number(*cur_val),
                 baseline: "-".to_string(),
                 change: "-".to_string(),
                 percent: "-".to_string(),
@@ -80,7 +80,7 @@ fn main() -> Result<()> {
             results.push(MetricResult {
                 path: path.clone(),
                 current: "-".to_string(),
-                baseline: oth_val.to_string(),
+                baseline: format_number(*oth_val),
                 change: "-".to_string(),
                 percent: "-".to_string(),
                 status: "🗑️ Removed".to_string(),
@@ -88,7 +88,7 @@ fn main() -> Result<()> {
         }
     }
 
-    // 1. CLI Output (Pretty ASCII Table)
+    // 1. CLI Output
     let table_rows: Vec<_> = results
         .iter()
         .map(|r| {
@@ -118,9 +118,9 @@ fn main() -> Result<()> {
     println!("\n## 🔬 Benchmark Comparison\n");
     let _ = cli_table::print_stdout(table);
 
-    // 2. File Output (Clean Markdown Table)
+    // 2. File Output (Markdown)
     if let Some(out_path) = cli.output {
-        let mut report = String::from("## 🔬 Benchmark Comparison\n\n");
+        let mut report = String::from("### 🔬 Benchmark Comparison Results\n\n");
         report.push_str("| Metric | Current | Baseline | Change | % | Status |\n");
         report.push_str("| :--- | ---: | ---: | ---: | ---: | :--- |\n");
 
@@ -130,10 +130,38 @@ fn main() -> Result<()> {
                 r.path, r.current, r.baseline, r.change, r.percent, r.status
             ));
         }
+
+        report.push_str("\n#### Legend\n");
+        report.push_str("- 🚀 Significant improvement (>5% reduction)\n");
+        report.push_str("- 👍 Minor improvement (<5% reduction)\n");
+        report.push_str("- ✅ No significant change\n");
+        report.push_str("- ⚠️ Minor regression (<5% increase)\n");
+        report.push_str("- ❌ Significant regression (>5% increase)\n");
+
         fs::write(out_path, report).context("Failed to write report file")?;
     }
 
     Ok(())
+}
+
+fn format_number(n: u64) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push('_');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
+}
+
+fn format_diff(n: i128) -> String {
+    if n == 0 {
+        return "0".to_string();
+    }
+    let prefix = if n > 0 { "+" } else { "-" };
+    format!("{}{}", prefix, format_number(n.unsigned_abs() as u64))
 }
 
 fn flatten(val: &Value, prefix: String, res: &mut BTreeMap<String, u64>) {

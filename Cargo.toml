@@ -30,7 +30,7 @@ members = [
     "tests/access-control-test/app",
     "tests/access-control-test/client",
 
-    #
+    # benchmarks
     "benchmarks",
 ]
 
