@@ -1,0 +1,26 @@
+[package]
+name = "awesome-sails-benchmarks"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+fs2 = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sails-rs = { workspace = true, features = ["gtest"] }
+gtest = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+
+# Client for testing
+access-control-test-client = { path = "../tests/access-control-test/client" }
+
+[dev-dependencies]
+# The app itself to build Wasm
+access-control-test-app = { path = "../tests/access-control-test/app" }

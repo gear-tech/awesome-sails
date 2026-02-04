@@ -29,6 +29,9 @@ members = [
     "tests/awesome-sails-test/client",
     "tests/access-control-test/app",
     "tests/access-control-test/client",
+
+    #
+    "benchmarks",
 ]
 
 
