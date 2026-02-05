@@ -22,7 +22,7 @@ use access_control_test_client::{
     AccessControlTestClient, Pagination,
     access_control::{AccessControl, events::AccessControlEvents},
 };
-use awesome_sails::access_control::{DEFAULT_ADMIN_ROLE, RoleId};
+use awesome_sails::access_control::{RoleId, default_admin_role};
 use awesome_sails_utils::assert_ok;
 use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic, deploy_program};
 use futures::StreamExt;
@@ -39,13 +39,13 @@ async fn initial_admin_role_granted() {
 
     // Alice should have DEFAULT_ADMIN_ROLE
     let has_role = access_control_service
-        .has_role(DEFAULT_ADMIN_ROLE, ALICE)
+        .has_role(default_admin_role(), ALICE)
         .await;
     assert_ok!(has_role, true);
 
     // Bob should not have DEFAULT_ADMIN_ROLE
     let has_role = access_control_service
-        .has_role(DEFAULT_ADMIN_ROLE, BOB)
+        .has_role(default_admin_role(), BOB)
         .await;
     assert_ok!(has_role, false);
 }
@@ -57,7 +57,7 @@ async fn grant_and_revoke_role_success() {
     let listener = access_control_service.listener();
     let mut events = listener.listen().await.unwrap();
 
-    // Alice (DEFAULT_ADMIN_ROLE) grants MINTER_ROLE to Bob
+    // Alice (default_admin_role()) grants MINTER_ROLE to Bob
     access_control_service
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
@@ -223,9 +223,9 @@ async fn set_role_admin_success() {
 
     // Initial admin for MINTER_ROLE is DEFAULT_ADMIN_ROLE (Alice)
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
-    assert_ok!(admin_role, DEFAULT_ADMIN_ROLE);
+    assert_ok!(admin_role, default_admin_role());
 
-    // Alice (as DEFAULT_ADMIN_ROLE) grants MODERATOR_ROLE to Dave
+    // Alice (as default_admin_role()) grants MODERATOR_ROLE to Dave
     access_control_service
         .grant_role(MODERATOR_ROLE, DAVE)
         .with_actor_id(ALICE)
@@ -233,7 +233,7 @@ async fn set_role_admin_success() {
         .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
-    // Alice (as DEFAULT_ADMIN_ROLE) sets MODERATOR_ROLE as admin for MINTER_ROLE
+    // Alice (as default_admin_role()) sets MODERATOR_ROLE as admin for MINTER_ROLE
     access_control_service
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(ALICE)
@@ -246,7 +246,7 @@ async fn set_role_admin_success() {
         event,
         AccessControlEvents::RoleAdminChanged {
             role_id: MINTER_ROLE,
-            previous_admin_role_id: DEFAULT_ADMIN_ROLE,
+            previous_admin_role_id: default_admin_role(),
             new_admin_role_id: MODERATOR_ROLE,
             sender: ALICE,
         }
@@ -268,7 +268,7 @@ async fn set_role_admin_success() {
     let has_role = access_control_service.has_role(MINTER_ROLE, BOB).await;
     assert_ok!(has_role, true);
 
-    // Alice (as DEFAULT_ADMIN_ROLE) should STILL be able to grant MINTER_ROLE (because she is super admin)
+    // Alice (as default_admin_role()) should STILL be able to grant MINTER_ROLE (because she is super admin)
     access_control_service
         .grant_role(MINTER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
@@ -281,7 +281,7 @@ async fn set_role_admin_success() {
 
     // Revert admin role to DEFAULT_ADMIN_ROLE
     access_control_service
-        .set_role_admin(MINTER_ROLE, DEFAULT_ADMIN_ROLE)
+        .set_role_admin(MINTER_ROLE, default_admin_role())
         .with_actor_id(DAVE) // Dave is MODERATOR_ROLE, which is admin for MINTER_ROLE
         .await
         .expect("Failed for Dave to revert admin role");
@@ -315,7 +315,7 @@ async fn set_role_admin_fail_unauthorized() {
 
     // Admin for MINTER_ROLE should still be DEFAULT_ADMIN_ROLE
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
-    assert_ok!(admin_role, DEFAULT_ADMIN_ROLE);
+    assert_ok!(admin_role, default_admin_role());
 }
 
 #[tokio::test]
@@ -461,7 +461,7 @@ async fn enumeration_roles_success() {
 
     let all_roles = access_control_service.get_roles(None).await.unwrap();
     assert_eq!(all_roles.len(), 4);
-    assert!(all_roles.contains(&DEFAULT_ADMIN_ROLE));
+    assert!(all_roles.contains(&default_admin_role()));
     for r in &roles {
         assert!(all_roles.contains(r));
     }

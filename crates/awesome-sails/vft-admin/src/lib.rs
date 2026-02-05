@@ -23,7 +23,7 @@
 #![no_std]
 
 use awesome_sails_access_control::{
-    self as access_control, DEFAULT_ADMIN_ROLE, RoleId, RolesStorage, ensure,
+    self as access_control, RoleId, default_admin_role, ensure,
     error::{EmitError, Error},
 };
 use awesome_sails_utils::{
@@ -37,6 +37,13 @@ use awesome_sails_vft::{
     utils::{Allowance, Allowances, Balance, Balances},
 };
 use sails_rs::prelude::*;
+
+pub const ROLES_LIMIT: usize = 10;
+pub const MEMBERS_LIMIT: usize = 25;
+
+pub type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
+pub type AccessControl<'a, ACS> =
+    access_control::AccessControl<'a, ROLES_LIMIT, MEMBERS_LIMIT, ACS>;
 
 pub const MINTER_ROLE: RoleId = keccak_const::Keccak256::new()
     .update(b"MINTER_ROLE")
@@ -55,7 +62,7 @@ pub struct VftAdmin<
     A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
     B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
-    access_control: access_control::AccessControlExposure<access_control::AccessControl<'a, ACS>>,
+    access_control: access_control::AccessControlExposure<AccessControl<'a, ACS>>,
     allowances: A,
     balances: B,
     pause: &'a Pause,
@@ -71,9 +78,7 @@ impl<
 {
     /// Constructor for [`Self`].
     pub fn new(
-        access_control: access_control::AccessControlExposure<
-            access_control::AccessControl<'a, ACS>,
-        >,
+        access_control: access_control::AccessControlExposure<AccessControl<'a, ACS>>,
         allowances: A,
         balances: B,
         pause: &'a Pause,
@@ -130,7 +135,7 @@ impl<
     #[export(unwrap_result)]
     pub fn append_allowances_shard(&mut self, capacity: u32) -> Result<(), Error> {
         self.access_control
-            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
+            .require_role(default_admin_role(), Syscall::message_source())?;
 
         self.allowances
             .get_mut()?
@@ -142,7 +147,7 @@ impl<
     #[export(unwrap_result)]
     pub fn append_balances_shard(&mut self, capacity: u32) -> Result<(), Error> {
         self.access_control
-            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
+            .require_role(default_admin_role(), Syscall::message_source())?;
 
         self.balances
             .get_mut()?
@@ -159,7 +164,7 @@ impl<
         value: U256,
     ) -> Result<bool, Error> {
         self.access_control
-            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
+            .require_role(default_admin_role(), Syscall::message_source())?;
 
         ok_if!(owner == spender, false);
 
@@ -214,7 +219,7 @@ impl<
     #[export(unwrap_result)]
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
         self.access_control
-            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
+            .require_role(default_admin_role(), Syscall::message_source())?;
         ensure!(self.is_paused(), UnpausedError);
 
         self.emit_event(Event::Exited(inheritor))
@@ -265,7 +270,7 @@ impl<
     #[export(unwrap_result)]
     pub fn set_expiry_period(&mut self, period: u32) -> Result<(), Error> {
         self.access_control
-            .require_role(DEFAULT_ADMIN_ROLE, Syscall::message_source())?;
+            .require_role(default_admin_role(), Syscall::message_source())?;
 
         self.allowances.get_mut()?.set_expiry_period(period);
 

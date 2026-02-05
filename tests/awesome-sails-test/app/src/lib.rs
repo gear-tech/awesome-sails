@@ -19,7 +19,6 @@
 #![no_std]
 
 use awesome_sails::{
-    access_control::{AccessControl, RolesStorage},
     vft,
     vft::utils::{Allowance, Allowances, Balance, Balances},
     vft_admin, vft_extension, vft_metadata,
@@ -33,6 +32,8 @@ use awesome_sails_utils::{
 };
 use core::{cell::RefCell, ops::DerefMut};
 use sails_rs::prelude::*;
+use vft_admin::AccessControl;
+use vft_admin::RolesStorage;
 
 pub struct TestService<'a> {
     allowances: PausableRef<'a, Allowances>,
@@ -159,7 +160,7 @@ impl Program {
         PausableRef<'_, Balances>,
     > {
         vft_admin::VftAdmin::new(
-            self.access_control(), // Pass AccessControl (it's already an exposure implicitly)
+            self.access_control(),
             self.allowances(),
             self.balances(),
             &self.pause,

@@ -22,7 +22,7 @@
 
 #![no_std]
 
-use awesome_sails_access_control::{RolesStorage, error::Error};
+use awesome_sails_access_control::error::Error;
 use awesome_sails_utils::{
     ok_if,
     storage::{InfallibleStorageMut, StorageMut},
@@ -30,6 +30,7 @@ use awesome_sails_utils::{
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_vft_admin::{self as vft_admin};
 use sails_rs::{gstd, prelude::*};
+use vft_admin::RolesStorage;
 
 /// Awesome VFT-Native-Exchange-Admin service itself.
 pub struct VftNativeExchangeAdmin<'a, ACS, A, B>
