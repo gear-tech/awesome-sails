@@ -16,53 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome Access Control service.
-//!
-//! This service implements a role-based access control (RBAC) mechanism with support for
-//! role hierarchies, enumeration, and batch operations.
-//!
-//! # Role Hierarchy
-//!
-//! * **Super Admin (`DEFAULT_ADMIN_ROLE`)**:
-//!     * Acts as a **Master Key**: an account with this role passes any `require_role` check,
-//!       regardless of the specific role requested.
-//!     * Is the default administrator for all new roles.
-//!     * Can grant/revoke any role and change any role's administrator.
-//!
-//! * **Role Admin**:
-//!     * Each role has an associated administrator role (by default, the Super Admin role).
-//!     * Only accounts with the administrator role can grant or revoke the managed role.
-//!     * Administrator roles can be changed via `set_role_admin` to create complex
-//!       permission structures.
-//!
-//! The service uses deterministic storage (`BTreeMap`) and provides methods to enumerate
-//! all roles and their members, as well as perform bulk updates via batch functions.
+//! Awesome Access Control service (Allocation-free version).
 
 #![no_std]
 
 pub use awesome_sails_utils::ensure;
 
-use crate::error::{AccessDenied, EmitError, Error, NotAccountOwner};
+use crate::error::{AccessDenied, CapacityExceeded, EmitError, Error, NotAccountOwner};
 use awesome_sails_utils::storage::{InfallibleStorageMut, StorageRefCell};
 use core::marker::PhantomData;
-use sails_rs::{
-    collections::{BTreeMap, BTreeSet},
-    prelude::*,
-};
+use sails_rs::prelude::*;
 
-pub type RoleId = [u8; 32];
+/// Standard Role ID size used for the public API.
+pub const ROLE_ID_32: usize = 32;
 
-pub const DEFAULT_ADMIN_ROLE: RoleId = [0u8; 32];
+pub type RoleId<const R: usize> = [u8; R];
 
-#[derive(Default, Debug)]
-pub struct RolesStorage {
-    roles: BTreeMap<RoleId, RoleData>,
+pub const fn default_admin_role<const R: usize>() -> RoleId<R> {
+    [0u8; R]
 }
 
-#[derive(Default, Debug)]
-pub struct RoleData {
-    members: BTreeSet<ActorId>,
-    admin_role_id: RoleId,
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct AccessControlStorage<const R: usize, const N: usize, const M: usize> {
+    pub role_count: u32,
+    pub roles: [Option<RoleEntry<R, M>>; N],
+}
+
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct RoleEntry<const R: usize, const M: usize> {
+    pub role_id: RoleId<R>,
+    pub admin_role_id: RoleId<R>,
+    pub member_count: u32,
+    pub members: [Option<ActorId>; M],
 }
 
 #[derive(Encode, Decode, TypeInfo, Debug, Clone, Copy)]
@@ -73,101 +62,197 @@ pub struct Pagination {
     pub limit: u32,
 }
 
-impl RolesStorage {
-    pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
-        self.roles
-            .get(&role_id)
-            .is_some_and(|data| data.members.contains(&account_id))
-    }
-
-    pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        self.roles
-            .get(&role_id)
-            .map(|data| data.admin_role_id)
-            .unwrap_or(DEFAULT_ADMIN_ROLE)
-    }
-
-    pub fn get_role_count(&self) -> u32 {
-        self.roles.len() as u32
-    }
-
-    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
-        let (offset, limit) = query
+impl Pagination {
+    fn range(query: Option<Self>) -> (usize, usize) {
+        query
             .map(|q| (q.offset as usize, q.limit as usize))
-            .unwrap_or((0, usize::MAX));
+            .unwrap_or((0, usize::MAX))
+    }
+}
 
+impl<const R: usize, const M: usize> RoleEntry<R, M> {
+    fn has_member(&self, actor_id: ActorId) -> bool {
+        self.members.iter().flatten().any(|&m| m == actor_id)
+    }
+
+    fn add_member(&mut self, actor_id: ActorId) -> Result<bool, Error> {
+        if self.has_member(actor_id) {
+            return Ok(false);
+        }
+
+        let slot = self
+            .members
+            .iter_mut()
+            .find(|s| s.is_none())
+            .ok_or(CapacityExceeded)?;
+
+        *slot = Some(actor_id);
+        self.member_count += 1;
+        Ok(true)
+    }
+
+    fn remove_member(&mut self, actor_id: ActorId) -> bool {
+        if let Some(slot) = self
+            .members
+            .iter_mut()
+            .find(|s| s.as_ref().is_some_and(|&m| m == actor_id))
+        {
+            *slot = None;
+            self.member_count -= 1;
+            return true;
+        }
+        false
+    }
+}
+
+impl<const R: usize, const N: usize, const M: usize> Default for AccessControlStorage<R, N, M> {
+    fn default() -> Self {
+        Self {
+            role_count: 0,
+            roles: [None; N],
+        }
+    }
+}
+
+impl<const R: usize, const N: usize, const M: usize> AccessControlStorage<R, N, M> {
+    pub fn has_role(&self, role_id: RoleId<R>, account_id: ActorId) -> bool {
         self.roles
-            .keys()
+            .iter()
+            .flatten()
+            .any(|e| e.role_id == role_id && e.has_member(account_id))
+    }
+
+    pub fn get_role_admin(&self, role_id: RoleId<R>) -> RoleId<R> {
+        self.roles
+            .iter()
+            .flatten()
+            .find(|e| e.role_id == role_id)
+            .map(|e| e.admin_role_id)
+            .unwrap_or(default_admin_role::<R>())
+    }
+
+    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId<R>> {
+        let (offset, limit) = Pagination::range(query);
+        self.roles
+            .iter()
+            .flatten()
+            .map(|e| e.role_id)
             .skip(offset)
             .take(limit)
-            .copied()
             .collect()
     }
 
-    pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
+    pub fn get_role_member_count(&self, role_id: RoleId<R>) -> u32 {
         self.roles
-            .get(&role_id)
-            .map(|data| data.members.len() as u32)
-            .unwrap_or_default()
+            .iter()
+            .flatten()
+            .find(|e| e.role_id == role_id)
+            .map(|e| e.member_count)
+            .unwrap_or(0)
     }
 
-    pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
-        let (offset, limit) = query
-            .map(|q| (q.offset as usize, q.limit as usize))
-            .unwrap_or((0, usize::MAX));
-
+    pub fn get_role_members(&self, role_id: RoleId<R>, query: Option<Pagination>) -> Vec<ActorId> {
+        let (offset, limit) = Pagination::range(query);
         self.roles
-            .get(&role_id)
-            .map(|data| {
-                data.members
-                    .iter()
-                    .skip(offset)
-                    .take(limit)
-                    .copied()
-                    .collect()
-            })
-            .unwrap_or_default()
+            .iter()
+            .flatten()
+            .find(|e| e.role_id == role_id)
+            .into_iter()
+            .flat_map(|e| e.members.iter().flatten().copied())
+            .skip(offset)
+            .take(limit)
+            .collect()
     }
 
     pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
         self.roles
-            .values()
-            .filter(|data| data.members.contains(&member_id))
+            .iter()
+            .flatten()
+            .filter(|e| e.has_member(member_id))
             .count() as u32
     }
 
-    pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
-        let (offset, limit) = query
-            .map(|q| (q.offset as usize, q.limit as usize))
-            .unwrap_or((0, usize::MAX));
-
+    pub fn get_member_roles(
+        &self,
+        member_id: ActorId,
+        query: Option<Pagination>,
+    ) -> Vec<RoleId<R>> {
+        let (offset, limit) = Pagination::range(query);
         self.roles
             .iter()
-            .filter(|(_, data)| data.members.contains(&member_id))
-            .map(|(&role_id, _)| role_id)
+            .flatten()
+            .filter(|e| e.has_member(member_id))
+            .map(|e| e.role_id)
             .skip(offset)
             .take(limit)
             .collect()
     }
 
-    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
+    fn find_role_mut(&mut self, role_id: RoleId<R>) -> Option<&mut RoleEntry<R, M>> {
         self.roles
-            .entry(DEFAULT_ADMIN_ROLE)
-            .or_default()
-            .members
-            .insert(deployer);
+            .iter_mut()
+            .flatten()
+            .find(|entry| entry.role_id == role_id)
+    }
+
+    fn ensure_role_mut(&mut self, role_id: RoleId<R>) -> Result<&mut RoleEntry<R, M>, Error> {
+        let existing_idx = self
+            .roles
+            .iter()
+            .position(|s| s.as_ref().is_some_and(|e| e.role_id == role_id));
+
+        if let Some(idx) = existing_idx {
+            return Ok(self.roles[idx].as_mut().ok_or(CapacityExceeded)?);
+        }
+
+        let empty_idx = self
+            .roles
+            .iter()
+            .position(|slot| slot.is_none())
+            .ok_or(CapacityExceeded)?;
+
+        self.roles[empty_idx] = Some(RoleEntry {
+            role_id,
+            admin_role_id: default_admin_role::<R>(),
+            member_count: 0,
+            members: [None; M],
+        });
+        self.role_count += 1;
+
+        self.roles[empty_idx]
+            .as_mut()
+            .ok_or(CapacityExceeded.into())
+    }
+
+    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
+        if let Ok(entry) = self.ensure_role_mut(default_admin_role::<R>()) {
+            let _ = entry.add_member(deployer);
+        }
     }
 }
 
 pub struct AccessControl<
     'a,
-    S: InfallibleStorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>,
+    const R: usize,
+    const N: usize,
+    const M: usize,
+    S: InfallibleStorageMut<Item = AccessControlStorage<R, N, M>> = StorageRefCell<
+        'a,
+        AccessControlStorage<R, N, M>,
+    >,
 > {
     storage: S,
     _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
+impl<
+    'a,
+    const R: usize,
+    const N: usize,
+    const M: usize,
+    S: InfallibleStorageMut<Item = AccessControlStorage<R, N, M>>,
+> AccessControl<'a, R, N, M, S>
+{
     pub fn new(storage: S) -> Self {
         Self {
             storage,
@@ -175,230 +260,194 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
         }
     }
 
-    fn grant_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
+    // --- Base Logic (Internal & Shared) ---
+
+    fn grant_role_unchecked(
+        &mut self,
+        role_id: RoleId<R>,
+        target_account: ActorId,
+    ) -> Result<bool, Error> {
         self.storage
             .get_mut()
-            .roles
-            .entry(role_id)
-            .or_default()
-            .members
-            .insert(target_account)
+            .ensure_role_mut(role_id)?
+            .add_member(target_account)
     }
 
-    fn revoke_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
+    fn revoke_role_unchecked(&mut self, role_id: RoleId<R>, target_account: ActorId) -> bool {
         self.storage
             .get_mut()
-            .roles
-            .get_mut(&role_id)
-            .is_some_and(|role_data| role_data.members.remove(&target_account))
+            .find_role_mut(role_id)
+            .is_some_and(|e| e.remove_member(target_account))
     }
 
-    fn set_role_admin_unchecked(&mut self, role_id: RoleId, admin_role_id: RoleId) {
+    fn set_role_admin_unchecked(
+        &mut self,
+        role_id: RoleId<R>,
+        admin_role_id: RoleId<R>,
+    ) -> Result<(), Error> {
         self.storage
             .get_mut()
-            .roles
-            .entry(role_id)
-            .or_default()
+            .ensure_role_mut(role_id)?
             .admin_role_id = admin_role_id;
-    }
-}
-
-#[service(events = Event)]
-impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
-    /// Returns `true` if `account_id` has been granted `role_id`.
-    #[export]
-    pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
-        self.storage.get().has_role(role_id, account_id)
+        Ok(())
     }
 
-    /// Returns the admin role ID that controls `role_id`.
-    #[export]
-    pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        self.storage.get().get_role_admin(role_id)
-    }
-
-    /// Returns the number of roles in the system.
-    #[export]
-    pub fn get_role_count(&self) -> u32 {
-        self.storage.get().get_role_count()
-    }
-
-    /// Returns a list of role IDs with pagination.
-    #[export]
-    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
-        self.storage.get().get_roles(query)
-    }
-
-    /// Returns the number of members in the specified role.
-    #[export]
-    pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
-        self.storage.get().get_role_member_count(role_id)
-    }
-
-    /// Returns a list of members in the specified role with pagination.
-    #[export]
-    pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
-        self.storage.get().get_role_members(role_id, query)
-    }
-
-    /// Returns the number of roles assigned to the specified member.
-    #[export]
-    pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
-        self.storage.get().get_member_role_count(member_id)
-    }
-
-    /// Returns a list of roles assigned to the specified member with pagination.
-    #[export]
-    pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
-        self.storage.get().get_member_roles(member_id, query)
-    }
-
-    /// Ensures that `account_id` has `role_id` or is a super admin.
-    ///
-    /// Requirements:
-    ///
-    /// - `account_id` must have `role_id` or `DEFAULT_ADMIN_ROLE`.
-    pub fn require_role(&self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
-        if self.has_role(role_id, account_id) || self.has_role(DEFAULT_ADMIN_ROLE, account_id) {
+    pub fn require_role(&self, role_id: RoleId<R>, account_id: ActorId) -> Result<(), Error> {
+        let storage = self.storage.get();
+        if storage.has_role(role_id, account_id)
+            || storage.has_role(default_admin_role::<R>(), account_id)
+        {
             Ok(())
         } else {
             Err(AccessDenied {
                 account_id,
-                role_id,
+                role_id: role_id.as_ref().to_vec(),
             }
             .into())
         }
     }
 
-    /// Grants `role_id` to `target_account`.
-    ///
-    /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
-    /// event.
-    ///
-    /// Requirements:
-    ///
-    /// - the caller must have `role_id`'s admin role.
-    #[export(unwrap_result)]
-    pub fn grant_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        let message_source = Syscall::message_source();
-        self.require_role(self.get_role_admin(role_id), message_source)?;
+    pub fn get_role_admin(&self, role_id: RoleId<R>) -> RoleId<R> {
+        self.storage.get().get_role_admin(role_id)
+    }
+}
 
-        if self.grant_role_unchecked(role_id, target_account) {
-            self.emit_event(Event::RoleGranted {
-                role_id,
-                target_account,
-                sender: message_source,
-            })
-            .map_err(|_| EmitError)?;
-        }
+#[service(events = Event)]
+impl<
+    'a,
+    const N: usize,
+    const M: usize,
+    S: InfallibleStorageMut<Item = AccessControlStorage<ROLE_ID_32, N, M>>,
+> AccessControl<'a, ROLE_ID_32, N, M, S>
+{
+    // --- Public API ---
 
-        Ok(())
+    #[export]
+    pub fn has_role(&self, role_id: RoleId<ROLE_ID_32>, account_id: ActorId) -> bool {
+        self.require_role(role_id, account_id).is_ok()
     }
 
-    /// Grants `role_ids` to `target_account`.
-    ///
-    /// If `target_account` had not been already granted any of the `role_ids`,
-    /// emits a `RoleGranted` event for each newly granted role.
-    ///
-    /// Requirements:
-    ///
-    /// - the caller must have the admin role for all specified `role_ids`.
+    #[export]
+    pub fn get_role_admin(&self, role_id: RoleId<ROLE_ID_32>) -> RoleId<ROLE_ID_32> {
+        self.storage.get().get_role_admin(role_id)
+    }
+
+    #[export]
+    pub fn get_role_count(&self) -> u32 {
+        self.storage.get().role_count
+    }
+
+    #[export]
+    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId<ROLE_ID_32>> {
+        self.storage.get().get_roles(query)
+    }
+
+    #[export]
+    pub fn get_role_member_count(&self, role_id: RoleId<ROLE_ID_32>) -> u32 {
+        self.storage.get().get_role_member_count(role_id)
+    }
+
+    #[export]
+    pub fn get_role_members(
+        &self,
+        role_id: RoleId<ROLE_ID_32>,
+        query: Option<Pagination>,
+    ) -> Vec<ActorId> {
+        self.storage.get().get_role_members(role_id, query)
+    }
+
+    #[export]
+    pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
+        self.storage.get().get_member_role_count(member_id)
+    }
+
+    #[export]
+    pub fn get_member_roles(
+        &self,
+        member_id: ActorId,
+        query: Option<Pagination>,
+    ) -> Vec<RoleId<ROLE_ID_32>> {
+        self.storage.get().get_member_roles(member_id, query)
+    }
+
+    #[export(unwrap_result)]
+    pub fn grant_role(
+        &mut self,
+        role_id: RoleId<ROLE_ID_32>,
+        target_account: ActorId,
+    ) -> Result<(), Error> {
+        self.perform_role_action(
+            role_id,
+            target_account,
+            |svc, r, t| svc.grant_role_unchecked(r, t),
+            |r, t, s| Event::RoleGranted {
+                role_id: r,
+                target_account: t,
+                sender: s,
+            },
+        )
+    }
+
     #[export(unwrap_result)]
     pub fn grant_roles_batch(
         &mut self,
-        role_ids: Vec<RoleId>,
+        role_ids: Vec<RoleId<ROLE_ID_32>>,
         target_account: ActorId,
     ) -> Result<(), Error> {
-        let message_source = Syscall::message_source();
-        for &role_id in &role_ids {
-            self.require_role(self.get_role_admin(role_id), message_source)?;
-        }
-
-        for role_id in role_ids {
-            if self.grant_role_unchecked(role_id, target_account) {
-                self.emit_event(Event::RoleGranted {
-                    role_id,
-                    target_account,
-                    sender: message_source,
-                })
-                .map_err(|_| EmitError)?;
-            }
-        }
-
-        Ok(())
+        self.process_batch(
+            role_ids,
+            target_account,
+            |svc, r, t| svc.grant_role_unchecked(r, t),
+            |r, t, s| Event::RoleGranted {
+                role_id: r,
+                target_account: t,
+                sender: s,
+            },
+        )
     }
 
-    /// Revokes `role_id` from `target_account`.
-    ///
-    /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
-    ///
-    /// Requirements:
-    ///
-    /// - the caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
-    pub fn revoke_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        let message_source = Syscall::message_source();
-        self.require_role(self.get_role_admin(role_id), message_source)?;
-
-        if self.revoke_role_unchecked(role_id, target_account) {
-            self.emit_event(Event::RoleRevoked {
-                role_id,
-                target_account,
-                sender: message_source,
-            })
-            .map_err(|_| EmitError)?;
-        }
-
-        Ok(())
+    pub fn revoke_role(
+        &mut self,
+        role_id: RoleId<ROLE_ID_32>,
+        target_account: ActorId,
+    ) -> Result<(), Error> {
+        self.perform_role_action(
+            role_id,
+            target_account,
+            |svc, r, t| Ok(svc.revoke_role_unchecked(r, t)),
+            |r, t, s| Event::RoleRevoked {
+                role_id: r,
+                target_account: t,
+                sender: s,
+            },
+        )
     }
 
-    /// Revokes `role_ids` from `target_account`.
-    ///
-    /// If `target_account` had been granted any of the `role_ids`,
-    /// emits a `RoleRevoked` event for each newly revoked role.
-    ///
-    /// Requirements:
-    ///
-    /// - the caller must have the admin role for all specified `role_ids`.
     #[export(unwrap_result)]
     pub fn revoke_roles_batch(
         &mut self,
-        role_ids: Vec<RoleId>,
+        role_ids: Vec<RoleId<ROLE_ID_32>>,
         target_account: ActorId,
     ) -> Result<(), Error> {
-        let message_source = Syscall::message_source();
-        for &role_id in &role_ids {
-            self.require_role(self.get_role_admin(role_id), message_source)?;
-        }
-
-        for role_id in role_ids {
-            if self.revoke_role_unchecked(role_id, target_account) {
-                self.emit_event(Event::RoleRevoked {
-                    role_id,
-                    target_account,
-                    sender: message_source,
-                })
-                .map_err(|_| EmitError)?;
-            }
-        }
-
-        Ok(())
+        self.process_batch(
+            role_ids,
+            target_account,
+            |svc, r, t| Ok(svc.revoke_role_unchecked(r, t)),
+            |r, t, s| Event::RoleRevoked {
+                role_id: r,
+                target_account: t,
+                sender: s,
+            },
+        )
     }
 
-    /// Revokes `role_id` from the calling account.
-    ///
-    /// Roles are often managed via `grant_role` and `revoke_role`: this function's
-    /// purpose is to provide a mechanism for accounts to lose their privileges
-    /// if they are compromised (such as when a trusted device is misplaced).
-    ///
-    /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
-    /// event.
-    ///
-    /// Requirements:
-    ///
-    /// - the caller must be `account_id`.
     #[export(unwrap_result)]
-    pub fn renounce_role(&mut self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
+    pub fn renounce_role(
+        &mut self,
+        role_id: RoleId<ROLE_ID_32>,
+        account_id: ActorId,
+    ) -> Result<(), Error> {
         let message_source = Syscall::message_source();
         ensure!(
             account_id == message_source,
@@ -420,24 +469,17 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
         Ok(())
     }
 
-    /// Sets `new_admin_role_id` as the admin role for `role_id`.
-    ///
-    /// Emits a `RoleAdminChanged` event.
-    ///
-    /// Requirements:
-    ///
-    /// - the caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn set_role_admin(
         &mut self,
-        role_id: RoleId,
-        new_admin_role_id: RoleId,
+        role_id: RoleId<ROLE_ID_32>,
+        new_admin_role_id: RoleId<ROLE_ID_32>,
     ) -> Result<(), Error> {
         let message_source = Syscall::message_source();
         let current_admin_role_id = self.get_role_admin(role_id);
         self.require_role(current_admin_role_id, message_source)?;
 
-        self.set_role_admin_unchecked(role_id, new_admin_role_id);
+        self.set_role_admin_unchecked(role_id, new_admin_role_id)?;
 
         self.emit_event(Event::RoleAdminChanged {
             role_id,
@@ -449,6 +491,57 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
 
         Ok(())
     }
+
+    // --- Private Emitters ---
+
+    fn perform_role_action<F, E>(
+        &mut self,
+        role_id: RoleId<ROLE_ID_32>,
+        target: ActorId,
+        mut action_fn: F,
+        event_fn: E,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(&mut Self, RoleId<ROLE_ID_32>, ActorId) -> Result<bool, Error>,
+        E: FnOnce(RoleId<ROLE_ID_32>, ActorId, ActorId) -> Event,
+    {
+        let message_source = Syscall::message_source();
+        let admin_role = self.get_role_admin(role_id);
+        self.require_role(admin_role, message_source)?;
+
+        if action_fn(self, role_id, target)? {
+            let event = event_fn(role_id, target, message_source);
+            self.emit_event(event).map_err(|_| EmitError)?;
+        }
+        Ok(())
+    }
+
+    fn process_batch<F, E>(
+        &mut self,
+        role_ids: Vec<RoleId<ROLE_ID_32>>,
+        target: ActorId,
+        mut action: F,
+        mut event_builder: E,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(&mut Self, RoleId<ROLE_ID_32>, ActorId) -> Result<bool, Error>,
+        E: FnMut(RoleId<ROLE_ID_32>, ActorId, ActorId) -> Event,
+    {
+        let message_source = Syscall::message_source();
+
+        for &role_id in &role_ids {
+            let admin_role = self.get_role_admin(role_id);
+            self.require_role(admin_role, message_source)?;
+        }
+
+        for role_id in role_ids {
+            if action(self, role_id, target)? {
+                let event = event_builder(role_id, target, message_source);
+                self.emit_event(event).map_err(|_| EmitError)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[event]
@@ -457,39 +550,39 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum Event {
     RoleGranted {
-        role_id: RoleId,
+        role_id: RoleId<ROLE_ID_32>,
         target_account: ActorId,
         sender: ActorId,
     },
     RoleRevoked {
-        role_id: RoleId,
+        role_id: RoleId<ROLE_ID_32>,
         target_account: ActorId,
         sender: ActorId,
     },
     RoleAdminChanged {
-        role_id: RoleId,
-        previous_admin_role_id: RoleId,
-        new_admin_role_id: RoleId,
+        role_id: RoleId<ROLE_ID_32>,
+        previous_admin_role_id: RoleId<ROLE_ID_32>,
+        new_admin_role_id: RoleId<ROLE_ID_32>,
         sender: ActorId,
     },
 }
 
 pub mod error {
-    use crate::RoleId;
     pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
     use sails_rs::{
         ActorId,
+        prelude::Vec,
         scale_codec::{Decode, Encode},
         scale_info::TypeInfo,
     };
 
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
-    #[error("Access denied: account {account_id:?} does not have role {role_id:?}")]
+    #[error("Access denied: account {account_id:?} does not have role")]
     #[scale_info(crate = sails_rs::scale_info)]
     pub struct AccessDenied {
         pub account_id: ActorId,
-        pub role_id: RoleId,
+        pub role_id: Vec<u8>,
     }
 
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
@@ -500,4 +593,10 @@ pub mod error {
         pub account_id: ActorId,
         pub message_source: ActorId,
     }
+
+    #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[error("Capacity exceeded")]
+    #[scale_info(crate = sails_rs::scale_info)]
+    pub struct CapacityExceeded;
 }
