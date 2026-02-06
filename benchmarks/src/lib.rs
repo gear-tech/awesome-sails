@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use fs2::FileExt;
-use serde::Serialize;
-use serde_json::Value;
+use sails_rs::gtest::System;
+use sails_rs::prelude::*;
 use std::{
     collections::BTreeMap,
     env,
@@ -10,8 +10,17 @@ use std::{
     path::PathBuf,
 };
 
-/// A persistent storage for benchmark results backed by a JSON file.
-/// Handles concurrent access automatically via file locking.
+/// Trait for types that can be converted into a flat benchmark map.
+pub trait ToBenchmarkMap {
+    fn to_benchmark_map(self) -> BTreeMap<String, u64>;
+}
+
+impl ToBenchmarkMap for BTreeMap<String, u64> {
+    fn to_benchmark_map(self) -> BTreeMap<String, u64> {
+        self
+    }
+}
+
 pub struct BenchStorage {
     path: PathBuf,
 }
@@ -25,20 +34,12 @@ impl Default for BenchStorage {
 }
 
 impl BenchStorage {
-    /// Creates a new storage interface pointing to `bench_data.json` in the crate root.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Updates a specific section of the benchmark data.
-    ///
-    /// This method is atomic: it locks the file, reads current state, updates the specific key,
-    /// and writes back immediately.
-    ///
-    /// # Arguments
-    /// * `section_key` - The unique key for the benchmark (e.g., "access_control").
-    /// * `data` - The data to store (must be serializable).
-    pub fn update<T: Serialize>(&self, section_key: &str, data: T) -> Result<()> {
+    /// Updates the storage using the ToBenchmarkMap trait.
+    pub fn update<T: ToBenchmarkMap>(&self, section_key: &str, results: T) -> Result<()> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -47,36 +48,35 @@ impl BenchStorage {
             .open(&self.path)
             .context("Failed to open bench data file")?;
 
-        // 1. Lock for safety
-        file.lock_exclusive()
-            .context("Failed to lock bench data file")?;
+        file.lock_exclusive().context("Failed to lock file")?;
 
-        // 2. Read existing
-        let mut full_data: BTreeMap<String, Value> = if file.metadata()?.len() > 0 {
+        let mut full_data: BTreeMap<String, BTreeMap<String, u64>> = if file.metadata()?.len() > 0 {
             serde_json::from_reader(&file).unwrap_or_default()
         } else {
             BTreeMap::new()
         };
 
-        // 3. Modify
-        let new_value = serde_json::to_value(data).context("Failed to serialize new bench data")?;
-        full_data.insert(section_key.to_string(), new_value);
+        full_data.insert(section_key.to_string(), results.to_benchmark_map());
 
-        // 4. Write back
         let mut file = file;
-        file.set_len(0).context("Failed to truncate file")?;
-        file.seek(SeekFrom::Start(0))
-            .context("Failed to seek to start")?;
-        serde_json::to_writer_pretty(&file, &full_data).context("Failed to write JSON")?;
+        file.set_len(0)?;
+        file.seek(SeekFrom::Start(0))?;
+        serde_json::to_writer_pretty(&file, &full_data)?;
 
-        // 5. Unlock
-        file.unlock().context("Failed to unlock file")?;
-
+        file.unlock()?;
         Ok(())
     }
 }
 
-/// Helper utility to calculate median gas usage.
+pub fn measure_gas<F>(system: &System, f: F) -> u64
+where
+    F: FnOnce() -> MessageId,
+{
+    let mid = f();
+    let res = system.run_next_block();
+    *res.gas_burned.get(&mid).expect("Gas not recorded")
+}
+
 pub fn median(mut values: Vec<u64>) -> u64 {
     values.sort_unstable();
     if values.is_empty() {
