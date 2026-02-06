@@ -442,6 +442,7 @@ dependencies = [
  "clap",
  "cli-table",
  "fs2",
+ "gprimitives",
  "gtest",
  "sails-rs",
  "serde",

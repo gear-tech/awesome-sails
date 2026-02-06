@@ -13,9 +13,10 @@ pub fn get_wasm_path(file_name: &str) -> PathBuf {
     let final_path = if path.is_absolute() || path.exists() {
         path
     } else {
-        let mut manifest_dir =
+        let mut root =
             PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into()));
-        manifest_dir.pop();
+        // Go up from benchmarks to project root
+        root.pop();
 
         let profile = if cfg!(debug_assertions) {
             "debug"
@@ -23,8 +24,7 @@ pub fn get_wasm_path(file_name: &str) -> PathBuf {
             "release"
         };
 
-        manifest_dir
-            .join("target")
+        root.join("target")
             .join("wasm32-gear")
             .join(profile)
             .join(file_name)
@@ -41,9 +41,6 @@ pub fn get_wasm_path(file_name: &str) -> PathBuf {
 }
 
 pub fn create_env() -> GtestEnv {
-    if cfg!(debug_assertions) {
-        core::panic!("Benchmarks MUST be run in --release mode.");
-    }
     let system = System::new();
     system.mint_to(ALICE, 100_000_000_000_000_000);
     GtestEnv::new(system, ALICE.into())

@@ -1,6 +1,6 @@
 use crate::common;
 use access_control_test_client::{AccessControlTestClient, access_control::AccessControl};
-use awesome_sails_benchmarks::{BenchStorage, ToBenchmarkMap, measure_gas, median};
+use awesome_sails_benchmarks::{BenchStorage, MeasureGas, ToBenchmarkMap, median};
 use sails_rs::{ActorId, prelude::*};
 use std::collections::BTreeMap;
 
@@ -13,14 +13,14 @@ struct AccessControlBenchResults {
 impl ToBenchmarkMap for AccessControlBenchResults {
     fn to_benchmark_map(self) -> BTreeMap<String, u64> {
         let mut map = BTreeMap::new();
-        for (k, v) in self.grant_role {
-            map.insert(format!("grant_role.{}", k), v);
+        for (count, gas) in self.grant_role {
+            map.insert(format!("grant_role.{}", count), gas);
         }
-        for (k, v) in self.has_role {
-            map.insert(format!("has_role.{}", k), v);
+        for (count, gas) in self.has_role {
+            map.insert(format!("has_role.{}", count), gas);
         }
-        for (k, v) in self.revoke_role {
-            map.insert(format!("revoke_role.{}", k), v);
+        for (count, gas) in self.revoke_role {
+            map.insert(format!("revoke_role.{}", count), gas);
         }
         map
     }
@@ -35,9 +35,9 @@ async fn bench_access_control() {
     let member_counts: [u32; 5] = [0, 100, 1000, 5000, 10000];
     let role_id = [1u8; 32];
 
-    let mut grant_results = BTreeMap::new();
-    let mut has_results = BTreeMap::new();
-    let mut revoke_results = BTreeMap::new();
+    let mut grant_role_metrics = BTreeMap::new();
+    let mut has_role_metrics = BTreeMap::new();
+    let mut revoke_role_metrics = BTreeMap::new();
 
     for &count in &member_counts {
         let mut grant_samples = Vec::new();
@@ -50,6 +50,7 @@ async fn bench_access_control() {
             let mut service = program.access_control();
             let system = env.system();
 
+            // Setup: populate state
             for j in 0..count {
                 let member: ActorId = (j as u64 + 1000).into();
                 let _ = service.grant_role(role_id, member).send_one_way().unwrap();
@@ -58,41 +59,55 @@ async fn bench_access_control() {
 
             let test_member: ActorId = (count as u64 + 50000).into();
 
-            grant_samples.push(measure_gas(system, || {
-                service
-                    .grant_role(role_id, test_member)
-                    .send_one_way()
-                    .unwrap()
-            }));
+            // 1. Measure Grant
+            grant_samples.push(
+                system
+                    .measure_gas(|| {
+                        service
+                            .grant_role(role_id, test_member)
+                            .send_one_way()
+                            .unwrap()
+                    })
+                    .unwrap(),
+            );
 
-            has_samples.push(measure_gas(system, || {
-                service
-                    .has_role(role_id, test_member)
-                    .send_one_way()
-                    .unwrap()
-            }));
+            // 2. Measure Has (Read)
+            has_samples.push(
+                system
+                    .measure_gas(|| {
+                        service
+                            .has_role(role_id, test_member)
+                            .send_one_way()
+                            .unwrap()
+                    })
+                    .unwrap(),
+            );
 
-            revoke_samples.push(measure_gas(system, || {
-                service
-                    .revoke_role(role_id, test_member)
-                    .send_one_way()
-                    .unwrap()
-            }));
+            // 3. Measure Revoke
+            revoke_samples.push(
+                system
+                    .measure_gas(|| {
+                        service
+                            .revoke_role(role_id, test_member)
+                            .send_one_way()
+                            .unwrap()
+                    })
+                    .unwrap(),
+            );
         }
 
-        grant_results.insert(count, median(grant_samples));
-        has_results.insert(count, median(has_samples));
-        revoke_results.insert(count, median(revoke_samples));
+        grant_role_metrics.insert(count, median(grant_samples));
+        has_role_metrics.insert(count, median(has_samples));
+        revoke_role_metrics.insert(count, median(revoke_samples));
     }
 
-    BenchStorage::new()
-        .update(
-            "access_control",
-            AccessControlBenchResults {
-                grant_role: grant_results,
-                has_role: has_results,
-                revoke_role: revoke_results,
-            },
-        )
+    let results = AccessControlBenchResults {
+        grant_role: grant_role_metrics,
+        has_role: has_role_metrics,
+        revoke_role: revoke_role_metrics,
+    };
+
+    BenchStorage::from_default_path()
+        .update("access_control", results)
         .expect("Failed to save benchmark data");
 }
