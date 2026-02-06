@@ -1,7 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use cli_table::{Cell, Style, Table, format::Justify};
-use serde_json::Value;
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
 #[derive(Parser)]
@@ -13,95 +12,89 @@ struct Cli {
     other: PathBuf,
     #[arg(long)]
     output: Option<PathBuf>,
+    /// Threshold percentage for failure
+    #[arg(long)]
+    threshold: Option<f64>,
 }
 
 struct MetricResult {
     path: String,
-    current: String,
-    baseline: String,
-    change: String,
-    percent: String,
-    status: String,
+    current: u64,
+    baseline: Option<u64>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let current_json: Value = serde_json::from_str(&fs::read_to_string(&cli.current)?)?;
-    let other_json: Value = serde_json::from_str(&fs::read_to_string(&cli.other)?)?;
+    let current_raw = fs::read_to_string(&cli.current)?;
+    let other_raw = fs::read_to_string(&cli.other)?;
 
-    let mut current_metrics = BTreeMap::new();
-    let mut other_metrics = BTreeMap::new();
-
-    flatten(&current_json, String::new(), &mut current_metrics);
-    flatten(&other_json, String::new(), &mut other_metrics);
+    let current_json: BTreeMap<String, BTreeMap<String, u64>> = serde_json::from_str(&current_raw)?;
+    let other_json: BTreeMap<String, BTreeMap<String, u64>> =
+        serde_json::from_str(&other_raw).unwrap_or_default();
 
     let mut results = Vec::new();
+    let mut threshold_failed = false;
 
-    for (path, cur_val) in &current_metrics {
-        if let Some(oth_val) = other_metrics.get(path) {
-            let diff = *cur_val as i128 - *oth_val as i128;
-            let percent = (diff as f64 / *oth_val as f64) * 100.0;
+    for (section, metrics) in current_json {
+        for (name, cur_val) in metrics {
+            let path = format!("{}.{}", section, name);
+            let oth_val = other_json.get(&section).and_then(|m| m.get(&name)).copied();
 
-            let (st_text, emoji) = if percent < -5.0 {
-                ("Improved", "🚀")
-            } else if percent < -1.0 {
-                ("Improved", "👍")
-            } else if percent > 5.0 {
-                ("Regressed", "❌")
-            } else if percent > 1.0 {
-                ("Regressed", "⚠️")
-            } else {
-                ("Neutral", "✅")
-            };
+            if let (Some(oth), Some(t)) = (oth_val, cli.threshold) {
+                let diff_p = (cur_val as f64 - oth as f64) / oth as f64 * 100.0;
+                if diff_p.abs() > t {
+                    threshold_failed = true;
+                }
+            }
 
             results.push(MetricResult {
-                path: path.clone(),
-                current: format_number(*cur_val),
-                baseline: format_number(*oth_val),
-                change: format_diff(diff),
-                percent: format!("{:.2}%", percent),
-                status: format!("{} {}", emoji, st_text),
-            });
-        } else {
-            results.push(MetricResult {
-                path: path.clone(),
-                current: format_number(*cur_val),
-                baseline: "-".to_string(),
-                change: "-".to_string(),
-                percent: "-".to_string(),
-                status: "✨ New".to_string(),
-            });
-        }
-    }
-
-    for (path, oth_val) in &other_metrics {
-        if !current_metrics.contains_key(path) {
-            results.push(MetricResult {
-                path: path.clone(),
-                current: "-".to_string(),
-                baseline: format_number(*oth_val),
-                change: "-".to_string(),
-                percent: "-".to_string(),
-                status: "🗑️ Removed".to_string(),
+                path,
+                current: cur_val,
+                baseline: oth_val,
             });
         }
     }
 
     // 1. CLI Output
-    let table_rows: Vec<_> = results
-        .iter()
-        .map(|r| {
-            vec![
-                r.path.clone().cell(),
-                r.current.clone().cell().justify(Justify::Right),
-                r.baseline.clone().cell().justify(Justify::Right),
-                r.change.clone().cell().justify(Justify::Right),
-                r.percent.clone().cell().justify(Justify::Right),
-                r.status.clone().cell(),
-            ]
-        })
-        .collect();
+    let mut table_rows = Vec::new();
+    for r in &results {
+        let (change, percent, status) = if let Some(oth) = r.baseline {
+            let diff = r.current as i128 - oth as i128;
+            let p = (diff as f64 / oth as f64) * 100.0;
+            let (st, emoji) = if p < -5.0 {
+                ("Improved", "🚀")
+            } else if p < -1.0 {
+                ("Improved", "👍")
+            } else if p > 5.0 {
+                ("Regressed", "❌")
+            } else if p > 1.0 {
+                ("Regressed", "⚠️")
+            } else {
+                ("Neutral", "✅")
+            };
+            (
+                format_diff(diff),
+                format!("{:.2}%", p),
+                format!("{} {}", emoji, st),
+            )
+        } else {
+            ("-".to_string(), "-".to_string(), "✨ New".to_string())
+        };
+
+        table_rows.push(vec![
+            r.path.clone().cell(),
+            format_number(r.current).cell().justify(Justify::Right),
+            r.baseline
+                .map(format_number)
+                .unwrap_or_else(|| "-".into())
+                .cell()
+                .justify(Justify::Right),
+            change.cell().justify(Justify::Right),
+            percent.cell().justify(Justify::Right),
+            status.cell(),
+        ]);
+    }
 
     let table = table_rows
         .table()
@@ -118,16 +111,39 @@ fn main() -> Result<()> {
     println!("\n## 🔬 Benchmark Comparison\n");
     let _ = cli_table::print_stdout(table);
 
-    // 2. File Output (Markdown)
+    // 2. Markdown Output
     if let Some(out_path) = cli.output {
         let mut report = String::from("### 🔬 Benchmark Comparison Results\n\n");
         report.push_str("| Metric | Current | Baseline | Change | % | Status |\n");
         report.push_str("| :--- | ---: | ---: | ---: | ---: | :--- |\n");
 
-        for r in results {
+        for r in &results {
+            let (change, percent, status) = if let Some(oth) = r.baseline {
+                let diff = r.current as i128 - oth as i128;
+                let p = (diff as f64 / oth as f64) * 100.0;
+                let emoji = if p < -5.0 {
+                    "🚀"
+                } else if p < -1.0 {
+                    "👍"
+                } else if p > 5.0 {
+                    "❌"
+                } else if p > 1.0 {
+                    "⚠️"
+                } else {
+                    "✅"
+                };
+                (format_diff(diff), format!("{:.2}%", p), emoji)
+            } else {
+                ("-".to_string(), "-".to_string(), "✨")
+            };
             report.push_str(&format!(
                 "| {} | {} | {} | {} | {} | {} |\n",
-                r.path, r.current, r.baseline, r.change, r.percent, r.status
+                r.path,
+                format_number(r.current),
+                r.baseline.map(format_number).unwrap_or_else(|| "-".into()),
+                change,
+                percent,
+                status
             ));
         }
 
@@ -138,7 +154,11 @@ fn main() -> Result<()> {
         report.push_str("- ⚠️ Minor regression (<5% increase)\n");
         report.push_str("- ❌ Significant regression (>5% increase)\n");
 
-        fs::write(out_path, report).context("Failed to write report file")?;
+        fs::write(out_path, report)?;
+    }
+
+    if let (Some(t), true) = (cli.threshold, threshold_failed) {
+        core::panic!("Benchmark failure: deviation exceeds threshold of {}%!", t);
     }
 
     Ok(())
@@ -146,41 +166,20 @@ fn main() -> Result<()> {
 
 fn format_number(n: u64) -> String {
     let s = n.to_string();
-    let mut result = String::new();
+    let mut res = String::new();
     for (i, c) in s.chars().rev().enumerate() {
         if i > 0 && i % 3 == 0 {
-            result.push('_');
+            res.push('_');
         }
-        result.push(c);
+        res.push(c);
     }
-    result.chars().rev().collect()
+    res.chars().rev().collect()
 }
 
 fn format_diff(n: i128) -> String {
     if n == 0 {
-        return "0".to_string();
+        return "0".into();
     }
     let prefix = if n > 0 { "+" } else { "-" };
     format!("{}{}", prefix, format_number(n.unsigned_abs() as u64))
-}
-
-fn flatten(val: &Value, prefix: String, res: &mut BTreeMap<String, u64>) {
-    match val {
-        Value::Object(map) => {
-            for (k, v) in map {
-                let new_prefix = if prefix.is_empty() {
-                    k.clone()
-                } else {
-                    format!("{}.{}", prefix, k)
-                };
-                flatten(v, new_prefix, res);
-            }
-        }
-        Value::Number(num) => {
-            if let Some(n) = num.as_u64() {
-                res.insert(prefix, n);
-            }
-        }
-        _ => {}
-    }
 }

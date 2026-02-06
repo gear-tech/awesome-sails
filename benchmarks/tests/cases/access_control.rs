@@ -1,15 +1,29 @@
 use crate::common;
 use access_control_test_client::{AccessControlTestClient, access_control::AccessControl};
-use awesome_sails_benchmarks::{BenchStorage, median};
-use sails_rs::collections::BTreeMap;
+use awesome_sails_benchmarks::{BenchStorage, ToBenchmarkMap, measure_gas, median};
 use sails_rs::{ActorId, prelude::*};
-use serde::Serialize;
+use std::collections::BTreeMap;
 
-#[derive(Serialize)]
 struct AccessControlBenchResults {
     grant_role: BTreeMap<u32, u64>,
     has_role: BTreeMap<u32, u64>,
     revoke_role: BTreeMap<u32, u64>,
+}
+
+impl ToBenchmarkMap for AccessControlBenchResults {
+    fn to_benchmark_map(self) -> BTreeMap<String, u64> {
+        let mut map = BTreeMap::new();
+        for (k, v) in self.grant_role {
+            map.insert(format!("grant_role.{}", k), v);
+        }
+        for (k, v) in self.has_role {
+            map.insert(format!("has_role.{}", k), v);
+        }
+        for (k, v) in self.revoke_role {
+            map.insert(format!("revoke_role.{}", k), v);
+        }
+        map
+    }
 }
 
 #[tokio::test]
@@ -18,7 +32,6 @@ async fn bench_access_control() {
     let wasm_name = "access_control_test_app.opt.wasm";
     let wasm_path = common::get_wasm_path(wasm_name);
 
-    // Scaling points up to 10,000 members
     let member_counts: [u32; 5] = [0, 100, 1000, 5000, 10000];
     let role_id = [1u8; 32];
 
@@ -34,11 +47,9 @@ async fn bench_access_control() {
         for _ in 0..5 {
             let env = common::create_env();
             let program = common::deploy_program(&env, wasm_path.clone()).await;
-
             let mut service = program.access_control();
             let system = env.system();
 
-            // Setup: populate state to the target count
             for j in 0..count {
                 let member: ActorId = (j as u64 + 1000).into();
                 let _ = service.grant_role(role_id, member).send_one_way().unwrap();
@@ -47,29 +58,26 @@ async fn bench_access_control() {
 
             let test_member: ActorId = (count as u64 + 50000).into();
 
-            // 1. Measure Grant
-            let mid = service
-                .grant_role(role_id, test_member)
-                .send_one_way()
-                .unwrap();
-            let res = system.run_next_block();
-            grant_samples.push(*res.gas_burned.get(&mid).expect("Gas not recorded"));
+            grant_samples.push(measure_gas(system, || {
+                service
+                    .grant_role(role_id, test_member)
+                    .send_one_way()
+                    .unwrap()
+            }));
 
-            // 2. Measure Has (Read)
-            let mid = service
-                .has_role(role_id, test_member)
-                .send_one_way()
-                .unwrap();
-            let res = system.run_next_block();
-            has_samples.push(*res.gas_burned.get(&mid).expect("Gas not recorded"));
+            has_samples.push(measure_gas(system, || {
+                service
+                    .has_role(role_id, test_member)
+                    .send_one_way()
+                    .unwrap()
+            }));
 
-            // 3. Measure Revoke
-            let mid = service
-                .revoke_role(role_id, test_member)
-                .send_one_way()
-                .unwrap();
-            let res = system.run_next_block();
-            revoke_samples.push(*res.gas_burned.get(&mid).expect("Gas not recorded"));
+            revoke_samples.push(measure_gas(system, || {
+                service
+                    .revoke_role(role_id, test_member)
+                    .send_one_way()
+                    .unwrap()
+            }));
         }
 
         grant_results.insert(count, median(grant_samples));

@@ -40,7 +40,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BINARYEN_VERSION: version_123
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -54,16 +53,8 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Set up Rust
-        uses: dsherret/rust-toolchain-file@v1
-
-      - name: Set up Rust for wasm
-        run: rustup component add rust-src --toolchain stable
-
-      - name: Install wasm-opt
-        run: |
-          sudo wget -c https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz -O - | sudo tar -xz -C .
-          sudo cp binaryen-$BINARYEN_VERSION/bin/wasm-opt /usr/bin/
+      - name: Setup Environment
+        uses: ./.github/actions/setup-gear
 
       - name: Check formatting
         run: cargo fmt --all -- --check
