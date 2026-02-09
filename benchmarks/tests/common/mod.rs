@@ -41,9 +41,6 @@ pub fn get_wasm_path(file_name: &str) -> PathBuf {
 }
 
 pub fn create_env() -> GtestEnv {
-    if cfg!(debug_assertions) {
-        core::panic!("Benchmarks MUST be run in --release mode.");
-    }
     let system = System::new();
     system.mint_to(ALICE, 100_000_000_000_000_000);
     GtestEnv::new(system, ALICE.into())

@@ -111,13 +111,13 @@ impl MeasureGas for System {
         F: FnOnce() -> MessageId,
     {
         if cfg!(debug_assertions) {
-            anyhow::bail!(
+            core::panic!(
                 "Benchmarks MUST be run in --release mode to get accurate gas measurements."
             );
         }
         let mid = f();
-        let res = self.run_next_block();
-        res.gas_burned
+        self.run_next_block()
+            .gas_burned
             .get(&mid)
             .copied()
             .ok_or_else(|| anyhow::anyhow!("Gas not recorded for message {:?}", mid))
@@ -360,7 +360,7 @@ impl fmt::Display for BenchReportMarkdown<'_> {
             "- {} New metric (not present in baseline)",
             MetricStatus::New.as_emoji()
         )?;
-        write!(
+        writeln!(
             f,
             "- {} Removed metric (not present in current)",
             MetricStatus::Removed.as_emoji()
