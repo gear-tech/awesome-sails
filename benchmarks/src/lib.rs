@@ -1,3 +1,21 @@
+// This file is part of Gear.
+
+// Copyright (C) 2026 Gear Technologies Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use anyhow::Result;
 use fs2::FileExt;
 use std::{
@@ -26,6 +44,7 @@ pub trait MeasureGas {
 }
 
 /// A comprehensive report containing the results of a benchmark comparison.
+#[derive(Debug)]
 pub struct BenchReport {
     pub diffs: Vec<MetricDiff>,
     pub config: ComparisonConfig,
@@ -33,6 +52,7 @@ pub struct BenchReport {
 }
 
 /// A builder for constructing a `BenchReport`.
+#[derive(Debug)]
 pub struct ReportBuilder {
     diffs: Vec<MetricDiff>,
     config: ComparisonConfig,
@@ -40,18 +60,22 @@ pub struct ReportBuilder {
 }
 
 /// Manages the persistent storage of benchmark data.
+#[derive(Debug)]
 pub struct BenchStorage {
     path: PathBuf,
 }
 
 /// A wrapper for `BenchReport` that implements `Display` for Markdown formatting.
-pub struct BenchReportMarkdown<'a>(&'a BenchReport);
+#[derive(Debug, Clone, Copy)]
+pub struct BenchReportMarkdown<'a>(pub &'a BenchReport);
 
 /// A wrapper for `BenchReport` that implements `Display` for ASCII table formatting.
 #[cfg(feature = "ascii-table")]
-pub struct BenchReportAscii<'a>(&'a BenchReport);
+#[derive(Debug, Clone, Copy)]
+pub struct BenchReportAscii<'a>(pub &'a BenchReport);
 
 /// Represents the difference between two specific metric measurements.
+#[derive(Debug, Clone)]
 pub struct MetricDiff {
     /// The hierarchical path or name of the metric.
     pub path: String,
@@ -66,7 +90,7 @@ pub struct MetricDiff {
 }
 
 /// Configuration parameters for benchmark comparisons.
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ComparisonConfig {
     /// Threshold percentage for a strong improvement.
     pub improved_strong: f64,
@@ -475,14 +499,18 @@ impl MetricStatus {
 /// Calculates the median value of a list of unsigned integers.
 pub fn median(mut values: Vec<u64>) -> u64 {
     values.sort_unstable();
-    if values.is_empty() {
+    let len = values.len();
+    if len == 0 {
         return 0;
     }
-    let len = values.len();
+
+    let mid = len / 2;
     if len.is_multiple_of(2) {
-        (values[len / 2 - 1] + values[len / 2]) / 2
+        let low = values[mid - 1];
+        let high = values[mid];
+        low + (high - low) / 2
     } else {
-        values[len / 2]
+        values[mid]
     }
 }
 

@@ -1,21 +1,48 @@
+// This file is part of Gear.
+
+// Copyright (C) 2026 Gear Technologies Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use anyhow::Result;
 use awesome_sails_benchmarks::{BenchStorage, ComparisonConfig, ReportBuilder};
 use clap::Parser;
 use std::{fs, path::PathBuf};
 
 #[derive(Parser)]
-#[command(name = "bench-analyzer")]
+#[command(
+    name = "bench-analyzer",
+    about = "A CLI tool to compare two benchmark JSON files and detect performance regressions."
+)]
 struct Cli {
+    /// Path to the current benchmark results (the ones you just generated).
     #[arg(long)]
     current: PathBuf,
+    /// Path to the baseline benchmark results (the reference file to compare against).
     #[arg(long)]
     other: PathBuf,
+    /// Path to save the comparison report in Markdown format.
     #[arg(long)]
     output: Option<PathBuf>,
-    /// Custom regression threshold for failure (e.g. 5.0)
+    /// Custom regression threshold percentage (e.g. 5.0).
+    /// If a metric grows beyond this, the tool will exit with an error.
     #[arg(long)]
     threshold: Option<f64>,
-    /// Enable strict mode (fail on ANY deviation > threshold). Requires --threshold.
+    /// Enable strict mode: the tool will fail if ANY metric deviates from baseline
+    /// by more than the threshold (including improvements).
+    /// Useful for CI self-checks to ensure benchmark stability.
     #[arg(long, requires = "threshold")]
     strict: bool,
 }
