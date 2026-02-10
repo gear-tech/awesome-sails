@@ -19,10 +19,12 @@
 #![no_std]
 
 use awesome_sails::{
-    vft,
-    vft::utils::{Allowance, Allowances, Balance, Balances},
-    vft_admin, vft_extension, vft_metadata,
-    vft_metadata::Metadata,
+    vft::{
+        self,
+        utils::{Allowance, Allowances, Balance, Balances},
+    },
+    vft_admin, vft_extension,
+    vft_metadata::{self, Metadata},
     vft_native_exchange, vft_native_exchange_admin,
 };
 use awesome_sails_utils::{
@@ -121,7 +123,9 @@ impl Program {
         let mut access_control_roles = RolesStorage::default();
         let deployer = Syscall::message_source();
 
-        access_control_roles.grant_initial_admin(deployer);
+        access_control_roles
+            .grant_initial_admin(deployer)
+            .expect("Failed to grant initial admin");
 
         Self {
             access_control_roles: RefCell::new(access_control_roles),

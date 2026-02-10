@@ -19,36 +19,48 @@
 #![no_std]
 
 use awesome_sails::access_control;
-use awesome_sails_utils::storage::StorageRefCell;
-use sails_rs::{cell::RefCell, prelude::*};
+use core::mem::MaybeUninit;
+use sails_rs::prelude::*;
 
-// Configuration for the test app
-const ROLES_LIMIT: usize = 50;
-const MEMBERS_LIMIT: usize = 50;
+// Configuration for 10,000 members and 100 roles support
+const ROLES_LIMIT: usize = 101;
+const MEMBERS_LIMIT: usize = 10_001;
 
-// Clean aliases
 type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
-type AccessControl<'a, S> = access_control::AccessControl<'a, ROLES_LIMIT, MEMBERS_LIMIT, S>;
 
-#[derive(Default)]
-pub struct Program {
-    roles: RefCell<RolesStorage>,
-}
+// Static memory for huge state (BSS section) (The wasm-opt optimization failed)
+static mut STORAGE: MaybeUninit<RolesStorage> = MaybeUninit::uninit();
+
+pub struct Program;
 
 #[program]
 impl Program {
     pub fn new() -> Self {
-        let mut storage = RolesStorage::default();
         let deployer = Syscall::message_source();
 
-        storage.grant_initial_admin(deployer);
+        unsafe {
+            let storage_ptr = core::ptr::addr_of_mut!(STORAGE) as *mut RolesStorage;
 
-        Self {
-            roles: RefCell::new(storage),
+            let storage = &mut *storage_ptr;
+            storage.role_count = 0;
+            for role in storage.roles.iter_mut() {
+                *role = None;
+            }
+
+            storage
+                .grant_initial_admin(deployer)
+                .expect("Failed to grant initial admin");
         }
+
+        Self
     }
 
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
-        AccessControl::new(StorageRefCell::new(&self.roles))
+    pub fn access_control(
+        &self,
+    ) -> access_control::AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT, &'_ mut RolesStorage> {
+        unsafe {
+            let storage_ptr = core::ptr::addr_of_mut!(STORAGE) as *mut RolesStorage;
+            access_control::AccessControl::new(&mut *storage_ptr)
+        }
     }
 }

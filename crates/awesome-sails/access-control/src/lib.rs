@@ -16,18 +16,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome Access Control service (Allocation-free Sorted Array version).
+//! Awesome Access Control service (Linear Iteration version).
 
 #![no_std]
 
 pub use awesome_sails_utils::ensure;
 
 use crate::error::{AccessDenied, CapacityExceeded, EmitError, Error, NotAccountOwner};
-use awesome_sails_utils::storage::{InfallibleStorageMut, StorageRefCell};
+use awesome_sails_utils::storage::InfallibleStorageMut;
 use core::marker::PhantomData;
 use sails_rs::prelude::*;
 
-/// Standard Role ID size.
 pub const ROLE_ID_SIZE: usize = 32;
 pub type RoleId = [u8; ROLE_ID_SIZE];
 
@@ -70,45 +69,31 @@ impl Pagination {
 }
 
 impl<const M: usize> RoleEntry<M> {
-    fn find_member_idx(&self, actor_id: ActorId) -> Result<usize, usize> {
-        self.members[..self.member_count as usize].binary_search_by(|opt| {
-            opt.as_ref()
-                .map(|m| m.cmp(&actor_id))
-                .unwrap_or(core::cmp::Ordering::Greater)
-        })
+    fn find_member_idx(&self, actor_id: ActorId) -> Option<usize> {
+        self.members.iter().flatten().position(|&m| m == actor_id)
+    }
+
+    fn find_empty_slot(&self) -> Option<usize> {
+        self.members.iter().position(|opt| opt.is_none())
     }
 
     pub fn has_member(&self, actor_id: ActorId) -> bool {
-        self.find_member_idx(actor_id).is_ok()
+        self.find_member_idx(actor_id).is_some()
     }
 
     fn add_member(&mut self, actor_id: ActorId) -> Result<bool, Error> {
-        match self.find_member_idx(actor_id) {
-            Ok(_) => Ok(false),
-            Err(idx) => {
-                let count = self.member_count as usize;
-                if count >= M {
-                    return Err(CapacityExceeded.into());
-                }
-                unsafe {
-                    let p = self.members.as_mut_ptr().add(idx);
-                    core::ptr::copy(p, p.add(1), count - idx);
-                    *p = Some(actor_id);
-                }
-                self.member_count += 1;
-                Ok(true)
-            }
+        if self.has_member(actor_id) {
+            return Ok(false);
         }
+        let idx = self.find_empty_slot().ok_or(CapacityExceeded)?;
+        self.members[idx] = Some(actor_id);
+        self.member_count += 1;
+        Ok(true)
     }
 
     fn remove_member(&mut self, actor_id: ActorId) -> bool {
-        if let Ok(idx) = self.find_member_idx(actor_id) {
-            let count = self.member_count as usize;
-            unsafe {
-                let p = self.members.as_mut_ptr().add(idx);
-                core::ptr::copy(p.add(1), p, count - idx - 1);
-                self.members[count - 1] = None;
-            }
+        if let Some(idx) = self.find_member_idx(actor_id) {
+            self.members[idx] = None;
             self.member_count -= 1;
             return true;
         }
@@ -126,31 +111,27 @@ impl<const N: usize, const M: usize> Default for AccessControlStorage<N, M> {
 }
 
 impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
-    fn find_role_idx(&self, role_id: RoleId) -> Result<usize, usize> {
-        self.roles[..self.role_count as usize].binary_search_by(|opt| {
-            opt.as_ref()
-                .map(|e| e.role_id.cmp(&role_id))
-                .unwrap_or(core::cmp::Ordering::Greater)
-        })
+    fn find_role_idx(&self, role_id: RoleId) -> Option<usize> {
+        self.roles
+            .iter()
+            .position(|opt| opt.as_ref().is_some_and(|r| r.role_id == role_id))
+    }
+
+    fn find_empty_role_slot(&self) -> Option<usize> {
+        self.roles.iter().position(|opt| opt.is_none())
     }
 
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
-        if let Ok(idx) = self.find_role_idx(role_id) {
-            return self.roles[idx]
-                .as_ref()
-                .is_some_and(|r| r.has_member(account_id));
-        }
-        false
+        self.find_role_idx(role_id)
+            .and_then(|idx| self.roles[idx].as_ref())
+            .is_some_and(|r| r.has_member(account_id))
     }
 
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        if let Ok(idx) = self.find_role_idx(role_id) {
-            return self.roles[idx]
-                .as_ref()
-                .map(|r| r.admin_role_id)
-                .unwrap_or(default_admin_role());
-        }
-        default_admin_role()
+        self.find_role_idx(role_id)
+            .and_then(|idx| self.roles[idx].as_ref())
+            .map(|r| r.admin_role_id)
+            .unwrap_or(default_admin_role())
     }
 
     pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
@@ -165,20 +146,16 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     }
 
     pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
-        if let Ok(idx) = self.find_role_idx(role_id) {
-            return self.roles[idx]
-                .as_ref()
-                .map(|e| e.member_count)
-                .unwrap_or(0);
-        }
-        0
+        self.find_role_idx(role_id)
+            .and_then(|idx| self.roles[idx].as_ref())
+            .map(|e| e.member_count)
+            .unwrap_or(0)
     }
 
     pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
         let (offset, limit) = Pagination::range(query);
         if let Some(role) = self
             .find_role_idx(role_id)
-            .ok()
             .and_then(|idx| self.roles[idx].as_ref())
         {
             return role
@@ -214,33 +191,25 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     }
 
     fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleEntry<M>, Error> {
-        match self.find_role_idx(role_id) {
-            Ok(idx) => Ok(self.roles[idx].as_mut().unwrap()),
-            Err(idx) => {
-                let count = self.role_count as usize;
-                if count >= N {
-                    return Err(CapacityExceeded.into());
-                }
-                unsafe {
-                    let p = self.roles.as_mut_ptr().add(idx);
-                    core::ptr::copy(p, p.add(1), count - idx);
-                    *p = Some(RoleEntry {
-                        role_id,
-                        admin_role_id: default_admin_role(),
-                        member_count: 0,
-                        members: [None; M],
-                    });
-                }
-                self.role_count += 1;
-                Ok(self.roles[idx].as_mut().unwrap())
-            }
+        if let Some(idx) = self.find_role_idx(role_id) {
+            return Ok(self.roles[idx].as_mut().expect("Slot is None"));
         }
+
+        let empty_idx = self.find_empty_role_slot().ok_or(CapacityExceeded)?;
+        self.roles[empty_idx] = Some(RoleEntry {
+            role_id,
+            admin_role_id: default_admin_role(),
+            member_count: 0,
+            members: [None; M],
+        });
+        self.role_count += 1;
+        Ok(self.roles[empty_idx].as_mut().unwrap())
     }
 
-    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
-        if let Ok(role) = self.ensure_role_mut(default_admin_role()) {
-            let _ = role.add_member(deployer);
-        }
+    pub fn grant_initial_admin(&mut self, deployer: ActorId) -> Result<(), Error> {
+        self.ensure_role_mut(default_admin_role())?
+            .add_member(deployer)
+            .map(|_| ())
     }
 }
 
@@ -248,10 +217,7 @@ pub struct AccessControl<
     'a,
     const N: usize,
     const M: usize,
-    S: InfallibleStorageMut<Item = AccessControlStorage<N, M>> = StorageRefCell<
-        'a,
-        AccessControlStorage<N, M>,
-    >,
+    S: InfallibleStorageMut<Item = AccessControlStorage<N, M>>,
 > {
     storage: S,
     _phantom: PhantomData<&'a ()>,
@@ -267,57 +233,28 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         }
     }
 
-    // --- Base Logic (Internal & Shared) ---
-
-    fn grant_role_unchecked(
-        &mut self,
-        role_id: RoleId,
-        target_account: ActorId,
-    ) -> Result<bool, Error> {
+    fn grant_role_unchecked(&mut self, role_id: RoleId, target: ActorId) -> Result<bool, Error> {
         self.storage
             .get_mut()
             .ensure_role_mut(role_id)?
-            .add_member(target_account)
+            .add_member(target)
     }
 
-    fn revoke_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
+    fn revoke_role_unchecked(&mut self, role_id: RoleId, target: ActorId) -> bool {
         let mut storage = self.storage.get_mut();
-        if let Ok(idx) = storage.find_role_idx(role_id) {
-            return storage.roles[idx]
-                .as_mut()
-                .unwrap()
-                .remove_member(target_account);
+        if let Some(idx) = storage.find_role_idx(role_id) {
+            return storage.roles[idx].as_mut().unwrap().remove_member(target);
         }
         false
-    }
-
-    fn set_role_admin_unchecked(
-        &mut self,
-        role_id: RoleId,
-        admin_role_id: RoleId,
-    ) -> Result<(), Error> {
-        self.storage
-            .get_mut()
-            .ensure_role_mut(role_id)?
-            .admin_role_id = admin_role_id;
-        Ok(())
     }
 
     pub fn require_role(&self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
         let storage = self.storage.get();
         let admin = default_admin_role();
 
-        // 1. Fast path: Check Super Admin at index 0 (guaranteed position in sorted array)
-        if storage.role_count > 0
-            && storage.roles[0]
-                .as_ref()
-                .is_some_and(|role| role.role_id == admin && role.has_member(account_id))
+        if storage.has_role(admin, account_id)
+            || (role_id != admin && storage.has_role(role_id, account_id))
         {
-            return Ok(());
-        }
-
-        // 2. Regular path: Binary search for the specific role
-        if role_id != admin && storage.has_role(role_id, account_id) {
             return Ok(());
         }
 
@@ -327,18 +264,12 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         }
         .into())
     }
-
-    pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        self.storage.get().get_role_admin(role_id)
-    }
 }
 
 #[service(events = Event)]
 impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessControlStorage<N, M>>>
     AccessControl<'a, N, M, S>
 {
-    // --- Public API ---
-
     #[export]
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
         self.storage.get().has_role(role_id, account_id)
@@ -381,16 +312,18 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
 
     #[export(unwrap_result)]
     pub fn grant_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        self.perform_role_action(
-            role_id,
-            target_account,
-            |svc, r, t| svc.grant_role_unchecked(r, t),
-            |r, t, s| Event::RoleGranted {
-                role_id: r,
-                target_account: t,
-                sender: s,
-            },
-        )
+        let sender = Syscall::message_source();
+        self.require_role(self.get_role_admin(role_id), sender)?;
+
+        if self.grant_role_unchecked(role_id, target_account)? {
+            self.emit_event(Event::RoleGranted {
+                role_id,
+                target_account,
+                sender,
+            })
+            .map_err(|_| EmitError)?;
+        }
+        Ok(())
     }
 
     #[export(unwrap_result)]
@@ -399,30 +332,37 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         role_ids: Vec<RoleId>,
         target_account: ActorId,
     ) -> Result<(), Error> {
-        self.process_batch(
-            role_ids,
-            target_account,
-            |svc, r, t| svc.grant_role_unchecked(r, t),
-            |r, t, s| Event::RoleGranted {
-                role_id: r,
-                target_account: t,
-                sender: s,
-            },
-        )
+        let sender = Syscall::message_source();
+        for &role_id in &role_ids {
+            self.require_role(self.get_role_admin(role_id), sender)?;
+        }
+        for role_id in role_ids {
+            if self.grant_role_unchecked(role_id, target_account)? {
+                self.emit_event(Event::RoleGranted {
+                    role_id,
+                    target_account,
+                    sender,
+                })
+                .map_err(|_| EmitError)?;
+            }
+        }
+        Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn revoke_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
-        self.perform_role_action(
-            role_id,
-            target_account,
-            |svc, r, t| Ok(svc.revoke_role_unchecked(r, t)),
-            |r, t, s| Event::RoleRevoked {
-                role_id: r,
-                target_account: t,
-                sender: s,
-            },
-        )
+        let sender = Syscall::message_source();
+        self.require_role(self.get_role_admin(role_id), sender)?;
+
+        if self.revoke_role_unchecked(role_id, target_account) {
+            self.emit_event(Event::RoleRevoked {
+                role_id,
+                target_account,
+                sender,
+            })
+            .map_err(|_| EmitError)?;
+        }
+        Ok(())
     }
 
     #[export(unwrap_result)]
@@ -431,26 +371,31 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         role_ids: Vec<RoleId>,
         target_account: ActorId,
     ) -> Result<(), Error> {
-        self.process_batch(
-            role_ids,
-            target_account,
-            |svc, r, t| Ok(svc.revoke_role_unchecked(r, t)),
-            |r, t, s| Event::RoleRevoked {
-                role_id: r,
-                target_account: t,
-                sender: s,
-            },
-        )
+        let sender = Syscall::message_source();
+        for &role_id in &role_ids {
+            self.require_role(self.get_role_admin(role_id), sender)?;
+        }
+        for role_id in role_ids {
+            if self.revoke_role_unchecked(role_id, target_account) {
+                self.emit_event(Event::RoleRevoked {
+                    role_id,
+                    target_account,
+                    sender,
+                })
+                .map_err(|_| EmitError)?;
+            }
+        }
+        Ok(())
     }
 
     #[export(unwrap_result)]
     pub fn renounce_role(&mut self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
-        let message_source = Syscall::message_source();
+        let sender = Syscall::message_source();
         ensure!(
-            account_id == message_source,
+            account_id == sender,
             NotAccountOwner {
                 account_id,
-                message_source,
+                message_source: sender
             }
         );
 
@@ -458,11 +403,10 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,
-                sender: message_source,
+                sender,
             })
             .map_err(|_| EmitError)?;
         }
-
         Ok(())
     }
 
@@ -472,71 +416,22 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         role_id: RoleId,
         new_admin_role_id: RoleId,
     ) -> Result<(), Error> {
-        let message_source = Syscall::message_source();
-        let current_admin_role_id = self.get_role_admin(role_id);
-        self.require_role(current_admin_role_id, message_source)?;
+        let sender = Syscall::message_source();
+        let current_admin = self.get_role_admin(role_id);
+        self.require_role(current_admin, sender)?;
 
-        self.set_role_admin_unchecked(role_id, new_admin_role_id)?;
+        self.storage
+            .get_mut()
+            .ensure_role_mut(role_id)?
+            .admin_role_id = new_admin_role_id;
 
         self.emit_event(Event::RoleAdminChanged {
             role_id,
-            previous_admin_role_id: current_admin_role_id,
+            previous_admin_role_id: current_admin,
             new_admin_role_id,
-            sender: message_source,
+            sender,
         })
         .map_err(|_| EmitError)?;
-
-        Ok(())
-    }
-
-    // --- Private Emitters ---
-
-    fn perform_role_action<F, E>(
-        &mut self,
-        role_id: RoleId,
-        target: ActorId,
-        mut action_fn: F,
-        event_fn: E,
-    ) -> Result<(), Error>
-    where
-        F: FnMut(&mut Self, RoleId, ActorId) -> Result<bool, Error>,
-        E: FnOnce(RoleId, ActorId, ActorId) -> Event,
-    {
-        let message_source = Syscall::message_source();
-        let admin_role = self.get_role_admin(role_id);
-        self.require_role(admin_role, message_source)?;
-
-        if action_fn(self, role_id, target)? {
-            let event = event_fn(role_id, target, message_source);
-            self.emit_event(event).map_err(|_| EmitError)?;
-        }
-        Ok(())
-    }
-
-    fn process_batch<F, E>(
-        &mut self,
-        role_ids: Vec<RoleId>,
-        target: ActorId,
-        mut action: F,
-        mut event_builder: E,
-    ) -> Result<(), Error>
-    where
-        F: FnMut(&mut Self, RoleId, ActorId) -> Result<bool, Error>,
-        E: FnMut(RoleId, ActorId, ActorId) -> Event,
-    {
-        let message_source = Syscall::message_source();
-
-        for &role_id in &role_ids {
-            let admin_role = self.get_role_admin(role_id);
-            self.require_role(admin_role, message_source)?;
-        }
-
-        for role_id in role_ids {
-            if action(self, role_id, target)? {
-                let event = event_builder(role_id, target, message_source);
-                self.emit_event(event).map_err(|_| EmitError)?;
-            }
-        }
         Ok(())
     }
 }
