@@ -26,6 +26,7 @@ struct AccessControlBenchResults {
     grant_role: BTreeMap<u32, u64>,
     has_role: BTreeMap<u32, u64>,
     revoke_role: BTreeMap<u32, u64>,
+    has_role_multi: BTreeMap<u32, u64>,
 }
 
 impl ToBenchmarkMap for AccessControlBenchResults {
@@ -40,6 +41,9 @@ impl ToBenchmarkMap for AccessControlBenchResults {
         for (count, gas) in self.revoke_role {
             map.insert(format!("revoke_role.{}", count), gas);
         }
+        for (count, gas) in self.has_role_multi {
+            map.insert(format!("has_role_multi.{}", count), gas);
+        }
         map
     }
 }
@@ -51,12 +55,15 @@ async fn bench_access_control() {
     let wasm_path = common::get_wasm_path(wasm_name);
 
     let member_counts: [u32; 5] = [0, 100, 1000, 5000, 10000];
-    let role_id = [1u8; 32];
+    let multi_role_counts: [u32; 4] = [1, 10, 50, 100];
+    let role_id_base = [1u8; 32];
 
     let mut grant_role_metrics = BTreeMap::new();
     let mut has_role_metrics = BTreeMap::new();
     let mut revoke_role_metrics = BTreeMap::new();
+    let mut has_role_multi_metrics = BTreeMap::new();
 
+    // --- 1. Standard Benchmark (Scaling members per role) ---
     for &count in &member_counts {
         let mut grant_samples = Vec::new();
         let mut has_samples = Vec::new();
@@ -68,45 +75,42 @@ async fn bench_access_control() {
             let mut service = program.access_control();
             let system = env.system();
 
-            // Setup: populate state
             for j in 0..count {
                 let member: ActorId = (j as u64 + 1000).into();
-                let _ = service.grant_role(role_id, member).send_one_way().unwrap();
+                let _ = service
+                    .grant_role(role_id_base, member)
+                    .send_one_way()
+                    .unwrap();
                 system.run_next_block();
             }
 
             let test_member: ActorId = (count as u64 + 50000).into();
 
-            // 1. Measure Grant
             grant_samples.push(
                 system
                     .measure_gas(|| {
                         service
-                            .grant_role(role_id, test_member)
+                            .grant_role(role_id_base, test_member)
                             .send_one_way()
                             .unwrap()
                     })
                     .unwrap(),
             );
-
-            // 2. Measure Has (Read)
             has_samples.push(
                 system
                     .measure_gas(|| {
                         service
-                            .has_role(role_id, test_member)
+                            .has_role(role_id_base, test_member)
                             .send_one_way()
                             .unwrap()
                     })
                     .unwrap(),
             );
-
-            // 3. Measure Revoke
             revoke_samples.push(
                 system
                     .measure_gas(|| {
                         service
-                            .revoke_role(role_id, test_member)
+                            .revoke_role(role_id_base, test_member)
                             .send_one_way()
                             .unwrap()
                     })
@@ -119,10 +123,48 @@ async fn bench_access_control() {
         revoke_role_metrics.insert(count, median(revoke_samples));
     }
 
+    for &count in &multi_role_counts {
+        let mut has_multi_samples = Vec::new();
+
+        for _ in 0..5 {
+            let env = common::create_env();
+            let program = common::deploy_program(&env, wasm_path.clone()).await;
+            let mut service = program.access_control();
+            let system = env.system();
+
+            let target_user: ActorId = 12345.into();
+
+            // Grant 'count' different roles to the same user
+            for j in 0..count {
+                let mut rid = [0u8; 32];
+                rid[0..4].copy_from_slice(&(j + 1).to_le_bytes());
+                let _ = service.grant_role(rid, target_user).send_one_way().unwrap();
+                system.run_next_block();
+            }
+
+            // Check for the LAST role added (worst case for linear search)
+            let mut last_rid = [0u8; 32];
+            last_rid[0..4].copy_from_slice(&count.to_le_bytes());
+
+            has_multi_samples.push(
+                system
+                    .measure_gas(|| {
+                        service
+                            .has_role(last_rid, target_user)
+                            .send_one_way()
+                            .unwrap()
+                    })
+                    .unwrap(),
+            );
+        }
+        has_role_multi_metrics.insert(count, median(has_multi_samples));
+    }
+
     let results = AccessControlBenchResults {
         grant_role: grant_role_metrics,
         has_role: has_role_metrics,
         revoke_role: revoke_role_metrics,
+        has_role_multi: has_role_multi_metrics,
     };
 
     BenchStorage::from_default_path()
