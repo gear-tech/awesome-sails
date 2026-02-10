@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome Access Control service (Linear Iteration version).
+//! Awesome Access Control service ( Swap Remove )
 
 #![no_std]
 
@@ -70,11 +70,15 @@ impl Pagination {
 
 impl<const M: usize> RoleEntry<M> {
     fn find_member_idx(&self, actor_id: ActorId) -> Option<usize> {
-        self.members.iter().flatten().position(|&m| m == actor_id)
-    }
+        let count = self.member_count as usize;
+        // Safety check to avoid out of bounds if state is corrupted, though practically impossible here
+        if count > M {
+            return None;
+        }
 
-    fn find_empty_slot(&self) -> Option<usize> {
-        self.members.iter().position(|opt| opt.is_none())
+        self.members[..count]
+            .iter()
+            .position(|opt| opt == &Some(actor_id))
     }
 
     pub fn has_member(&self, actor_id: ActorId) -> bool {
@@ -85,15 +89,25 @@ impl<const M: usize> RoleEntry<M> {
         if self.has_member(actor_id) {
             return Ok(false);
         }
-        let idx = self.find_empty_slot().ok_or(CapacityExceeded)?;
-        self.members[idx] = Some(actor_id);
+        let count = self.member_count as usize;
+        if count >= M {
+            return Err(CapacityExceeded.into());
+        }
+
+        self.members[count] = Some(actor_id);
         self.member_count += 1;
         Ok(true)
     }
 
+    // swap remove
     fn remove_member(&mut self, actor_id: ActorId) -> bool {
         if let Some(idx) = self.find_member_idx(actor_id) {
-            self.members[idx] = None;
+            let last_idx = (self.member_count as usize).saturating_sub(1);
+
+            if idx != last_idx {
+                self.members[idx] = self.members[last_idx];
+            }
+            self.members[last_idx] = None;
             self.member_count -= 1;
             return true;
         }
@@ -112,13 +126,14 @@ impl<const N: usize, const M: usize> Default for AccessControlStorage<N, M> {
 
 impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     fn find_role_idx(&self, role_id: RoleId) -> Option<usize> {
-        self.roles
+        let count = self.role_count as usize;
+        if count > N {
+            return None;
+        }
+
+        self.roles[..count]
             .iter()
             .position(|opt| opt.as_ref().is_some_and(|r| r.role_id == role_id))
-    }
-
-    fn find_empty_role_slot(&self) -> Option<usize> {
-        self.roles.iter().position(|opt| opt.is_none())
     }
 
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
@@ -136,7 +151,7 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
 
     pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
         let (offset, limit) = Pagination::range(query);
-        self.roles
+        self.roles[..self.role_count as usize]
             .iter()
             .flatten()
             .map(|e| e.role_id)
@@ -158,8 +173,7 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
             .find_role_idx(role_id)
             .and_then(|idx| self.roles[idx].as_ref())
         {
-            return role
-                .members
+            return role.members[..role.member_count as usize]
                 .iter()
                 .flatten()
                 .copied()
@@ -171,7 +185,7 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     }
 
     pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
-        self.roles
+        self.roles[..self.role_count as usize]
             .iter()
             .flatten()
             .filter(|e| e.has_member(member_id))
@@ -180,7 +194,7 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
 
     pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
         let (offset, limit) = Pagination::range(query);
-        self.roles
+        self.roles[..self.role_count as usize]
             .iter()
             .flatten()
             .filter(|e| e.has_member(member_id))
@@ -192,18 +206,22 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
 
     fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleEntry<M>, Error> {
         if let Some(idx) = self.find_role_idx(role_id) {
-            return Ok(self.roles[idx].as_mut().expect("Slot is None"));
+            return Ok(self.roles[idx].as_mut().unwrap());
         }
 
-        let empty_idx = self.find_empty_role_slot().ok_or(CapacityExceeded)?;
-        self.roles[empty_idx] = Some(RoleEntry {
+        let count = self.role_count as usize;
+        if count >= N {
+            return Err(CapacityExceeded.into());
+        }
+
+        self.roles[count] = Some(RoleEntry {
             role_id,
             admin_role_id: default_admin_role(),
             member_count: 0,
             members: [None; M],
         });
         self.role_count += 1;
-        Ok(self.roles[empty_idx].as_mut().unwrap())
+        Ok(self.roles[count].as_mut().unwrap())
     }
 
     pub fn grant_initial_admin(&mut self, deployer: ActorId) -> Result<(), Error> {
@@ -243,6 +261,7 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
     fn revoke_role_unchecked(&mut self, role_id: RoleId, target: ActorId) -> bool {
         let mut storage = self.storage.get_mut();
         if let Some(idx) = storage.find_role_idx(role_id) {
+            // Check if removal happened and if role is now empty (optional cleanup logic could go here)
             return storage.roles[idx].as_mut().unwrap().remove_member(target);
         }
         false
@@ -260,7 +279,7 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
 
         Err(AccessDenied {
             account_id,
-            role_id: role_id.to_vec(),
+            role_id,
         }
         .into())
     }
@@ -463,10 +482,11 @@ pub mod error {
     pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
     use sails_rs::{
         ActorId,
-        prelude::Vec,
         scale_codec::{Decode, Encode},
         scale_info::TypeInfo,
     };
+
+    use crate::RoleId;
 
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
@@ -474,7 +494,7 @@ pub mod error {
     #[scale_info(crate = sails_rs::scale_info)]
     pub struct AccessDenied {
         pub account_id: ActorId,
-        pub role_id: Vec<u8>,
+        pub role_id: RoleId,
     }
 
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]

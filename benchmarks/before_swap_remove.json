@@ -1,0 +1,23 @@
+{
+  "access_control": {
+    "grant_role.0": 13489097651,
+    "grant_role.100": 2677106485,
+    "grant_role.1000": 3924162918,
+    "grant_role.10000": 15248508673,
+    "grant_role.5000": 8957161813,
+    "has_role.0": 952953235,
+    "has_role.100": 1076031535,
+    "has_role.1000": 2263616209,
+    "has_role.10000": 14059504382,
+    "has_role.5000": 7506189512,
+    "has_role_multi.1": 952953235,
+    "has_role_multi.10": 1313534194,
+    "has_role_multi.100": 4959126585,
+    "has_role_multi.50": 2955899035,
+    "revoke_role.0": 1073307865,
+    "revoke_role.100": 1196386165,
+    "revoke_role.1000": 2498553400,
+    "revoke_role.10000": 14294441573,
+    "revoke_role.5000": 7741126703
+  }
+}
