@@ -19,18 +19,38 @@
 #![no_std]
 
 use awesome_sails::access_control;
+use awesome_sails_utils::storage::{InfallibleStorage, InfallibleStorageMut};
 use core::mem::MaybeUninit;
+use core::ops::{Deref, DerefMut};
 use sails_rs::prelude::*;
 
-// Configuration for 10,000 members and 100 roles support
 const ROLES_LIMIT: usize = 101;
 const MEMBERS_LIMIT: usize = 10_001;
 
 type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
 
-// Static memory for huge state (BSS section) (The wasm-opt optimization failed)
 static mut STORAGE: MaybeUninit<RolesStorage> = MaybeUninit::uninit();
 
+#[derive(Clone, Copy)]
+pub struct RolesStoragePtr;
+
+impl InfallibleStorage for RolesStoragePtr {
+    type Item = RolesStorage;
+    fn get(&self) -> impl Deref<Target = Self::Item> {
+        unsafe { &*core::ptr::addr_of!(STORAGE).cast::<RolesStorage>() }
+    }
+}
+
+impl InfallibleStorageMut for RolesStoragePtr {
+    fn get_mut(&mut self) -> impl DerefMut<Target = Self::Item> {
+        unsafe { &mut *core::ptr::addr_of_mut!(STORAGE).cast::<RolesStorage>() }
+    }
+    fn replace(&mut self, _item: Self::Item) -> Self::Item {
+        unimplemented!("Replacing huge storage on stack is not allowed")
+    }
+}
+
+#[derive(Default)]
 pub struct Program;
 
 #[program]
@@ -39,17 +59,16 @@ impl Program {
         let deployer = Syscall::message_source();
 
         unsafe {
-            let storage_ptr = core::ptr::addr_of_mut!(STORAGE) as *mut RolesStorage;
+            let storage_ptr = core::ptr::addr_of_mut!(STORAGE).cast::<RolesStorage>();
 
+            // Manual reset for gtest isolation
             let storage = &mut *storage_ptr;
             storage.role_count = 0;
             for role in storage.roles.iter_mut() {
                 *role = None;
             }
 
-            storage
-                .grant_initial_admin(deployer)
-                .expect("Failed to grant initial admin");
+            storage.grant_initial_admin(deployer);
         }
 
         Self
@@ -57,10 +76,7 @@ impl Program {
 
     pub fn access_control(
         &self,
-    ) -> access_control::AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT, &'_ mut RolesStorage> {
-        unsafe {
-            let storage_ptr = core::ptr::addr_of_mut!(STORAGE) as *mut RolesStorage;
-            access_control::AccessControl::new(&mut *storage_ptr)
-        }
+    ) -> access_control::AccessControl<'static, ROLES_LIMIT, MEMBERS_LIMIT, RolesStoragePtr> {
+        access_control::AccessControl::new(RolesStoragePtr)
     }
 }
