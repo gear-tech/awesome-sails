@@ -1,5 +1,6 @@
 [package]
 name = "awesome-sails-benchmarks"
+description = "Benchmarking for Sails programs"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

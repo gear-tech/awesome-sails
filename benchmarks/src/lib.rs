@@ -29,6 +29,9 @@ use std::{
 use gprimitives::MessageId;
 use gtest::System;
 
+const RELEASE_MODE_ERROR: &str =
+    "Benchmarks MUST be run in --release mode to get accurate gas measurements.";
+
 /// Defines an interface for converting data structures into a standardized benchmark map.
 pub trait ToBenchmarkMap {
     /// Converts the implementing type into a benchmark map.
@@ -38,7 +41,13 @@ pub trait ToBenchmarkMap {
 /// Defines a trait for measuring gas burned during message execution.
 pub trait MeasureGas {
     /// Measures the gas burned for a specific message execution.
-    fn measure_gas<F>(&self, f: F) -> Result<u64>
+    fn measure_gas<F>(&self, f: F) -> u64
+    where
+        F: FnOnce() -> MessageId;
+
+    /// Measures the total gas burned in the block after executing the message.
+    /// Useful for cross-program calls.
+    fn measure_total_gas<F>(&self, f: F) -> u64
     where
         F: FnOnce() -> MessageId;
 }
@@ -130,21 +139,37 @@ impl ToBenchmarkMap for BTreeMap<String, u64> {
 }
 
 impl MeasureGas for System {
-    fn measure_gas<F>(&self, f: F) -> Result<u64>
+    fn measure_gas<F>(&self, f: F) -> u64
     where
         F: FnOnce() -> MessageId,
     {
         if cfg!(debug_assertions) {
-            core::panic!(
-                "Benchmarks MUST be run in --release mode to get accurate gas measurements."
-            );
+            core::panic!("{}", RELEASE_MODE_ERROR);
         }
         let mid = f();
-        self.run_next_block()
-            .gas_burned
-            .get(&mid)
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("Gas not recorded for message {:?}", mid))
+        let res = self.run_next_block();
+        if !res.succeed.contains(&mid) {
+            core::panic!("Message {:?} failed to execute", mid);
+        }
+        res.gas_burned.get(&mid).copied().expect("Gas not recorded")
+    }
+
+    fn measure_total_gas<F>(&self, f: F) -> u64
+    where
+        F: FnOnce() -> MessageId,
+    {
+        if cfg!(debug_assertions) {
+            core::panic!("{}", RELEASE_MODE_ERROR);
+        }
+        let mid = f();
+        let res = self.run_next_block();
+        if !res.failed.is_empty() {
+            core::panic!("One or more messages failed in the block: {:?}", res.failed);
+        }
+        if !res.succeed.contains(&mid) {
+            core::panic!("Trigger message {:?} not found in succeed list", mid);
+        }
+        res.gas_burned.values().sum()
     }
 }
 
