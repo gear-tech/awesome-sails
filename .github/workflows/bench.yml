@@ -1,0 +1,107 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'benchmarks/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'utils/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - '.github/workflows/bench.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'benchmarks/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'utils/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - '.github/workflows/bench.yml'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+        (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-benchmarks')) ||
+        (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup-gear
+
+      - name: Build Analyzer
+        run: cargo build --release -p awesome-sails-benchmarks --features cli --bin bench-analyzer
+
+      - name: Backup existing benchmarks for self-check
+        run: cp benchmarks/bench_data.json benchmarks/bench_data_before.json || echo "{}" > benchmarks/bench_data_before.json
+
+      - name: Run Benchmarks
+        run: cargo test --release -p awesome-sails-benchmarks -- --include-ignored
+
+      - name: Self-check (Stale benchmarks detection)
+        if: github.event_name == 'pull_request'
+        run: |
+          ./target/release/bench-analyzer \
+            --current benchmarks/bench_data.json \
+            --other benchmarks/bench_data_before.json \
+            --threshold 1 \
+            --strict
+
+      - name: Compare with Target Branch Baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+          git show origin/${{ github.base_ref }}:benchmarks/bench_data.json > benchmarks/baseline.json || echo "{}" > benchmarks/baseline.json
+          ./target/release/bench-analyzer \
+            --current benchmarks/bench_data.json \
+            --other benchmarks/baseline.json \
+            --output benchmarks/comparison.md
+
+      - name: Read Comparison Result
+        if: github.event_name == 'pull_request'
+        id: comparison
+        run: |
+          if [ -f benchmarks/comparison.md ]; then
+            echo 'COMPARISON_TABLE<<EOF' >> $GITHUB_OUTPUT
+            cat benchmarks/comparison.md >> $GITHUB_OUTPUT
+            echo 'EOF' >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with Benchmark Comparison
+        if: github.event_name == 'pull_request' && steps.comparison.outputs.COMPARISON_TABLE != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comparisonTable = `${{ steps.comparison.outputs.COMPARISON_TABLE }}`;
+            const commentBody = `
+            <details>
+            <summary><b>🔬 Click to see benchmark results vs ${{ github.base_ref }}</b></summary>
+
+            ${comparisonTable}
+
+            </details>
+            
+            ---
+            <sub>🤖 This comment was automatically generated. Baseline: branch <b>${{ github.base_ref }}</b>.</sub>`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody
+            });
