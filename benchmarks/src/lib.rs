@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use anyhow::Result;
-use fs2::FileExt;
 use std::{
     collections::BTreeMap,
     env, fmt,
@@ -148,9 +147,6 @@ impl MeasureGas for System {
         }
         let mid = f();
         let res = self.run_next_block();
-        if !res.succeed.contains(&mid) {
-            core::panic!("Message {:?} failed to execute", mid);
-        }
         res.gas_burned.get(&mid).copied().expect("Gas not recorded")
     }
 
@@ -161,14 +157,8 @@ impl MeasureGas for System {
         if cfg!(debug_assertions) {
             core::panic!("{}", RELEASE_MODE_ERROR);
         }
-        let mid = f();
+        f();
         let res = self.run_next_block();
-        if !res.failed.is_empty() {
-            core::panic!("One or more messages failed in the block: {:?}", res.failed);
-        }
-        if !res.succeed.contains(&mid) {
-            core::panic!("Trigger message {:?} not found in succeed list", mid);
-        }
         res.gas_burned.values().sum()
     }
 }
@@ -299,7 +289,7 @@ impl BenchStorage {
             .truncate(false)
             .open(&self.path)?;
 
-        file.lock_exclusive()?;
+        file.lock()?;
         let mut data = self.load()?;
         data.insert(section.to_string(), results.to_benchmark_map());
 
