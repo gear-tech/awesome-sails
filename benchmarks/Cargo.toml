@@ -1,0 +1,40 @@
+[package]
+name = "awesome-sails-benchmarks"
+description = "Benchmarking for Sails programs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Core engine
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+gtest = { workspace = true }
+gprimitives = { workspace = true }
+
+# Optional reporting
+cli-table = { version = "0.5", optional = true }
+clap = { version = "4.0", features = ["derive"], optional = true }
+
+[features]
+default = []
+# Enables ASCII table reporting logic in the library
+"ascii-table" = ["dep:cli-table"]
+# Enables the bench-analyzer CLI binary
+cli = ["ascii-table", "dep:clap"]
+
+[[bin]]
+name = "bench-analyzer"
+path = "src/bin/analyzer.rs"
+required-features = ["cli"]
+
+[dev-dependencies]
+sails-rs = { workspace = true, features = ["gtest"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
+access-control-test-client = { path = "../tests/access-control-test/client" }
+access-control-test-app = { path = "../tests/access-control-test/app" }
