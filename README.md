@@ -16,6 +16,7 @@ The workspace is organized into the following components:
 - **[VFT Metadata](crates/awesome-sails/vft-metadata/README.md):** Metadata storage for VFTs.
 - **[VFT Native Exchange](crates/awesome-sails/vft-native-exchange/README.md):** Native token to VFT exchange mechanism.
 - **[VFT Native Exchange Admin](crates/awesome-sails/vft-native-exchange-admin/README.md):** Administrative tools for the native exchange service.
+- **[Benchmarks](benchmarks/README.md):** A suite for measuring gas consumption and performance metrics.
 
 ## Usage
 
