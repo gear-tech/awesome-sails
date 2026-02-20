@@ -25,7 +25,7 @@ use core::ops::{Deref, DerefMut};
 use sails_rs::prelude::*;
 
 const ROLES_LIMIT: usize = 101;
-const MEMBERS_LIMIT: usize = 10_001;
+const MEMBERS_LIMIT: usize = 10001;
 
 type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
 
@@ -59,13 +59,12 @@ impl Program {
         let deployer = Syscall::message_source();
 
         unsafe {
-            let storage_ptr = core::ptr::addr_of_mut!(STORAGE).cast::<RolesStorage>();
+            let storage = &mut *core::ptr::addr_of_mut!(STORAGE).cast::<RolesStorage>();
 
-            // Manual reset for gtest isolation
-            let storage = &mut *storage_ptr;
+            // Manual field-by-field reset to avoid stack overflow
             storage.role_count = 0;
-            for role in storage.roles.iter_mut() {
-                *role = None;
+            for d in storage.descriptors.iter_mut() {
+                core::ptr::write(d, None);
             }
 
             storage.grant_initial_admin(deployer);

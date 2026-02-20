@@ -38,7 +38,7 @@ use awesome_sails_vft::{
 };
 use sails_rs::prelude::*;
 
-pub const ROLES_LIMIT: usize = 10;
+pub const ROLES_LIMIT: usize = 4;
 pub const MEMBERS_LIMIT: usize = 25;
 
 pub type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;

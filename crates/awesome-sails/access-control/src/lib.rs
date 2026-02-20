@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome Access Control service (Allocation-free Sorted Array version).
+//! Awesome Access Control service (Allocation-free Sorted Descriptor version).
 
 #![no_std]
 
@@ -40,14 +40,24 @@ pub const fn default_admin_role() -> RoleId {
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct AccessControlStorage<const N: usize, const M: usize> {
     pub role_count: u32,
-    pub roles: [Option<RoleEntry<M>>; N],
+    /// Sorted descriptors (small)
+    pub descriptors: [Option<RoleDescriptor>; N],
+    /// Fixed data slots (never moved)
+    pub role_data: [RoleData<M>; N],
 }
 
 #[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
-pub struct RoleEntry<const M: usize> {
+pub struct RoleDescriptor {
     pub role_id: RoleId,
+    pub data_idx: u16,
+}
+
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct RoleData<const M: usize> {
     pub admin_role_id: RoleId,
     pub member_count: u32,
     pub members: [Option<ActorId>; M],
@@ -69,7 +79,149 @@ impl Pagination {
     }
 }
 
-impl<const M: usize> RoleEntry<M> {
+impl<const M: usize> Default for RoleData<M> {
+    fn default() -> Self {
+        Self {
+            admin_role_id: default_admin_role(),
+            member_count: 0,
+            members: [None; M],
+        }
+    }
+}
+
+impl<const N: usize, const M: usize> Default for AccessControlStorage<N, M> {
+    fn default() -> Self {
+        Self {
+            role_count: 0,
+            descriptors: [None; N],
+            role_data: [const {
+                RoleData {
+                    admin_role_id: default_admin_role(),
+                    member_count: 0,
+                    members: [None; M],
+                }
+            }; N],
+        }
+    }
+}
+
+impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
+    fn find_descriptor_idx(&self, role_id: RoleId) -> Result<usize, usize> {
+        self.descriptors[..self.role_count as usize].binary_search_by(|opt| {
+            opt.as_ref()
+                .map(|d| d.role_id.cmp(&role_id))
+                .unwrap_or(core::cmp::Ordering::Greater)
+        })
+    }
+
+    pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
+        if let Ok(idx) = self.find_descriptor_idx(role_id) {
+            let data_idx = self.descriptors[idx].as_ref().unwrap().data_idx as usize;
+            return self.role_data[data_idx].has_member(account_id);
+        }
+        false
+    }
+
+    pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
+        if let Ok(idx) = self.find_descriptor_idx(role_id) {
+            let data_idx = self.descriptors[idx].as_ref().unwrap().data_idx as usize;
+            return self.role_data[data_idx].admin_role_id;
+        }
+        default_admin_role()
+    }
+
+    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
+        let (offset, limit) = Pagination::range(query);
+        self.descriptors
+            .iter()
+            .flatten()
+            .map(|d| d.role_id)
+            .skip(offset)
+            .take(limit)
+            .collect()
+    }
+
+    pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
+        if let Ok(idx) = self.find_descriptor_idx(role_id) {
+            let data_idx = self.descriptors[idx].as_ref().unwrap().data_idx as usize;
+            return self.role_data[data_idx].member_count;
+        }
+        0
+    }
+
+    pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
+        let (offset, limit) = Pagination::range(query);
+        if let Ok(idx) = self.find_descriptor_idx(role_id) {
+            let data_idx = self.descriptors[idx].as_ref().unwrap().data_idx as usize;
+            return self.role_data[data_idx]
+                .members
+                .iter()
+                .flatten()
+                .copied()
+                .skip(offset)
+                .take(limit)
+                .collect();
+        }
+        Vec::new()
+    }
+
+    pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
+        self.descriptors
+            .iter()
+            .flatten()
+            .filter(|d| self.role_data[d.data_idx as usize].has_member(member_id))
+            .count() as u32
+    }
+
+    pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
+        let (offset, limit) = Pagination::range(query);
+        self.descriptors
+            .iter()
+            .flatten()
+            .filter(|d| self.role_data[d.data_idx as usize].has_member(member_id))
+            .map(|d| d.role_id)
+            .skip(offset)
+            .take(limit)
+            .collect()
+    }
+
+    fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleData<M>, Error> {
+        match self.find_descriptor_idx(role_id) {
+            Ok(idx) => {
+                let data_idx = self.descriptors[idx].as_ref().unwrap().data_idx as usize;
+                Ok(&mut self.role_data[data_idx])
+            }
+            Err(idx) => {
+                let count = self.role_count as usize;
+                if count >= N {
+                    return Err(CapacityExceeded.into());
+                }
+
+                let data_idx = count as u16;
+                unsafe {
+                    let p = self.descriptors.as_mut_ptr().add(idx);
+                    core::ptr::copy(p, p.add(1), count - idx);
+                    *p = Some(RoleDescriptor { role_id, data_idx });
+
+                    let data = &mut self.role_data[data_idx as usize];
+                    data.admin_role_id = default_admin_role();
+                    data.member_count = 0;
+                }
+
+                self.role_count += 1;
+                Ok(&mut self.role_data[data_idx as usize])
+            }
+        }
+    }
+
+    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
+        if let Ok(role) = self.ensure_role_mut(default_admin_role()) {
+            let _ = role.add_member(deployer);
+        }
+    }
+}
+
+impl<const M: usize> RoleData<M> {
     fn find_member_idx(&self, actor_id: ActorId) -> Result<usize, usize> {
         self.members[..self.member_count as usize].binary_search_by(|opt| {
             opt.as_ref()
@@ -116,134 +268,6 @@ impl<const M: usize> RoleEntry<M> {
     }
 }
 
-impl<const N: usize, const M: usize> Default for AccessControlStorage<N, M> {
-    fn default() -> Self {
-        Self {
-            role_count: 0,
-            roles: [None; N],
-        }
-    }
-}
-
-impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
-    fn find_role_idx(&self, role_id: RoleId) -> Result<usize, usize> {
-        self.roles[..self.role_count as usize].binary_search_by(|opt| {
-            opt.as_ref()
-                .map(|e| e.role_id.cmp(&role_id))
-                .unwrap_or(core::cmp::Ordering::Greater)
-        })
-    }
-
-    pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
-        if let Ok(idx) = self.find_role_idx(role_id) {
-            return self.roles[idx]
-                .as_ref()
-                .is_some_and(|r| r.has_member(account_id));
-        }
-        false
-    }
-
-    pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        if let Ok(idx) = self.find_role_idx(role_id) {
-            return self.roles[idx]
-                .as_ref()
-                .map(|r| r.admin_role_id)
-                .unwrap_or(default_admin_role());
-        }
-        default_admin_role()
-    }
-
-    pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
-        let (offset, limit) = Pagination::range(query);
-        self.roles
-            .iter()
-            .flatten()
-            .map(|e| e.role_id)
-            .skip(offset)
-            .take(limit)
-            .collect()
-    }
-
-    pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
-        if let Ok(idx) = self.find_role_idx(role_id) {
-            return self.roles[idx]
-                .as_ref()
-                .map(|e| e.member_count)
-                .unwrap_or(0);
-        }
-        0
-    }
-
-    pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
-        let (offset, limit) = Pagination::range(query);
-        if let Some(role) = self
-            .find_role_idx(role_id)
-            .ok()
-            .and_then(|idx| self.roles[idx].as_ref())
-        {
-            return role
-                .members
-                .iter()
-                .flatten()
-                .copied()
-                .skip(offset)
-                .take(limit)
-                .collect();
-        }
-        Vec::new()
-    }
-
-    pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
-        self.roles
-            .iter()
-            .flatten()
-            .filter(|e| e.has_member(member_id))
-            .count() as u32
-    }
-
-    pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
-        let (offset, limit) = Pagination::range(query);
-        self.roles
-            .iter()
-            .flatten()
-            .filter(|e| e.has_member(member_id))
-            .map(|e| e.role_id)
-            .skip(offset)
-            .take(limit)
-            .collect()
-    }
-
-    fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleEntry<M>, Error> {
-        match self.find_role_idx(role_id) {
-            Ok(idx) => Ok(self.roles[idx].as_mut().unwrap()),
-            Err(idx) => {
-                let count = self.role_count as usize;
-                if count >= N {
-                    return Err(CapacityExceeded.into());
-                }
-                unsafe {
-                    let p = self.roles.as_mut_ptr().add(idx);
-                    core::ptr::copy(p, p.add(1), count - idx);
-                    *p = Some(RoleEntry {
-                        role_id,
-                        admin_role_id: default_admin_role(),
-                        member_count: 0,
-                        members: [None; M],
-                    });
-                }
-                self.role_count += 1;
-                Ok(self.roles[idx].as_mut().unwrap())
-            }
-        }
-    }
-
-    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
-        if let Ok(role) = self.ensure_role_mut(default_admin_role()) {
-            let _ = role.add_member(deployer);
-        }
-    }
-}
-
 pub struct AccessControl<
     'a,
     const N: usize,
@@ -280,11 +304,9 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
 
     fn revoke_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
         let mut storage = self.storage.get_mut();
-        if let Ok(idx) = storage.find_role_idx(role_id) {
-            return storage.roles[idx]
-                .as_mut()
-                .unwrap()
-                .remove_member(target_account);
+        if let Ok(idx) = storage.find_descriptor_idx(role_id) {
+            let data_idx = storage.descriptors[idx].as_ref().unwrap().data_idx;
+            return storage.role_data[data_idx as usize].remove_member(target_account);
         }
         false
     }
@@ -305,16 +327,14 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         let storage = self.storage.get();
         let admin = default_admin_role();
 
-        // 1. Fast path: Check Super Admin at index 0 (guaranteed position in sorted array)
         if storage.role_count > 0
-            && storage.roles[0]
-                .as_ref()
-                .is_some_and(|role| role.role_id == admin && role.has_member(account_id))
+            && storage.descriptors[0].as_ref().is_some_and(|d| {
+                d.role_id == admin && storage.role_data[d.data_idx as usize].has_member(account_id)
+            })
         {
             return Ok(());
         }
 
-        // 2. Regular path: Binary search for the specific role
         if role_id != admin && storage.has_role(role_id, account_id) {
             return Ok(());
         }
