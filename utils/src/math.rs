@@ -16,6 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Mathematical utilities and types for the `awesome-sails` workspace.
+//!
+//! This module defines core mathematical traits, custom numeric types like `LeBytes`,
+//! a `NonZero` wrapper, and standard mathematical errors. It also provides
+//! trait implementations for primitive types and common external types.
+
 use alloc::vec;
 use bnum::BUintD8;
 use core::cmp::Ordering;
@@ -32,6 +38,14 @@ pub use gprimitives::ActorId;
 //                              TRAITS
 // ==============================================================================
 
+/// A marker trait combining common mathematical properties.
+///
+/// Types implementing this trait must support:
+/// - Maximum and Minimum values (`Max`, `Min`)
+/// - Identity elements (`One`, `Zero`)
+/// - Checked arithmetic (`CheckedMath`)
+/// - Equality (`PartialEq`)
+/// - Conversion to/from `NonZero` wrapper
 pub trait Math:
     Max + Min + One + Zero + CheckedMath + PartialEq + From<NonZero<Self>> + TryInto<NonZero<Self>>
 {
@@ -43,21 +57,29 @@ impl<
 {
 }
 
+/// Provides checked arithmetic operations that return `Option`.
 pub trait CheckedMath: Sized {
+    /// Performs addition that returns `None` instead of wrapping on overflow.
     fn checked_add(self, rhs: Self) -> Option<Self>;
+    /// Performs subtraction that returns `None` instead of wrapping on underflow.
     fn checked_sub(self, rhs: Self) -> Option<Self>;
 
+    /// Performs addition and returns a `Result` with `OverflowError` on failure.
     fn checked_add_err(self, rhs: Self) -> Result<Self, OverflowError> {
         self.checked_add(rhs).ok_or(OverflowError)
     }
 
+    /// Performs subtraction and returns a `Result` with `UnderflowError` on failure.
     fn checked_sub_err(self, rhs: Self) -> Result<Self, UnderflowError> {
         self.checked_sub(rhs).ok_or(UnderflowError)
     }
 }
 
+/// Defines the maximum value for a type.
 pub trait Max {
+    /// The maximum value this type can hold.
     const MAX: Self;
+    /// Returns `true` if this value is the maximum possible value.
     fn is_max(&self) -> bool
     where
         Self: Sized + PartialEq,
@@ -66,8 +88,11 @@ pub trait Max {
     }
 }
 
+/// Defines the minimum value for a type.
 pub trait Min {
+    /// The minimum value this type can hold.
     const MIN: Self;
+    /// Returns `true` if this value is the minimum possible value.
     fn is_min(&self) -> bool
     where
         Self: Sized + PartialEq,
@@ -76,8 +101,11 @@ pub trait Min {
     }
 }
 
+/// Defines the multiplicative identity element (1).
 pub trait One {
+    /// The value representing 1.
     const ONE: Self;
+    /// Returns `true` if this value is 1.
     fn is_one(&self) -> bool
     where
         Self: Sized + PartialEq,
@@ -86,8 +114,11 @@ pub trait One {
     }
 }
 
+/// Defines the additive identity element (0).
 pub trait Zero {
+    /// The value representing 0.
     const ZERO: Self;
+    /// Returns `true` if this value is 0.
     fn is_zero(&self) -> bool
     where
         Self: Sized + PartialEq,
@@ -248,10 +279,12 @@ impl Zero for H160 {
 pub struct LeBytes<const N: usize>(BUintD8<N>);
 
 impl<const N: usize> LeBytes<N> {
+    /// Creates a new `LeBytes` instance from the underlying `BUintD8` value.
     pub const fn new(val: BUintD8<N>) -> Self {
         Self(val)
     }
 
+    /// Consumes the wrapper and returns the underlying `BUintD8` value.
     pub fn into_inner(self) -> BUintD8<N> {
         self.0
     }
@@ -455,16 +488,29 @@ impl<const N: usize> TryFrom<LeBytes<N>> for U256 {
 //                              NON ZERO
 // ==============================================================================
 
+/// A wrapper type that ensures the contained value is not zero.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Decode, Encode, TypeInfo, Hash, Deref)]
 #[codec(crate = parity_scale_codec)]
 #[scale_info(crate = scale_info)]
 pub struct NonZero<T>(T);
 
 impl<T: Zero + PartialEq> NonZero<T> {
+    /// Tries to create a new `NonZero` instance.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(NonZero<T>)` if the value is not zero.
+    /// * `Err(ZeroError)` if the value is zero.
     pub fn try_new(value: T) -> Result<Self, ZeroError> {
         (!value.is_zero()).then_some(Self(value)).ok_or(ZeroError)
     }
 
+    /// Tries to add another `NonZero` value.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(NonZero<T>)` if the addition does not overflow.
+    /// * `Err(MathError::Overflow)` if the addition overflows.
     pub fn try_add(self, rhs: Self) -> Result<Self, MathError>
     where
         T: CheckedMath,
@@ -473,6 +519,13 @@ impl<T: Zero + PartialEq> NonZero<T> {
         Self::try_new(res).map_err(Into::into)
     }
 
+    /// Tries to subtract another `NonZero` value.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(NonZero<T>)` if the subtraction does not underflow and result is non-zero.
+    /// * `Err(MathError::Underflow)` if the subtraction underflows.
+    /// * `Err(MathError::Zero)` if the result is zero.
     pub fn try_sub(self, rhs: Self) -> Result<Self, MathError>
     where
         T: CheckedMath,
@@ -483,6 +536,7 @@ impl<T: Zero + PartialEq> NonZero<T> {
 }
 
 impl<T> NonZero<T> {
+    /// Consumes the `NonZero` wrapper and returns the inner value.
     pub fn into_inner(self) -> T {
         self.0
     }
@@ -560,6 +614,7 @@ impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
 //                              ERRORS
 // ==============================================================================
 
+/// General error type for mathematical operations.
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
@@ -567,11 +622,15 @@ impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
 #[error(transparent)]
 #[scale_info(crate = scale_info)]
 pub enum MathError {
+    /// Indicates an arithmetic overflow occurred.
     Overflow(#[from] OverflowError),
+    /// Indicates an arithmetic underflow occurred.
     Underflow(#[from] UnderflowError),
+    /// Indicates an invalid zero value was encountered (e.g. division by zero, or creating NonZero from zero).
     Zero(#[from] ZeroError),
 }
 
+/// Error type indicating a mathematical overflow.
 #[derive(
     Clone,
     Debug,
@@ -590,6 +649,7 @@ pub enum MathError {
 #[scale_info(crate = scale_info)]
 pub struct OverflowError;
 
+/// Error type indicating a mathematical underflow.
 #[derive(
     Clone,
     Debug,
@@ -608,6 +668,7 @@ pub struct OverflowError;
 #[scale_info(crate = scale_info)]
 pub struct UnderflowError;
 
+/// Error type indicating a zero value where it is not allowed.
 #[derive(
     Clone,
     Debug,

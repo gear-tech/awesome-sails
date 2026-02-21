@@ -18,7 +18,11 @@
 
 //! Awesome VFT-Extension service.
 //!
-//! This service extends default VFT functionality with additional methods.
+//! This service extends the standard VFT functionality with additional features such as:
+//! - Cleaning up expired allowances.
+//! - Transferring the entire balance (`transfer_all`).
+//! - Enumerating allowances and balances.
+//! - Managing storage shards explicitly.
 
 #![no_std]
 
@@ -36,7 +40,7 @@ use awesome_sails_vft::{
 };
 use sails_rs::prelude::*;
 
-/// Awesome VFT-Extension service itself.
+/// The VFT Extension service struct.
 pub struct VftExtension<
     'a,
     A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
@@ -48,7 +52,13 @@ pub struct VftExtension<
 }
 
 impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtension<'a, A, B> {
-    /// Constructor for [`Self`].
+    /// Creates a new instance of the VFT Extension service.
+    ///
+    /// # Arguments
+    ///
+    /// * `allowances` - Storage backend for allowances.
+    /// * `balances` - Storage backend for balances.
+    /// * `vft` - Exposure of the base VFT service.
     pub fn new(allowances: A, balances: B, vft: vft::VftExposure<vft::Vft<'a, A, B>>) -> Self {
         Self {
             allowances,
@@ -60,16 +70,42 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftEx
 
 #[service]
 impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtension<'_, A, B> {
+    /// Allocates the next shard for allowances storage.
+    ///
+    /// Useful when the current shard is full.
+    ///
+    /// # Returns
+    ///
+    /// `true` if a new shard was allocated, `false` otherwise.
     #[export(unwrap_result)]
     pub fn allocate_next_allowances_shard(&mut self) -> Result<bool, Error> {
         Ok(self.allowances.get_mut()?.allocate_next_shard())
     }
 
+    /// Allocates the next shard for balances storage.
+    ///
+    /// Useful when the current shard is full.
+    ///
+    /// # Returns
+    ///
+    /// `true` if a new shard was allocated, `false` otherwise.
     #[export(unwrap_result)]
     pub fn allocate_next_balances_shard(&mut self) -> Result<bool, Error> {
         Ok(self.balances.get_mut()?.allocate_next_shard())
     }
 
+    /// Removes an expired allowance.
+    ///
+    /// If the allowance from `owner` to `spender` has expired, it is removed to free up storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `owner` - The account that granted the allowance.
+    /// * `spender` - The account that was granted the allowance.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the allowance was removed, `false` otherwise (e.g., if it didn't exist).
     #[export(unwrap_result)]
     pub fn remove_expired_allowance(
         &mut self,
@@ -105,6 +141,15 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
         Ok(true)
     }
 
+    /// Transfers the entire balance from the caller to `to`.
+    ///
+    /// # Arguments
+    ///
+    /// * `to` - The recipient of the tokens.
+    ///
+    /// # Returns
+    ///
+    /// `true` if any tokens were transferred.
     #[export(unwrap_result)]
     pub fn transfer_all(&mut self, to: ActorId) -> Result<bool, Error> {
         let from = Syscall::message_source();
@@ -126,6 +171,18 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
         Ok(true)
     }
 
+    /// Transfers the entire balance from `from` to `to` using the allowance mechanism.
+    ///
+    /// The caller must have sufficient allowance.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - The account to transfer tokens from.
+    /// * `to` - The recipient of the tokens.
+    ///
+    /// # Returns
+    ///
+    /// `true` if any tokens were transferred.
     #[export(unwrap_result)]
     pub fn transfer_all_from(&mut self, from: ActorId, to: ActorId) -> Result<bool, Error> {
         let spender = Syscall::message_source();
@@ -164,6 +221,16 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
         Ok(true)
     }
 
+    /// Returns the allowance detail (amount and expiration block) for a given owner and spender.
+    ///
+    /// # Arguments
+    ///
+    /// * `owner` - The account owning the tokens.
+    /// * `spender` - The account allowed to spend the tokens.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a tuple `(U256, u32)` representing the amount and expiration block height.
     #[export(unwrap_result)]
     pub fn allowance_of(
         &self,
@@ -179,6 +246,16 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
             }))
     }
 
+    /// Returns a list of all allowances with pagination.
+    ///
+    /// # Arguments
+    ///
+    /// * `cursor` - The index to start from.
+    /// * `len` - The number of items to return.
+    ///
+    /// # Returns
+    ///
+    /// A vector of allowance details.
     #[allow(clippy::type_complexity)]
     #[export(unwrap_result)]
     pub fn allowances(
@@ -198,6 +275,17 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
             .collect())
     }
 
+    /// Returns the balance of an account, if it exists in storage.
+    ///
+    /// Unlike `vft::balance_of` which returns 0 for non-existent accounts, this returns `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `account` - The account to query.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<U256>` containing the balance.
     #[export(unwrap_result)]
     pub fn balance_of(&self, account: ActorId) -> Result<Option<U256>, Error> {
         Ok((**self.balances.get()?)
@@ -205,6 +293,16 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
             .map(|(_, &v)| (*v).into()))
     }
 
+    /// Returns a list of all balances with pagination.
+    ///
+    /// # Arguments
+    ///
+    /// * `cursor` - The index to start from.
+    /// * `len` - The number of items to return.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `(ActorId, U256)` pairs.
     #[export(unwrap_result)]
     pub fn balances(&self, cursor: u32, len: u32) -> Result<Vec<(ActorId, U256)>, Error> {
         Ok(self
@@ -217,17 +315,20 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
             .collect())
     }
 
+    /// Returns the configured allowance expiry period.
     #[export(unwrap_result)]
     pub fn expiry_period(&self) -> Result<u32, Error> {
         Ok(self.allowances.get()?.expiry_period())
     }
 
+    /// Returns the amount of value (tokens) that are currently "unused" or reserved.
     #[export(unwrap_result)]
     pub fn unused_value(&self) -> Result<U256, Error> {
         Ok(self.balances.get()?.unused_value())
     }
 }
 
+/// Error indicating that an attempt was made to remove an allowance that has not yet expired.
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]

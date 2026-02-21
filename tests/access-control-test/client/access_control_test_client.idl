@@ -1,5 +1,8 @@
+/// Pagination parameters for listing roles or members.
 type Pagination = struct {
+  /// The number of items to skip.
   offset: u32,
+  /// The maximum number of items to return.
   limit: u32,
 };
 
@@ -13,18 +16,18 @@ service AccessControl {
   /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
   /// event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have `role_id`'s admin role.
+  /// * The caller must have `role_id`'s admin role.
   GrantRole : (role_id: [u8, 32], target_account: actor_id) -> null;
   /// Grants `role_ids` to `target_account`.
   /// 
   /// If `target_account` had not been already granted any of the `role_ids`,
   /// emits a `RoleGranted` event for each newly granted role.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have the admin role for all specified `role_ids`.
+  /// * The caller must have the admin role for all specified `role_ids`.
   GrantRolesBatch : (role_ids: vec [u8, 32], target_account: actor_id) -> null;
   /// Revokes `role_id` from the calling account.
   /// 
@@ -35,63 +38,105 @@ service AccessControl {
   /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
   /// event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must be `account_id`.
+  /// * The caller must be `account_id`.
   RenounceRole : (role_id: [u8, 32], account_id: actor_id) -> null;
   /// Revokes `role_id` from `target_account`.
   /// 
   /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have `role_id`'s admin role.
+  /// * The caller must have `role_id`'s admin role.
   RevokeRole : (role_id: [u8, 32], target_account: actor_id) -> null;
   /// Revokes `role_ids` from `target_account`.
   /// 
   /// If `target_account` had been granted any of the `role_ids`,
   /// emits a `RoleRevoked` event for each newly revoked role.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have the admin role for all specified `role_ids`.
+  /// * The caller must have the admin role for all specified `role_ids`.
   RevokeRolesBatch : (role_ids: vec [u8, 32], target_account: actor_id) -> null;
   /// Sets `new_admin_role_id` as the admin role for `role_id`.
   /// 
   /// Emits a `RoleAdminChanged` event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have `role_id`'s admin role.
+  /// * The caller must have `role_id`'s admin role.
   SetRoleAdmin : (role_id: [u8, 32], new_admin_role_id: [u8, 32]) -> null;
   /// Returns the number of roles assigned to the specified member.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `member_id` - The account identifier.
   query GetMemberRoleCount : (member_id: actor_id) -> u32;
   /// Returns a list of roles assigned to the specified member with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `member_id` - The account identifier.
+  /// * `query` - Optional pagination configuration.
   query GetMemberRoles : (member_id: actor_id, query: opt Pagination) -> vec [u8, 32];
   /// Returns the admin role ID that controls `role_id`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
+  /// 
+  /// # Returns
+  /// 
+  /// The `RoleId` of the administrator.
   query GetRoleAdmin : (role_id: [u8, 32]) -> [u8, 32];
-  /// Returns the number of roles in the system.
+  /// Returns the total number of roles in the system.
   query GetRoleCount : () -> u32;
   /// Returns the number of members in the specified role.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
   query GetRoleMemberCount : (role_id: [u8, 32]) -> u32;
   /// Returns a list of members in the specified role with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
+  /// * `query` - Optional pagination configuration.
   query GetRoleMembers : (role_id: [u8, 32], query: opt Pagination) -> vec actor_id;
   /// Returns a list of role IDs with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `query` - Optional pagination configuration.
   query GetRoles : (query: opt Pagination) -> vec [u8, 32];
-  /// Returns `true` if `account_id` has been granted `role_id`.
+  /// Checks if `account_id` has been granted `role_id`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
+  /// * `account_id` - The account identifier.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if the account possesses the role.
   query HasRole : (role_id: [u8, 32], account_id: actor_id) -> bool;
 
   events {
+    /// Emitted when `target_account` is granted `role_id`.
     RoleGranted: struct {
       role_id: [u8, 32],
       target_account: actor_id,
       sender: actor_id,
     };
+    /// Emitted when `role_id` is revoked from `target_account`.
     RoleRevoked: struct {
       role_id: [u8, 32],
       target_account: actor_id,
       sender: actor_id,
     };
+    /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
     RoleAdminChanged: struct {
       role_id: [u8, 32],
       previous_admin_role_id: [u8, 32],

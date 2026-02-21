@@ -1,5 +1,8 @@
+/// Pagination parameters for listing roles or members.
 type Pagination = struct {
+  /// The number of items to skip.
   offset: u32,
+  /// The maximum number of items to return.
   limit: u32,
 };
 
@@ -17,18 +20,18 @@ service AccessControl {
   /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
   /// event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have `role_id`'s admin role.
+  /// * The caller must have `role_id`'s admin role.
   GrantRole : (role_id: [u8, 32], target_account: actor_id) -> null;
   /// Grants `role_ids` to `target_account`.
   /// 
   /// If `target_account` had not been already granted any of the `role_ids`,
   /// emits a `RoleGranted` event for each newly granted role.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have the admin role for all specified `role_ids`.
+  /// * The caller must have the admin role for all specified `role_ids`.
   GrantRolesBatch : (role_ids: vec [u8, 32], target_account: actor_id) -> null;
   /// Revokes `role_id` from the calling account.
   /// 
@@ -39,63 +42,105 @@ service AccessControl {
   /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
   /// event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must be `account_id`.
+  /// * The caller must be `account_id`.
   RenounceRole : (role_id: [u8, 32], account_id: actor_id) -> null;
   /// Revokes `role_id` from `target_account`.
   /// 
   /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have `role_id`'s admin role.
+  /// * The caller must have `role_id`'s admin role.
   RevokeRole : (role_id: [u8, 32], target_account: actor_id) -> null;
   /// Revokes `role_ids` from `target_account`.
   /// 
   /// If `target_account` had been granted any of the `role_ids`,
   /// emits a `RoleRevoked` event for each newly revoked role.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have the admin role for all specified `role_ids`.
+  /// * The caller must have the admin role for all specified `role_ids`.
   RevokeRolesBatch : (role_ids: vec [u8, 32], target_account: actor_id) -> null;
   /// Sets `new_admin_role_id` as the admin role for `role_id`.
   /// 
   /// Emits a `RoleAdminChanged` event.
   /// 
-  /// Requirements:
+  /// # Requirements
   /// 
-  /// - the caller must have `role_id`'s admin role.
+  /// * The caller must have `role_id`'s admin role.
   SetRoleAdmin : (role_id: [u8, 32], new_admin_role_id: [u8, 32]) -> null;
   /// Returns the number of roles assigned to the specified member.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `member_id` - The account identifier.
   query GetMemberRoleCount : (member_id: actor_id) -> u32;
   /// Returns a list of roles assigned to the specified member with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `member_id` - The account identifier.
+  /// * `query` - Optional pagination configuration.
   query GetMemberRoles : (member_id: actor_id, query: opt Pagination) -> vec [u8, 32];
   /// Returns the admin role ID that controls `role_id`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
+  /// 
+  /// # Returns
+  /// 
+  /// The `RoleId` of the administrator.
   query GetRoleAdmin : (role_id: [u8, 32]) -> [u8, 32];
-  /// Returns the number of roles in the system.
+  /// Returns the total number of roles in the system.
   query GetRoleCount : () -> u32;
   /// Returns the number of members in the specified role.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
   query GetRoleMemberCount : (role_id: [u8, 32]) -> u32;
   /// Returns a list of members in the specified role with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
+  /// * `query` - Optional pagination configuration.
   query GetRoleMembers : (role_id: [u8, 32], query: opt Pagination) -> vec actor_id;
   /// Returns a list of role IDs with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `query` - Optional pagination configuration.
   query GetRoles : (query: opt Pagination) -> vec [u8, 32];
-  /// Returns `true` if `account_id` has been granted `role_id`.
+  /// Checks if `account_id` has been granted `role_id`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `role_id` - The role identifier.
+  /// * `account_id` - The account identifier.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if the account possesses the role.
   query HasRole : (role_id: [u8, 32], account_id: actor_id) -> bool;
 
   events {
+    /// Emitted when `target_account` is granted `role_id`.
     RoleGranted: struct {
       role_id: [u8, 32],
       target_account: actor_id,
       sender: actor_id,
     };
+    /// Emitted when `role_id` is revoked from `target_account`.
     RoleRevoked: struct {
       role_id: [u8, 32],
       target_account: actor_id,
       sender: actor_id,
     };
+    /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
     RoleAdminChanged: struct {
       role_id: [u8, 32],
       previous_admin_role_id: [u8, 32],
@@ -106,19 +151,84 @@ service AccessControl {
 };
 
 service Vft {
+  /// Approves `spender` to spend `value` amount of tokens on behalf of the caller.
+  /// 
+  /// If `value` is `U256::MAX`, the allowance is treated as infinite.
+  /// Emits an `Approval` event if the allowance value changes.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `spender` - The account to be allowed to spend tokens.
+  /// * `value` - The amount of tokens to approve.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if the approval value was changed, `false` otherwise.
   Approve : (spender: actor_id, value: u256) -> bool;
+  /// Transfers `value` amount of tokens from the caller to `to`.
+  /// 
+  /// Emits a `Transfer` event.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `to` - The recipient of the tokens.
+  /// * `value` - The amount of tokens to transfer.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if the transfer was successful.
   Transfer : (to: actor_id, value: u256) -> bool;
+  /// Transfers `value` amount of tokens from `from` to `to` using the allowance mechanism.
+  /// 
+  /// The caller (spender) must have sufficient allowance from `from` (owner).
+  /// Emits a `Transfer` event.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `from` - The account to transfer tokens from.
+  /// * `to` - The recipient of the tokens.
+  /// * `value` - The amount of tokens to transfer.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if the transfer was successful.
   TransferFrom : (from: actor_id, to: actor_id, value: u256) -> bool;
+  /// Returns the amount of tokens that `spender` is allowed to spend on behalf of `owner`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `owner` - The account that owns the tokens.
+  /// * `spender` - The account allowed to spend the tokens.
+  /// 
+  /// # Returns
+  /// 
+  /// The remaining allowance as `U256`.
   query Allowance : (owner: actor_id, spender: actor_id) -> u256;
+  /// Returns the token balance of `account`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `account` - The account to query the balance of.
+  /// 
+  /// # Returns
+  /// 
+  /// The balance as `U256`.
   query BalanceOf : (account: actor_id) -> u256;
+  /// Returns the total supply of tokens.
+  /// 
+  /// # Returns
+  /// 
+  /// The total supply as `U256`.
   query TotalSupply : () -> u256;
 
   events {
+    /// Emitted when an approval is granted or updated.
     Approval: struct {
       owner: actor_id,
       spender: actor_id,
       value: u256,
     };
+    /// Emitted when tokens are transferred.
     Transfer: struct {
       from: actor_id,
       to: actor_id,
@@ -128,60 +238,263 @@ service Vft {
 };
 
 service VftAdmin {
+  /// Appends a new shard to the allowances storage map.
+  /// 
+  /// # Requirements
+  /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+  /// 
+  /// # Arguments
+  /// * `capacity` - The capacity of the new shard.
   AppendAllowancesShard : (capacity: u32) -> null;
+  /// Appends a new shard to the balances storage map.
+  /// 
+  /// # Requirements
+  /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+  /// 
+  /// # Arguments
+  /// * `capacity` - The capacity of the new shard.
   AppendBalancesShard : (capacity: u32) -> null;
+  /// Approves `spender` to spend `value` from `owner`'s account.
+  /// 
+  /// This is an admin function allowing the admin to set approvals arbitrarily.
+  /// 
+  /// # Requirements
+  /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+  /// 
+  /// # Arguments
+  /// * `owner` - The account owning the tokens.
+  /// * `spender` - The account to be approved.
+  /// * `value` - The amount to approve.
   ApproveFrom : (owner: actor_id, spender: actor_id, value: u256) -> bool;
+  /// Burns `value` tokens from `from` account.
+  /// 
+  /// # Requirements
+  /// * Caller must have `BURNER_ROLE`.
+  /// 
+  /// # Arguments
+  /// * `from` - The account to burn tokens from.
+  /// * `value` - The amount to burn.
   Burn : (from: actor_id, value: u256) -> null;
+  /// Terminates the program and sends value to `inheritor`.
+  /// 
+  /// # Requirements
+  /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+  /// * Program must be paused.
   Exit : (inheritor: actor_id) -> null;
+  /// Mints `value` tokens to `to` account.
+  /// 
+  /// # Requirements
+  /// * Caller must have `MINTER_ROLE`.
+  /// 
+  /// # Arguments
+  /// * `to` - The recipient of the minted tokens.
+  /// * `value` - The amount to mint.
   Mint : (to: actor_id, value: u256) -> null;
+  /// Pauses the contract.
+  /// 
+  /// # Requirements
+  /// * Caller must have `PAUSER_ROLE`.
   Pause : () -> null;
+  /// Resumes the contract.
+  /// 
+  /// # Requirements
+  /// * Caller must have `PAUSER_ROLE`.
   Resume : () -> null;
+  /// Sets the expiry period for allowances.
+  /// 
+  /// # Requirements
+  /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+  /// 
+  /// # Arguments
+  /// * `period` - The new expiry period in blocks.
   SetExpiryPeriod : (period: u32) -> null;
+  /// Returns `true` if the contract is paused.
   query IsPaused : () -> bool;
 
   events {
+    /// Emitted when a burn operation occurs.
     BurnerTookPlace;
+    /// Emitted when a mint operation occurs.
     MinterTookPlace;
+    /// Emitted when the allowance expiry period is changed.
     ExpiryPeriodChanged: u32;
+    /// Emitted when the program exits.
     Exited: actor_id;
+    /// Emitted when the contract is paused.
     Paused;
+    /// Emitted when the contract is resumed.
     Resumed;
   }
 };
 
 service VftExtension {
+  /// Allocates the next shard for allowances storage.
+  /// 
+  /// Useful when the current shard is full.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if a new shard was allocated, `false` otherwise.
   AllocateNextAllowancesShard : () -> bool;
+  /// Allocates the next shard for balances storage.
+  /// 
+  /// Useful when the current shard is full.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if a new shard was allocated, `false` otherwise.
   AllocateNextBalancesShard : () -> bool;
+  /// Removes an expired allowance.
+  /// 
+  /// If the allowance from `owner` to `spender` has expired, it is removed to free up storage.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `owner` - The account that granted the allowance.
+  /// * `spender` - The account that was granted the allowance.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if the allowance was removed, `false` otherwise (e.g., if it didn't exist).
   RemoveExpiredAllowance : (owner: actor_id, spender: actor_id) -> bool;
+  /// Transfers the entire balance from the caller to `to`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `to` - The recipient of the tokens.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if any tokens were transferred.
   TransferAll : (to: actor_id) -> bool;
+  /// Transfers the entire balance from `from` to `to` using the allowance mechanism.
+  /// 
+  /// The caller must have sufficient allowance.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `from` - The account to transfer tokens from.
+  /// * `to` - The recipient of the tokens.
+  /// 
+  /// # Returns
+  /// 
+  /// `true` if any tokens were transferred.
   TransferAllFrom : (from: actor_id, to: actor_id) -> bool;
+  /// Returns the allowance detail (amount and expiration block) for a given owner and spender.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `owner` - The account owning the tokens.
+  /// * `spender` - The account allowed to spend the tokens.
+  /// 
+  /// # Returns
+  /// 
+  /// An `Option` containing a tuple `(U256, u32)` representing the amount and expiration block height.
   query AllowanceOf : (owner: actor_id, spender: actor_id) -> opt struct { u256, u32 };
+  /// Returns a list of all allowances with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `cursor` - The index to start from.
+  /// * `len` - The number of items to return.
+  /// 
+  /// # Returns
+  /// 
+  /// A vector of allowance details.
   query Allowances : (cursor: u32, len: u32) -> vec struct { struct { actor_id, actor_id }, struct { u256, u32 } };
+  /// Returns the balance of an account, if it exists in storage.
+  /// 
+  /// Unlike `vft::balance_of` which returns 0 for non-existent accounts, this returns `None`.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `account` - The account to query.
+  /// 
+  /// # Returns
+  /// 
+  /// An `Option<U256>` containing the balance.
   query BalanceOf : (account: actor_id) -> opt u256;
+  /// Returns a list of all balances with pagination.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `cursor` - The index to start from.
+  /// * `len` - The number of items to return.
+  /// 
+  /// # Returns
+  /// 
+  /// A vector of `(ActorId, U256)` pairs.
   query Balances : (cursor: u32, len: u32) -> vec struct { actor_id, u256 };
+  /// Returns the configured allowance expiry period.
   query ExpiryPeriod : () -> u32;
+  /// Returns the amount of value (tokens) that are currently "unused" or reserved.
   query UnusedValue : () -> u256;
 };
 
 service VftMetadata {
-  /// Returns the number of decimals of the VFT.
+  /// Returns the number of decimals used by the VFT.
+  /// 
+  /// # Returns
+  /// 
+  /// The decimals as a `u8`.
   query Decimals : () -> u8;
   /// Returns the name of the VFT.
+  /// 
+  /// # Returns
+  /// 
+  /// The name as a `String`.
   query Name : () -> str;
   /// Returns the symbol of the VFT.
+  /// 
+  /// # Returns
+  /// 
+  /// The symbol as a `String`.
   query Symbol : () -> str;
 };
 
 service VftNativeExchange {
+  /// Burns `value` amount of VFT tokens and returns the equivalent amount of native value to the caller.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `value` - The amount of VFT tokens to burn.
+  /// 
+  /// # Returns
+  /// 
+  /// A `CommandReply` containing the unit value `()` and transferring the native value.
   Burn : (value: u256) -> null;
+  /// Burns all VFT tokens owned by the caller and returns the equivalent amount of native value.
+  /// 
+  /// # Returns
+  /// 
+  /// A `CommandReply` containing the unit value `()` and transferring the native value.
   BurnAll : () -> null;
+  /// Mints VFT tokens to the caller equal to the amount of native value attached to the message.
+  /// 
+  /// # Returns
+  /// 
+  /// `Ok(())` on success.
   Mint : () -> null;
 };
 
 service VftNativeExchangeAdmin {
+  /// Burns `value` amount of VFT tokens from `from` account and sends the equivalent
+  /// native value to `from`.
+  /// 
+  /// This allows an admin (with burner role) to force an exchange/refund.
+  /// 
+  /// # Arguments
+  /// 
+  /// * `from` - The account to burn tokens from.
+  /// * `value` - The amount of tokens to burn.
+  /// 
+  /// # Returns
+  /// 
+  /// `Ok(())` on success.
   BurnFrom : (from: actor_id, value: u256) -> null;
 
   events {
+    /// Emitted when re-minting tokens after a failed transfer fails.
     FailedMint: struct {
       to: actor_id,
       value: u256,
