@@ -16,7 +16,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Awesome Access Control service (Allocation-free Sorted Descriptor version).
+//! Awesome Access Control service.
+//!
+//! This service implements a role-based access control (RBAC) mechanism with support for
+//! role hierarchies, enumeration, and batch operations.
+//!
+//! # Role Hierarchy
+//!
+//! * **Super Admin (`DEFAULT_ADMIN_ROLE`)**:
+//!     * Acts as a **Master Key**: an account with this role passes any `require_role` check,
+//!       regardless of the specific role requested.
+//!     * Is the default administrator for all new roles.
+//!     * Can grant/revoke any role and change any role's administrator.
+//!
+//! * **Role Admin**:
+//!     * Each role has an associated administrator role (by default, the Super Admin role).
+//!     * Only accounts with the administrator role can grant or revoke the managed role.
+//!     * Administrator roles can be changed via `set_role_admin` to create complex
+//!       permission structures.
+//!
+//! The service uses allocation-free deterministic storage and provides methods to enumerate
+//! all roles and their members, as well as perform bulk updates via batch functions.
 
 #![no_std]
 
@@ -27,14 +47,16 @@ use awesome_sails_utils::storage::{InfallibleStorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::prelude::*;
 
-/// Standard Role ID size.
+/// Type alias for role identifiers (32-byte array).
 pub const ROLE_ID_SIZE: usize = 32;
 pub type RoleId = [u8; ROLE_ID_SIZE];
 
+/// The identifier for the default super-admin role.
 pub const fn default_admin_role() -> RoleId {
     [0u8; ROLE_ID_SIZE]
 }
 
+/// Internal storage structure for managing roles and their members.
 #[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
@@ -63,6 +85,7 @@ impl Default for RoleDescriptor {
     }
 }
 
+/// Internal structure holding data for a specific role.
 #[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
@@ -72,11 +95,14 @@ pub struct RoleData<const M: usize> {
     pub members: [ActorId; M],
 }
 
+/// Pagination parameters for listing roles or members.
 #[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct Pagination {
+    /// The number of items to skip.
     pub offset: u32,
+    /// The maximum number of items to return.
     pub limit: u32,
 }
 
@@ -119,6 +145,16 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
         self.descriptors[..self.role_count as usize].binary_search_by_key(&role_id, |d| d.role_id)
     }
 
+    /// Checks if an account possesses a specific role.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The identifier of the role to check.
+    /// * `account_id` - The identifier of the account to check.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the account has the role, `false` otherwise.
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
         if let Ok(idx) = self.find_descriptor_idx(role_id) {
             let data_idx = self.descriptors[idx].data_idx as usize;
@@ -127,6 +163,15 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
         false
     }
 
+    /// Retrieves the administrator role for a given role.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The identifier of the role.
+    ///
+    /// # Returns
+    ///
+    /// The `RoleId` of the administrator role. Returns `DEFAULT_ADMIN_ROLE` if not explicitly set.
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
         if let Ok(idx) = self.find_descriptor_idx(role_id) {
             let data_idx = self.descriptors[idx].data_idx as usize;
@@ -135,6 +180,20 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
         default_admin_role()
     }
 
+    /// Returns the total number of roles defined in the storage.
+    pub fn get_role_count(&self) -> u32 {
+        self.role_count
+    }
+
+    /// Retrieves a list of role identifiers, optionally paginated.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Optional pagination parameters.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `RoleId`s.
     pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
         let (offset, limit) = Pagination::range(query);
         self.descriptors[..self.role_count as usize]
@@ -145,6 +204,11 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
             .collect()
     }
 
+    /// Returns the number of members assigned to a specific role.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The identifier of the role.
     pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
         if let Ok(idx) = self.find_descriptor_idx(role_id) {
             let data_idx = self.descriptors[idx].data_idx as usize;
@@ -153,6 +217,16 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
         0
     }
 
+    /// Retrieves a list of members assigned to a specific role, optionally paginated.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The identifier of the role.
+    /// * `query` - Optional pagination parameters.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `ActorId`s.
     pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
         let (offset, limit) = Pagination::range(query);
         if let Ok(idx) = self.find_descriptor_idx(role_id) {
@@ -168,6 +242,11 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
         Vec::new()
     }
 
+    /// Returns the number of roles assigned to a specific account.
+    ///
+    /// # Arguments
+    ///
+    /// * `member_id` - The identifier of the account.
     pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
         self.descriptors[..self.role_count as usize]
             .iter()
@@ -175,6 +254,16 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
             .count() as u32
     }
 
+    /// Retrieves a list of roles assigned to a specific account, optionally paginated.
+    ///
+    /// # Arguments
+    ///
+    /// * `member_id` - The identifier of the account.
+    /// * `query` - Optional pagination parameters.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `RoleId`s.
     pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
         let (offset, limit) = Pagination::range(query);
         self.descriptors[..self.role_count as usize]
@@ -184,6 +273,19 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
             .skip(offset)
             .take(limit)
             .collect()
+    }
+
+    /// Grants the `DEFAULT_ADMIN_ROLE` to the specified account.
+    ///
+    /// Typically used during initialization.
+    ///
+    /// # Arguments
+    ///
+    /// * `deployer` - The account to grant the super-admin role to.
+    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
+        if let Ok(role) = self.ensure_role_mut(default_admin_role()) {
+            let _ = role.add_member(deployer);
+        }
     }
 
     fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleData<M>, Error> {
@@ -212,12 +314,6 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
                 self.role_count += 1;
                 Ok(&mut self.role_data[data_idx as usize])
             }
-        }
-    }
-
-    pub fn grant_initial_admin(&mut self, deployer: ActorId) {
-        if let Ok(role) = self.ensure_role_mut(default_admin_role()) {
-            let _ = role.add_member(deployer);
         }
     }
 }
@@ -264,6 +360,9 @@ impl<const M: usize> RoleData<M> {
     }
 }
 
+/// The Access Control service struct.
+///
+/// Wraps storage and provides RBAC functionality.
 pub struct AccessControl<
     'a,
     const N: usize,
@@ -280,6 +379,11 @@ pub struct AccessControl<
 impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessControlStorage<N, M>>>
     AccessControl<'a, N, M, S>
 {
+    /// Creates a new instance of the Access Control service.
+    ///
+    /// # Arguments
+    ///
+    /// * `storage` - The storage backend used to persist role data.
     pub fn new(storage: S) -> Self {
         Self {
             storage,
@@ -319,6 +423,15 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         Ok(())
     }
 
+    /// Ensures that `account_id` has `role_id` or is a super admin.
+    ///
+    /// # Requirements
+    ///
+    /// * `account_id` must have `role_id` or `default_admin_role()`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if access is granted, otherwise `Err(AccessDenied)`.
     pub fn require_role(&self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
         let storage = self.storage.get();
         let admin = default_admin_role();
@@ -343,6 +456,15 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         .into())
     }
 
+    /// Returns the admin role ID that controls `role_id`.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The role identifier.
+    ///
+    /// # Returns
+    ///
+    /// The `RoleId` of the administrator.
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
         self.storage.get().get_role_admin(role_id)
     }
@@ -352,46 +474,101 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
 impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessControlStorage<N, M>>>
     AccessControl<'a, N, M, S>
 {
+    /// Checks if `account_id` has been granted `role_id`.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The role identifier.
+    /// * `account_id` - The account identifier.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the account possesses the role.
     #[export]
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
         self.storage.get().has_role(role_id, account_id)
     }
 
+    /// Returns the admin role ID that controls `role_id`.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The role identifier.
+    ///
+    /// # Returns
+    ///
+    /// The `RoleId` of the administrator.
     #[export]
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
         self.storage.get().get_role_admin(role_id)
     }
 
+    /// Returns the total number of roles in the system.
     #[export]
     pub fn get_role_count(&self) -> u32 {
         self.storage.get().role_count
     }
 
+    /// Returns a list of role IDs with pagination.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Optional pagination configuration.
     #[export]
     pub fn get_roles(&self, query: Option<Pagination>) -> Vec<RoleId> {
         self.storage.get().get_roles(query)
     }
 
+    /// Returns the number of members in the specified role.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The role identifier.
     #[export]
     pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
         self.storage.get().get_role_member_count(role_id)
     }
 
+    /// Returns a list of members in the specified role with pagination.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_id` - The role identifier.
+    /// * `query` - Optional pagination configuration.
     #[export]
     pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
         self.storage.get().get_role_members(role_id, query)
     }
 
+    /// Returns the number of roles assigned to the specified member.
+    ///
+    /// # Arguments
+    ///
+    /// * `member_id` - The account identifier.
     #[export]
     pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
         self.storage.get().get_member_role_count(member_id)
     }
 
+    /// Returns a list of roles assigned to the specified member with pagination.
+    ///
+    /// # Arguments
+    ///
+    /// * `member_id` - The account identifier.
+    /// * `query` - Optional pagination configuration.
     #[export]
     pub fn get_member_roles(&self, member_id: ActorId, query: Option<Pagination>) -> Vec<RoleId> {
         self.storage.get().get_member_roles(member_id, query)
     }
 
+    /// Grants `role_id` to `target_account`.
+    ///
+    /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
+    /// event.
+    ///
+    /// # Requirements
+    ///
+    /// * The caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn grant_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
         self.perform_role_action(
@@ -406,6 +583,14 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         )
     }
 
+    /// Grants `role_ids` to `target_account`.
+    ///
+    /// If `target_account` had not been already granted any of the `role_ids`,
+    /// emits a `RoleGranted` event for each newly granted role.
+    ///
+    /// # Requirements
+    ///
+    /// * The caller must have the admin role for all specified `role_ids`.
     #[export(unwrap_result)]
     pub fn grant_roles_batch(
         &mut self,
@@ -424,6 +609,13 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         )
     }
 
+    /// Revokes `role_id` from `target_account`.
+    ///
+    /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
+    ///
+    /// # Requirements
+    ///
+    /// * The caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn revoke_role(&mut self, role_id: RoleId, target_account: ActorId) -> Result<(), Error> {
         self.perform_role_action(
@@ -438,6 +630,14 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         )
     }
 
+    /// Revokes `role_ids` from `target_account`.
+    ///
+    /// If `target_account` had been granted any of the `role_ids`,
+    /// emits a `RoleRevoked` event for each newly revoked role.
+    ///
+    /// # Requirements
+    ///
+    /// * The caller must have the admin role for all specified `role_ids`.
     #[export(unwrap_result)]
     pub fn revoke_roles_batch(
         &mut self,
@@ -456,6 +656,18 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         )
     }
 
+    /// Revokes `role_id` from the calling account.
+    ///
+    /// Roles are often managed via `grant_role` and `revoke_role`: this function's
+    /// purpose is to provide a mechanism for accounts to lose their privileges
+    /// if they are compromised (such as when a trusted device is misplaced).
+    ///
+    /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
+    /// event.
+    ///
+    /// # Requirements
+    ///
+    /// * The caller must be `account_id`.
     #[export(unwrap_result)]
     pub fn renounce_role(&mut self, role_id: RoleId, account_id: ActorId) -> Result<(), Error> {
         let message_source = Syscall::message_source();
@@ -479,6 +691,13 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         Ok(())
     }
 
+    /// Sets `new_admin_role_id` as the admin role for `role_id`.
+    ///
+    /// Emits a `RoleAdminChanged` event.
+    ///
+    /// # Requirements
+    ///
+    /// * The caller must have `role_id`'s admin role.
     #[export(unwrap_result)]
     pub fn set_role_admin(
         &mut self,
@@ -552,21 +771,25 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
     }
 }
 
+/// Events emitted by the Access Control service.
 #[event]
 #[derive(Clone, Debug, PartialEq, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum Event {
+    /// Emitted when `target_account` is granted `role_id`.
     RoleGranted {
         role_id: RoleId,
         target_account: ActorId,
         sender: ActorId,
     },
+    /// Emitted when `role_id` is revoked from `target_account`.
     RoleRevoked {
         role_id: RoleId,
         target_account: ActorId,
         sender: ActorId,
     },
+    /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
     RoleAdminChanged {
         role_id: RoleId,
         previous_admin_role_id: RoleId,
@@ -575,7 +798,9 @@ pub enum Event {
     },
 }
 
+/// Errors occurring within the Access Control service.
 pub mod error {
+    use crate::RoleId;
     pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
     use sails_rs::{
         ActorId,
@@ -583,8 +808,7 @@ pub mod error {
         scale_info::TypeInfo,
     };
 
-    use crate::RoleId;
-
+    /// Error indicating access was denied due to missing role permissions.
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Access denied: account {account_id:?} does not have role {role_id:?}")]
@@ -594,6 +818,7 @@ pub mod error {
         pub role_id: RoleId,
     }
 
+    /// Error indicating that an operation required the caller to be the account owner, but they were not.
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Not account owner: account {account_id:?}, message source {message_source:?}")]
@@ -603,6 +828,7 @@ pub mod error {
         pub message_source: ActorId,
     }
 
+    /// Error indicating that the storage capacity has been exceeded.
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Capacity exceeded")]

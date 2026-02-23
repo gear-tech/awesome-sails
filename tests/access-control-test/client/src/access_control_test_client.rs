@@ -47,63 +47,160 @@ pub mod access_control {
     use super::*;
     pub trait AccessControl {
         type Env: sails_rs::client::GearEnv;
+        /// Grants `role_id` to `target_account`.
+        ///
+        /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
+        /// event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have `role_id`'s admin role.
         fn grant_role(
             &mut self,
             role_id: [u8; 32],
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env>;
+        /// Grants `role_ids` to `target_account`.
+        ///
+        /// If `target_account` had not been already granted any of the `role_ids`,
+        /// emits a `RoleGranted` event for each newly granted role.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have the admin role for all specified `role_ids`.
         fn grant_roles_batch(
             &mut self,
             role_ids: Vec<[u8; 32]>,
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env>;
+        /// Revokes `role_id` from the calling account.
+        ///
+        /// Roles are often managed via `grant_role` and `revoke_role`: this function's
+        /// purpose is to provide a mechanism for accounts to lose their privileges
+        /// if they are compromised (such as when a trusted device is misplaced).
+        ///
+        /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
+        /// event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must be `account_id`.
         fn renounce_role(
             &mut self,
             role_id: [u8; 32],
             account_id: ActorId,
         ) -> sails_rs::client::PendingCall<io::RenounceRole, Self::Env>;
+        /// Revokes `role_id` from `target_account`.
+        ///
+        /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have `role_id`'s admin role.
         fn revoke_role(
             &mut self,
             role_id: [u8; 32],
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env>;
+        /// Revokes `role_ids` from `target_account`.
+        ///
+        /// If `target_account` had been granted any of the `role_ids`,
+        /// emits a `RoleRevoked` event for each newly revoked role.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have the admin role for all specified `role_ids`.
         fn revoke_roles_batch(
             &mut self,
             role_ids: Vec<[u8; 32]>,
             target_account: ActorId,
         ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env>;
+        /// Sets `new_admin_role_id` as the admin role for `role_id`.
+        ///
+        /// Emits a `RoleAdminChanged` event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have `role_id`'s admin role.
         fn set_role_admin(
             &mut self,
             role_id: [u8; 32],
             new_admin_role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env>;
+        /// Returns the number of roles assigned to the specified member.
+        ///
+        /// # Arguments
+        ///
+        /// * `member_id` - The account identifier.
         fn get_member_role_count(
             &self,
             member_id: ActorId,
         ) -> sails_rs::client::PendingCall<io::GetMemberRoleCount, Self::Env>;
+        /// Returns a list of roles assigned to the specified member with pagination.
+        ///
+        /// # Arguments
+        ///
+        /// * `member_id` - The account identifier.
+        /// * `query` - Optional pagination configuration.
         fn get_member_roles(
             &self,
             member_id: ActorId,
             query: Option<Pagination>,
         ) -> sails_rs::client::PendingCall<io::GetMemberRoles, Self::Env>;
+        /// Returns the admin role ID that controls `role_id`.
+        ///
+        /// # Arguments
+        ///
+        /// * `role_id` - The role identifier.
+        ///
+        /// # Returns
+        ///
+        /// The `RoleId` of the administrator.
         fn get_role_admin(
             &self,
             role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::GetRoleAdmin, Self::Env>;
+        /// Returns the total number of roles in the system.
         fn get_role_count(&self) -> sails_rs::client::PendingCall<io::GetRoleCount, Self::Env>;
+        /// Returns the number of members in the specified role.
+        ///
+        /// # Arguments
+        ///
+        /// * `role_id` - The role identifier.
         fn get_role_member_count(
             &self,
             role_id: [u8; 32],
         ) -> sails_rs::client::PendingCall<io::GetRoleMemberCount, Self::Env>;
+        /// Returns a list of members in the specified role with pagination.
+        ///
+        /// # Arguments
+        ///
+        /// * `role_id` - The role identifier.
+        /// * `query` - Optional pagination configuration.
         fn get_role_members(
             &self,
             role_id: [u8; 32],
             query: Option<Pagination>,
         ) -> sails_rs::client::PendingCall<io::GetRoleMembers, Self::Env>;
+        /// Returns a list of role IDs with pagination.
+        ///
+        /// # Arguments
+        ///
+        /// * `query` - Optional pagination configuration.
         fn get_roles(
             &self,
             query: Option<Pagination>,
         ) -> sails_rs::client::PendingCall<io::GetRoles, Self::Env>;
+        /// Checks if `account_id` has been granted `role_id`.
+        ///
+        /// # Arguments
+        ///
+        /// * `role_id` - The role identifier.
+        /// * `account_id` - The account identifier.
+        ///
+        /// # Returns
+        ///
+        /// `true` if the account possesses the role.
         fn has_role(
             &self,
             role_id: [u8; 32],
@@ -231,16 +328,19 @@ pub mod access_control {
         #[derive(PartialEq, Debug, Encode, Decode)]
         #[codec(crate = sails_rs::scale_codec)]
         pub enum AccessControlEvents {
+            /// Emitted when `target_account` is granted `role_id`.
             RoleGranted {
                 role_id: [u8; 32],
                 target_account: ActorId,
                 sender: ActorId,
             },
+            /// Emitted when `role_id` is revoked from `target_account`.
             RoleRevoked {
                 role_id: [u8; 32],
                 target_account: ActorId,
                 sender: ActorId,
             },
+            /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
             RoleAdminChanged {
                 role_id: [u8; 32],
                 previous_admin_role_id: [u8; 32],
@@ -257,10 +357,13 @@ pub mod access_control {
         }
     }
 }
+/// Pagination parameters for listing roles or members.
 #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct Pagination {
+    /// The number of items to skip.
     pub offset: u32,
+    /// The maximum number of items to return.
     pub limit: u32,
 }
