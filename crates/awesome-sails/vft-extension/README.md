@@ -25,7 +25,7 @@ To use the VFT Extension service, instantiate it with references to the allowanc
 use awesome_sails_vft_extension::VftExtension;
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::storage::StorageRefCell;
+use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]

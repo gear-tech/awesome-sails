@@ -18,6 +18,7 @@ version = "0.0.0"
 dependencies = [
  "access-control-test-client",
  "awesome-sails",
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "futures",
  "gtest",
@@ -414,6 +415,7 @@ name = "awesome-sails"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-storage",
  "awesome-sails-vft",
  "awesome-sails-vft-admin",
  "awesome-sails-vft-extension",
@@ -427,6 +429,7 @@ dependencies = [
 name = "awesome-sails-access-control"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "sails-rs",
  "thiserror 2.0.17",
@@ -450,10 +453,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "awesome-sails-storage"
+version = "0.1.0"
+
+[[package]]
 name = "awesome-sails-test-app"
 version = "0.0.0"
 dependencies = [
  "awesome-sails",
+ "awesome-sails-storage",
  "awesome-sails-test-client",
  "awesome-sails-utils",
  "futures",
@@ -475,6 +483,7 @@ dependencies = [
 name = "awesome-sails-utils"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "bnum",
  "derive_more 2.1.0",
  "gprimitives",
@@ -490,6 +499,7 @@ dependencies = [
 name = "awesome-sails-vft"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft-utils",
  "sails-rs",
@@ -500,6 +510,7 @@ name = "awesome-sails-vft-admin"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "keccak-const",
@@ -510,6 +521,7 @@ dependencies = [
 name = "awesome-sails-vft-extension"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "sails-rs",
@@ -520,6 +532,7 @@ dependencies = [
 name = "awesome-sails-vft-metadata"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "sails-rs",
 ]
@@ -528,6 +541,7 @@ dependencies = [
 name = "awesome-sails-vft-native-exchange"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "sails-rs",
@@ -538,6 +552,7 @@ name = "awesome-sails-vft-native-exchange-admin"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "awesome-sails-vft-admin",

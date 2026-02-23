@@ -19,7 +19,7 @@
 #![no_std]
 
 use awesome_sails::access_control::{AccessControl, RolesStorage};
-use awesome_sails_utils::storage::StorageRefCell;
+use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]

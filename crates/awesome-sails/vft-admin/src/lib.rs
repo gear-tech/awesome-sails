@@ -27,11 +27,11 @@ use awesome_sails_access_control::{
     self as access_control, DEFAULT_ADMIN_ROLE, RoleId, RolesStorage, ensure,
     error::{EmitError, Error},
 };
+use awesome_sails_storage::{InfallibleStorageMut, StorageMut, StorageRefCell};
 use awesome_sails_utils::{
     math::{Max, NonZero, Zero},
     ok_if,
     pause::{PausableRef, Pause, UnpausedError},
-    storage::{InfallibleStorageMut, StorageMut, StorageRefCell},
 };
 use awesome_sails_vft::{
     self as vft,

@@ -26,13 +26,13 @@
 
 #![no_std]
 
+use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
     ensure,
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::PausableRef,
-    storage::StorageMut,
 };
 use awesome_sails_vft::{
     self as vft,

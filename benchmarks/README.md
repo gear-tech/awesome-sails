@@ -6,6 +6,7 @@ A benchmarking suite for Sails programs. This crate provides tools to measure ga
 
 ## Features
 
+- `gtest` (**default**): Enables built-in support for the Gear `gtest` framework and provides the `MeasureGas` implementation for `System`.
 - `ascii-table`: Enables ASCII table output for terminal reports.
 - `cli`: Enables the `bench-analyzer` CLI utility.
 
@@ -15,8 +16,11 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-# Use "ascii-table" if you want pretty terminal output in your tests
+# Standard usage (with gtest support)
 awesome-sails-benchmarks = { version = "x.y.z", features = ["ascii-table"] }
+
+# If you have version conflicts with gtest, disable default features:
+awesome-sails-benchmarks = { version = "x.y.z", default-features = false }
 ```
 
 ## Usage
@@ -24,6 +28,8 @@ awesome-sails-benchmarks = { version = "x.y.z", features = ["ascii-table"] }
 ### 1. Gas Measurement
 
 Use the `MeasureGas` trait to capture gas during tests. Benchmarks **MUST** be run in `--release` mode.
+
+The `MeasureGas` trait is always available, but the implementation for the Gear `gtest::System` requires the `gtest` feature (enabled by default).
 
 ```rust
 use awesome_sails_benchmarks::{MeasureGas, BenchStorage, ToBenchmarkMap};
@@ -47,6 +53,7 @@ impl ToBenchmarkMap for MyServiceResults {
 #[ignore]
 async fn bench_my_service() {
     let env = create_env();
+    // System from gtest implements MeasureGas if the 'gtest' feature is enabled.
     let system = env.system();
     let mut service = deploy_program(&env).await;
 

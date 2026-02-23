@@ -26,8 +26,10 @@ use std::{
 };
 
 use gprimitives::MessageId;
+#[cfg(feature = "gtest")]
 use gtest::System;
 
+#[cfg(feature = "gtest")]
 const RELEASE_MODE_ERROR: &str =
     "Benchmarks MUST be run in --release mode to get accurate gas measurements.";
 
@@ -137,6 +139,7 @@ impl ToBenchmarkMap for BTreeMap<String, u64> {
     }
 }
 
+#[cfg(feature = "gtest")]
 impl MeasureGas for System {
     fn measure_gas<F>(&self, f: F) -> u64
     where

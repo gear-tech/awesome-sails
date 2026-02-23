@@ -22,6 +22,10 @@
 //! code to be written generically over different storage backends (e.g., in-memory `RefCell`,
 //! persistent storage). It includes fallible and infallible variants.
 
+#![no_std]
+
+extern crate alloc;
+
 use core::{
     cell::{Ref, RefCell, RefMut},
     convert::Infallible,

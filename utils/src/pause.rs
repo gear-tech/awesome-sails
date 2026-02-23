@@ -22,10 +22,8 @@
 //! pause/resume functionality. This is useful for emergency stops or maintenance modes
 //! in smart contracts.
 
-use crate::{
-    ensure,
-    storage::{InfallibleStorage, Storage, StorageMut, StorageRefCell},
-};
+use crate::ensure;
+use awesome_sails_storage::{InfallibleStorage, Storage, StorageMut, StorageRefCell};
 use core::{
     cell::Cell,
     error,
