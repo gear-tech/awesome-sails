@@ -26,7 +26,6 @@ use awesome_sails_utils::{
 };
 use core::{mem, ops::Deref};
 use sails_rs::{ActorId, Decode, Encode, TypeInfo, U256, vec, vec::Vec};
-
 pub type BalancesKey = NonZero<ActorId>;
 pub type BalancesValue<T> = NonZero<T>;
 

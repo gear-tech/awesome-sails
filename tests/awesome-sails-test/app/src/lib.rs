@@ -27,10 +27,10 @@ use awesome_sails::{
     vft_metadata::{self, Metadata},
     vft_native_exchange, vft_native_exchange_admin,
 };
+use awesome_sails_storage::{StorageMut, StorageRefCell};
 use awesome_sails_utils::{
     error::Error,
     pause::{PausableRef, Pause},
-    storage::{StorageMut, StorageRefCell},
 };
 use core::{cell::RefCell, ops::DerefMut};
 use sails_rs::prelude::*;

@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use anyhow::Result;
-use fs2::FileExt;
 use std::{
     collections::BTreeMap,
     env, fmt,
@@ -27,7 +26,12 @@ use std::{
 };
 
 use gprimitives::MessageId;
+#[cfg(feature = "gtest")]
 use gtest::System;
+
+#[cfg(feature = "gtest")]
+const RELEASE_MODE_ERROR: &str =
+    "Benchmarks MUST be run in --release mode to get accurate gas measurements.";
 
 /// Defines an interface for converting data structures into a standardized benchmark map.
 pub trait ToBenchmarkMap {
@@ -38,7 +42,13 @@ pub trait ToBenchmarkMap {
 /// Defines a trait for measuring gas burned during message execution.
 pub trait MeasureGas {
     /// Measures the gas burned for a specific message execution.
-    fn measure_gas<F>(&self, f: F) -> Result<u64>
+    fn measure_gas<F>(&self, f: F) -> u64
+    where
+        F: FnOnce() -> MessageId;
+
+    /// Measures the total gas burned in the block after executing the message.
+    /// Useful for cross-program calls.
+    fn measure_total_gas<F>(&self, f: F) -> u64
     where
         F: FnOnce() -> MessageId;
 }
@@ -129,22 +139,30 @@ impl ToBenchmarkMap for BTreeMap<String, u64> {
     }
 }
 
+#[cfg(feature = "gtest")]
 impl MeasureGas for System {
-    fn measure_gas<F>(&self, f: F) -> Result<u64>
+    fn measure_gas<F>(&self, f: F) -> u64
     where
         F: FnOnce() -> MessageId,
     {
         if cfg!(debug_assertions) {
-            core::panic!(
-                "Benchmarks MUST be run in --release mode to get accurate gas measurements."
-            );
+            core::panic!("{}", RELEASE_MODE_ERROR);
         }
         let mid = f();
-        self.run_next_block()
-            .gas_burned
-            .get(&mid)
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("Gas not recorded for message {:?}", mid))
+        let res = self.run_next_block();
+        res.gas_burned.get(&mid).copied().expect("Gas not recorded")
+    }
+
+    fn measure_total_gas<F>(&self, f: F) -> u64
+    where
+        F: FnOnce() -> MessageId,
+    {
+        if cfg!(debug_assertions) {
+            core::panic!("{}", RELEASE_MODE_ERROR);
+        }
+        f();
+        let res = self.run_next_block();
+        res.gas_burned.values().sum()
     }
 }
 
@@ -274,7 +292,7 @@ impl BenchStorage {
             .truncate(false)
             .open(&self.path)?;
 
-        file.lock_exclusive()?;
+        file.lock()?;
         let mut data = self.load()?;
         data.insert(section.to_string(), results.to_benchmark_map());
 

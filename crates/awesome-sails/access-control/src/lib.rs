@@ -43,7 +43,7 @@
 pub use awesome_sails_utils::ensure;
 
 use crate::error::{AccessDenied, CapacityExceeded, EmitError, Error, NotAccountOwner};
-use awesome_sails_utils::storage::{InfallibleStorageMut, StorageRefCell};
+use awesome_sails_storage::{InfallibleStorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::prelude::*;
 
@@ -68,21 +68,12 @@ pub struct AccessControlStorage<const N: usize, const M: usize> {
     pub role_data: [RoleData<M>; N],
 }
 
-#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo, Default)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct RoleDescriptor {
     pub role_id: RoleId,
     pub data_idx: u16,
-}
-
-impl Default for RoleDescriptor {
-    fn default() -> Self {
-        Self {
-            role_id: [0; 32],
-            data_idx: 0,
-        }
-    }
 }
 
 /// Internal structure holding data for a specific role.

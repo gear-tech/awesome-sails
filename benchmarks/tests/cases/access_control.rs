@@ -86,36 +86,24 @@ async fn bench_access_control() {
 
             let test_member: ActorId = (count as u64 + 50000).into();
 
-            grant_samples.push(
-                system
-                    .measure_gas(|| {
-                        service
-                            .grant_role(role_id_base, test_member)
-                            .send_one_way()
-                            .unwrap()
-                    })
-                    .unwrap(),
-            );
-            has_samples.push(
-                system
-                    .measure_gas(|| {
-                        service
-                            .has_role(role_id_base, test_member)
-                            .send_one_way()
-                            .unwrap()
-                    })
-                    .unwrap(),
-            );
-            revoke_samples.push(
-                system
-                    .measure_gas(|| {
-                        service
-                            .revoke_role(role_id_base, test_member)
-                            .send_one_way()
-                            .unwrap()
-                    })
-                    .unwrap(),
-            );
+            grant_samples.push(system.measure_gas(|| {
+                service
+                    .grant_role(role_id_base, test_member)
+                    .send_one_way()
+                    .unwrap()
+            }));
+            has_samples.push(system.measure_gas(|| {
+                service
+                    .has_role(role_id_base, test_member)
+                    .send_one_way()
+                    .unwrap()
+            }));
+            revoke_samples.push(system.measure_gas(|| {
+                service
+                    .revoke_role(role_id_base, test_member)
+                    .send_one_way()
+                    .unwrap()
+            }));
         }
 
         grant_role_metrics.insert(count, median(grant_samples));
@@ -146,16 +134,12 @@ async fn bench_access_control() {
             let mut last_rid = [0u8; 32];
             last_rid[0..4].copy_from_slice(&count.to_le_bytes());
 
-            has_multi_samples.push(
-                system
-                    .measure_gas(|| {
-                        service
-                            .has_role(last_rid, target_user)
-                            .send_one_way()
-                            .unwrap()
-                    })
-                    .unwrap(),
-            );
+            has_multi_samples.push(system.measure_gas(|| {
+                service
+                    .has_role(last_rid, target_user)
+                    .send_one_way()
+                    .unwrap()
+            }));
         }
         has_role_multi_metrics.insert(count, median(has_multi_samples));
     }

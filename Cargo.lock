@@ -18,6 +18,7 @@ version = "0.0.0"
 dependencies = [
  "access-control-test-client",
  "awesome-sails",
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "futures",
  "gtest",
@@ -414,6 +415,7 @@ name = "awesome-sails"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-storage",
  "awesome-sails-vft",
  "awesome-sails-vft-admin",
  "awesome-sails-vft-extension",
@@ -427,6 +429,7 @@ dependencies = [
 name = "awesome-sails-access-control"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "sails-rs",
  "thiserror 2.0.17",
@@ -441,7 +444,6 @@ dependencies = [
  "anyhow",
  "clap",
  "cli-table",
- "fs2",
  "gprimitives",
  "gtest",
  "sails-rs",
@@ -451,10 +453,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "awesome-sails-storage"
+version = "0.1.0"
+
+[[package]]
 name = "awesome-sails-test-app"
 version = "0.0.0"
 dependencies = [
  "awesome-sails",
+ "awesome-sails-storage",
  "awesome-sails-test-client",
  "awesome-sails-utils",
  "futures",
@@ -476,6 +483,7 @@ dependencies = [
 name = "awesome-sails-utils"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "bnum",
  "derive_more 2.1.0",
  "gprimitives",
@@ -491,6 +499,7 @@ dependencies = [
 name = "awesome-sails-vft"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft-utils",
  "sails-rs",
@@ -501,6 +510,7 @@ name = "awesome-sails-vft-admin"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "keccak-const",
@@ -511,6 +521,7 @@ dependencies = [
 name = "awesome-sails-vft-extension"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "sails-rs",
@@ -521,6 +532,7 @@ dependencies = [
 name = "awesome-sails-vft-metadata"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "sails-rs",
 ]
@@ -529,6 +541,7 @@ dependencies = [
 name = "awesome-sails-vft-native-exchange"
 version = "0.1.0"
 dependencies = [
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "sails-rs",
@@ -539,6 +552,7 @@ name = "awesome-sails-vft-native-exchange-admin"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-storage",
  "awesome-sails-utils",
  "awesome-sails-vft",
  "awesome-sails-vft-admin",
@@ -2168,16 +2182,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88a41f105fe1d5b6b34b2055e3dc59bb79b46b48b2040b9e6c7b4b5de097aa41"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "fs2"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
-dependencies = [
- "libc",
- "winapi",
 ]
 
 [[package]]

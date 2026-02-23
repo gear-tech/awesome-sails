@@ -433,31 +433,94 @@ pub mod vft {
     use super::*;
     pub trait Vft {
         type Env: sails_rs::client::GearEnv;
+        /// Approves `spender` to spend `value` amount of tokens on behalf of the caller.
+        ///
+        /// If `value` is `U256::MAX`, the allowance is treated as infinite.
+        /// Emits an `Approval` event if the allowance value changes.
+        ///
+        /// # Arguments
+        ///
+        /// * `spender` - The account to be allowed to spend tokens.
+        /// * `value` - The amount of tokens to approve.
+        ///
+        /// # Returns
+        ///
+        /// `true` if the approval value was changed, `false` otherwise.
         fn approve(
             &mut self,
             spender: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::Approve, Self::Env>;
+        /// Transfers `value` amount of tokens from the caller to `to`.
+        ///
+        /// Emits a `Transfer` event.
+        ///
+        /// # Arguments
+        ///
+        /// * `to` - The recipient of the tokens.
+        /// * `value` - The amount of tokens to transfer.
+        ///
+        /// # Returns
+        ///
+        /// `true` if the transfer was successful.
         fn transfer(
             &mut self,
             to: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::Transfer, Self::Env>;
+        /// Transfers `value` amount of tokens from `from` to `to` using the allowance mechanism.
+        ///
+        /// The caller (spender) must have sufficient allowance from `from` (owner).
+        /// Emits a `Transfer` event.
+        ///
+        /// # Arguments
+        ///
+        /// * `from` - The account to transfer tokens from.
+        /// * `to` - The recipient of the tokens.
+        /// * `value` - The amount of tokens to transfer.
+        ///
+        /// # Returns
+        ///
+        /// `true` if the transfer was successful.
         fn transfer_from(
             &mut self,
             from: ActorId,
             to: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::TransferFrom, Self::Env>;
+        /// Returns the amount of tokens that `spender` is allowed to spend on behalf of `owner`.
+        ///
+        /// # Arguments
+        ///
+        /// * `owner` - The account that owns the tokens.
+        /// * `spender` - The account allowed to spend the tokens.
+        ///
+        /// # Returns
+        ///
+        /// The remaining allowance as `U256`.
         fn allowance(
             &self,
             owner: ActorId,
             spender: ActorId,
         ) -> sails_rs::client::PendingCall<io::Allowance, Self::Env>;
+        /// Returns the token balance of `account`.
+        ///
+        /// # Arguments
+        ///
+        /// * `account` - The account to query the balance of.
+        ///
+        /// # Returns
+        ///
+        /// The balance as `U256`.
         fn balance_of(
             &self,
             account: ActorId,
         ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env>;
+        /// Returns the total supply of tokens.
+        ///
+        /// # Returns
+        ///
+        /// The total supply as `U256`.
         fn total_supply(&self) -> sails_rs::client::PendingCall<io::TotalSupply, Self::Env>;
     }
     pub struct VftImpl;
@@ -519,11 +582,13 @@ pub mod vft {
         #[derive(PartialEq, Debug, Encode, Decode)]
         #[codec(crate = sails_rs::scale_codec)]
         pub enum VftEvents {
+            /// Emitted when an approval is granted or updated.
             Approval {
                 owner: ActorId,
                 spender: ActorId,
                 value: U256,
             },
+            /// Emitted when tokens are transferred.
             Transfer {
                 from: ActorId,
                 to: ActorId,
@@ -543,40 +608,102 @@ pub mod vft_admin {
     use super::*;
     pub trait VftAdmin {
         type Env: sails_rs::client::GearEnv;
+        /// Appends a new shard to the allowances storage map.
+        ///
+        /// # Requirements
+        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        ///
+        /// # Arguments
+        /// * `capacity` - The capacity of the new shard.
         fn append_allowances_shard(
             &mut self,
             capacity: u32,
         ) -> sails_rs::client::PendingCall<io::AppendAllowancesShard, Self::Env>;
+        /// Appends a new shard to the balances storage map.
+        ///
+        /// # Requirements
+        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        ///
+        /// # Arguments
+        /// * `capacity` - The capacity of the new shard.
         fn append_balances_shard(
             &mut self,
             capacity: u32,
         ) -> sails_rs::client::PendingCall<io::AppendBalancesShard, Self::Env>;
+        /// Approves `spender` to spend `value` from `owner`'s account.
+        ///
+        /// This is an admin function allowing the admin to set approvals arbitrarily.
+        ///
+        /// # Requirements
+        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        ///
+        /// # Arguments
+        /// * `owner` - The account owning the tokens.
+        /// * `spender` - The account to be approved.
+        /// * `value` - The amount to approve.
         fn approve_from(
             &mut self,
             owner: ActorId,
             spender: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::ApproveFrom, Self::Env>;
+        /// Burns `value` tokens from `from` account.
+        ///
+        /// # Requirements
+        /// * Caller must have `BURNER_ROLE`.
+        ///
+        /// # Arguments
+        /// * `from` - The account to burn tokens from.
+        /// * `value` - The amount to burn.
         fn burn(
             &mut self,
             from: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::Burn, Self::Env>;
+        /// Terminates the program and sends value to `inheritor`.
+        ///
+        /// # Requirements
+        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Program must be paused.
         fn exit(
             &mut self,
             inheritor: ActorId,
         ) -> sails_rs::client::PendingCall<io::Exit, Self::Env>;
+        /// Mints `value` tokens to `to` account.
+        ///
+        /// # Requirements
+        /// * Caller must have `MINTER_ROLE`.
+        ///
+        /// # Arguments
+        /// * `to` - The recipient of the minted tokens.
+        /// * `value` - The amount to mint.
         fn mint(
             &mut self,
             to: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::Mint, Self::Env>;
+        /// Pauses the contract.
+        ///
+        /// # Requirements
+        /// * Caller must have `PAUSER_ROLE`.
         fn pause(&mut self) -> sails_rs::client::PendingCall<io::Pause, Self::Env>;
+        /// Resumes the contract.
+        ///
+        /// # Requirements
+        /// * Caller must have `PAUSER_ROLE`.
         fn resume(&mut self) -> sails_rs::client::PendingCall<io::Resume, Self::Env>;
+        /// Sets the expiry period for allowances.
+        ///
+        /// # Requirements
+        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        ///
+        /// # Arguments
+        /// * `period` - The new expiry period in blocks.
         fn set_expiry_period(
             &mut self,
             period: u32,
         ) -> sails_rs::client::PendingCall<io::SetExpiryPeriod, Self::Env>;
+        /// Returns `true` if the contract is paused.
         fn is_paused(&self) -> sails_rs::client::PendingCall<io::IsPaused, Self::Env>;
     }
     pub struct VftAdminImpl;
@@ -661,7 +788,9 @@ pub mod vft_admin {
         pub enum VftAdminEvents {
             BurnerTookPlace,
             MinterTookPlace,
+            /// Emitted when the allowance expiry period is changed.
             ExpiryPeriodChanged(u32),
+            /// Emitted when the program exits.
             Exited(ActorId),
             Paused,
             Resumed,
@@ -686,46 +815,136 @@ pub mod vft_extension {
     use super::*;
     pub trait VftExtension {
         type Env: sails_rs::client::GearEnv;
+        /// Allocates the next shard for allowances storage.
+        ///
+        /// Useful when the current shard is full.
+        ///
+        /// # Returns
+        ///
+        /// `true` if a new shard was allocated, `false` otherwise.
         fn allocate_next_allowances_shard(
             &mut self,
         ) -> sails_rs::client::PendingCall<io::AllocateNextAllowancesShard, Self::Env>;
+        /// Allocates the next shard for balances storage.
+        ///
+        /// Useful when the current shard is full.
+        ///
+        /// # Returns
+        ///
+        /// `true` if a new shard was allocated, `false` otherwise.
         fn allocate_next_balances_shard(
             &mut self,
         ) -> sails_rs::client::PendingCall<io::AllocateNextBalancesShard, Self::Env>;
+        /// Removes an expired allowance.
+        ///
+        /// If the allowance from `owner` to `spender` has expired, it is removed to free up storage.
+        ///
+        /// # Arguments
+        ///
+        /// * `owner` - The account that granted the allowance.
+        /// * `spender` - The account that was granted the allowance.
+        ///
+        /// # Returns
+        ///
+        /// `true` if the allowance was removed, `false` otherwise (e.g., if it didn't exist).
         fn remove_expired_allowance(
             &mut self,
             owner: ActorId,
             spender: ActorId,
         ) -> sails_rs::client::PendingCall<io::RemoveExpiredAllowance, Self::Env>;
+        /// Transfers the entire balance from the caller to `to`.
+        ///
+        /// # Arguments
+        ///
+        /// * `to` - The recipient of the tokens.
+        ///
+        /// # Returns
+        ///
+        /// `true` if any tokens were transferred.
         fn transfer_all(
             &mut self,
             to: ActorId,
         ) -> sails_rs::client::PendingCall<io::TransferAll, Self::Env>;
+        /// Transfers the entire balance from `from` to `to` using the allowance mechanism.
+        ///
+        /// The caller must have sufficient allowance.
+        ///
+        /// # Arguments
+        ///
+        /// * `from` - The account to transfer tokens from.
+        /// * `to` - The recipient of the tokens.
+        ///
+        /// # Returns
+        ///
+        /// `true` if any tokens were transferred.
         fn transfer_all_from(
             &mut self,
             from: ActorId,
             to: ActorId,
         ) -> sails_rs::client::PendingCall<io::TransferAllFrom, Self::Env>;
+        /// Returns the allowance detail (amount and expiration block) for a given owner and spender.
+        ///
+        /// # Arguments
+        ///
+        /// * `owner` - The account owning the tokens.
+        /// * `spender` - The account allowed to spend the tokens.
+        ///
+        /// # Returns
+        ///
+        /// An `Option` containing a tuple `(U256, u32)` representing the amount and expiration block height.
         fn allowance_of(
             &self,
             owner: ActorId,
             spender: ActorId,
         ) -> sails_rs::client::PendingCall<io::AllowanceOf, Self::Env>;
+        /// Returns a list of all allowances with pagination.
+        ///
+        /// # Arguments
+        ///
+        /// * `cursor` - The index to start from.
+        /// * `len` - The number of items to return.
+        ///
+        /// # Returns
+        ///
+        /// A vector of allowance details.
         fn allowances(
             &self,
             cursor: u32,
             len: u32,
         ) -> sails_rs::client::PendingCall<io::Allowances, Self::Env>;
+        /// Returns the balance of an account, if it exists in storage.
+        ///
+        /// Unlike `vft::balance_of` which returns 0 for non-existent accounts, this returns `None`.
+        ///
+        /// # Arguments
+        ///
+        /// * `account` - The account to query.
+        ///
+        /// # Returns
+        ///
+        /// An `Option<U256>` containing the balance.
         fn balance_of(
             &self,
             account: ActorId,
         ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env>;
+        /// Returns a list of all balances with pagination.
+        ///
+        /// # Arguments
+        ///
+        /// * `cursor` - The index to start from.
+        /// * `len` - The number of items to return.
+        ///
+        /// # Returns
+        ///
+        /// A vector of `(ActorId, U256)` pairs.
         fn balances(
             &self,
             cursor: u32,
             len: u32,
         ) -> sails_rs::client::PendingCall<io::Balances, Self::Env>;
+        /// Returns the configured allowance expiry period.
         fn expiry_period(&self) -> sails_rs::client::PendingCall<io::ExpiryPeriod, Self::Env>;
+        /// Returns the amount of value (tokens) that are currently "unused" or reserved.
         fn unused_value(&self) -> sails_rs::client::PendingCall<io::UnusedValue, Self::Env>;
     }
     pub struct VftExtensionImpl;
@@ -816,11 +1035,23 @@ pub mod vft_metadata {
     use super::*;
     pub trait VftMetadata {
         type Env: sails_rs::client::GearEnv;
-        /// Returns the number of decimals of the VFT.
+        /// Returns the number of decimals used by the VFT.
+        ///
+        /// # Returns
+        ///
+        /// The decimals as a `u8`.
         fn decimals(&self) -> sails_rs::client::PendingCall<io::Decimals, Self::Env>;
         /// Returns the name of the VFT.
+        ///
+        /// # Returns
+        ///
+        /// The name as a `String`.
         fn name(&self) -> sails_rs::client::PendingCall<io::Name, Self::Env>;
         /// Returns the symbol of the VFT.
+        ///
+        /// # Returns
+        ///
+        /// The symbol as a `String`.
         fn symbol(&self) -> sails_rs::client::PendingCall<io::Symbol, Self::Env>;
     }
     pub struct VftMetadataImpl;
@@ -849,8 +1080,27 @@ pub mod vft_native_exchange {
     use super::*;
     pub trait VftNativeExchange {
         type Env: sails_rs::client::GearEnv;
+        /// Burns `value` amount of VFT tokens and returns the equivalent amount of native value to the caller.
+        ///
+        /// # Arguments
+        ///
+        /// * `value` - The amount of VFT tokens to burn.
+        ///
+        /// # Returns
+        ///
+        /// A `CommandReply` containing the unit value `()` and transferring the native value.
         fn burn(&mut self, value: U256) -> sails_rs::client::PendingCall<io::Burn, Self::Env>;
+        /// Burns all VFT tokens owned by the caller and returns the equivalent amount of native value.
+        ///
+        /// # Returns
+        ///
+        /// A `CommandReply` containing the unit value `()` and transferring the native value.
         fn burn_all(&mut self) -> sails_rs::client::PendingCall<io::BurnAll, Self::Env>;
+        /// Mints VFT tokens to the caller equal to the amount of native value attached to the message.
+        ///
+        /// # Returns
+        ///
+        /// `Ok(())` on success.
         fn mint(&mut self) -> sails_rs::client::PendingCall<io::Mint, Self::Env>;
     }
     pub struct VftNativeExchangeImpl;
@@ -881,6 +1131,19 @@ pub mod vft_native_exchange_admin {
     use super::*;
     pub trait VftNativeExchangeAdmin {
         type Env: sails_rs::client::GearEnv;
+        /// Burns `value` amount of VFT tokens from `from` account and sends the equivalent
+        /// native value to `from`.
+        ///
+        /// This allows an admin (with burner role) to force an exchange/refund.
+        ///
+        /// # Arguments
+        ///
+        /// * `from` - The account to burn tokens from.
+        /// * `value` - The amount of tokens to burn.
+        ///
+        /// # Returns
+        ///
+        /// `Ok(())` on success.
         fn burn_from(
             &mut self,
             from: ActorId,
@@ -912,6 +1175,7 @@ pub mod vft_native_exchange_admin {
         #[derive(PartialEq, Debug, Encode, Decode)]
         #[codec(crate = sails_rs::scale_codec)]
         pub enum VftNativeExchangeAdminEvents {
+            /// Emitted when re-minting tokens after a failed transfer fails.
             FailedMint { to: ActorId, value: U256 },
         }
         impl sails_rs::client::Event for VftNativeExchangeAdminEvents {

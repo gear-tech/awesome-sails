@@ -18,21 +18,21 @@
 
 //! Awesome VFT-NativeExchangeAdmin service.
 //!
-//! This service provides admin functionality of exchanging native tokens to VFT's.
+//! This service provides administrative functionality for exchanging native tokens to VFT tokens.
+//! It handles cases such as failed transfers and allows admins to burn tokens from users while
+//! returning the native value.
 
 #![no_std]
 
 use awesome_sails_access_control::error::Error;
-use awesome_sails_utils::{
-    ok_if,
-    storage::{InfallibleStorageMut, StorageMut},
-};
+use awesome_sails_storage::{InfallibleStorageMut, StorageMut};
+use awesome_sails_utils::ok_if;
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_vft_admin::{self as vft_admin};
 use sails_rs::{gstd, prelude::*};
 use vft_admin::RolesStorage;
 
-/// Awesome VFT-Native-Exchange-Admin service itself.
+/// The VFT Native Exchange Admin service struct.
 pub struct VftNativeExchangeAdmin<'a, ACS, A, B>
 where
     ACS: InfallibleStorageMut<Item = RolesStorage>,
@@ -48,7 +48,11 @@ where
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
-    /// Constructor for [`Self`].
+    /// Creates a new instance of the VFT Native Exchange Admin service.
+    ///
+    /// # Arguments
+    ///
+    /// * `vft_admin` - Exposure of the VFT Admin service.
     pub fn new(vft_admin: vft_admin::VftAdminExposure<vft_admin::VftAdmin<'a, ACS, A, B>>) -> Self {
         Self { vft_admin }
     }
@@ -61,7 +65,10 @@ where
     A: StorageMut<Item = Allowances>,
     B: StorageMut<Item = Balances>,
 {
-    /// Reply handler for failed token transfers.
+    /// Handles reply messages from failed token transfers.
+    ///
+    /// If a native value transfer fails, this handler attempts to re-mint the VFT tokens
+    /// to the original sender to ensure no value is lost.
     pub fn handle_reply(&mut self) {
         // TODO(sails): impl getters for reply details.
         let value = Syscall::message_value();
@@ -84,6 +91,19 @@ where
         }
     }
 
+    /// Burns `value` amount of VFT tokens from `from` account and sends the equivalent
+    /// native value to `from`.
+    ///
+    /// This allows an admin (with burner role) to force an exchange/refund.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - The account to burn tokens from.
+    /// * `value` - The amount of tokens to burn.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success.
     #[export(unwrap_result)]
     pub fn burn_from(&mut self, from: ActorId, value: U256) -> Result<(), Error> {
         ok_if!(value.is_zero());
@@ -101,10 +121,12 @@ where
     }
 }
 
+/// Events emitted by the VFT Native Exchange Admin service.
 #[event]
 #[derive(Clone, Debug, PartialEq, Encode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum Event {
+    /// Emitted when re-minting tokens after a failed transfer fails.
     FailedMint { to: ActorId, value: U256 },
 }

@@ -16,6 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Foundational utilities for the `awesome-sails` workspace.
+//!
+//! This crate provides shared functionality, including error handling, macros,
+//! data structures, mathematical operations, pausable functionality, and storage helpers
+//! used across various services in the ecosystem.
+
 #![no_std]
 
 extern crate alloc;
@@ -25,4 +31,3 @@ pub mod macros;
 pub mod map;
 pub mod math;
 pub mod pause;
-pub mod storage;
