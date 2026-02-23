@@ -14,7 +14,7 @@ rust-version.workspace = true
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-gtest = { workspace = true }
+gtest = { workspace = true, optional = true }
 gprimitives = { workspace = true }
 
 # Optional reporting
@@ -22,11 +22,13 @@ cli-table = { version = "0.5", optional = true }
 clap = { version = "4.0", features = ["derive"], optional = true }
 
 [features]
-default = []
+default = ["gtest"]
 # Enables ASCII table reporting logic in the library
 "ascii-table" = ["dep:cli-table"]
 # Enables the bench-analyzer CLI binary
 cli = ["ascii-table", "dep:clap"]
+# Enables gtest-based benchmarking
+gtest = ["dep:gtest"]
 
 [[bin]]
 name = "bench-analyzer"
