@@ -641,7 +641,7 @@ async fn stress_test_max_members() {
     let mut members = Vec::with_capacity(MAX_MEMBERS as usize);
     for i in 1..=MAX_MEMBERS {
         let mut id = [0u8; 32];
-        id[0..4].copy_from_slice(&(i as u32).to_le_bytes());
+        id[0..4].copy_from_slice(&i.to_le_bytes());
         members.push(ActorId::from(id));
     }
 
