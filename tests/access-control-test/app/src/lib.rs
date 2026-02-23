@@ -19,63 +19,40 @@
 #![no_std]
 
 use awesome_sails::access_control;
-use awesome_sails_utils::storage::{InfallibleStorage, InfallibleStorageMut};
-use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut};
+use awesome_sails_utils::storage::StorageRefCell;
+use sails_rs::cell::RefCell;
 use sails_rs::prelude::*;
 
-const ROLES_LIMIT: usize = 101;
-const MEMBERS_LIMIT: usize = 10001;
+const ROLES_LIMIT: usize = 41;
+const MEMBERS_LIMIT: usize = 256;
 
 type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
 
-static mut STORAGE: MaybeUninit<RolesStorage> = MaybeUninit::uninit();
-
-#[derive(Clone, Copy)]
-pub struct RolesStoragePtr;
-
-impl InfallibleStorage for RolesStoragePtr {
-    type Item = RolesStorage;
-    fn get(&self) -> impl Deref<Target = Self::Item> {
-        unsafe { &*core::ptr::addr_of!(STORAGE).cast::<RolesStorage>() }
-    }
+pub struct Program {
+    roles: RefCell<RolesStorage>,
 }
-
-impl InfallibleStorageMut for RolesStoragePtr {
-    fn get_mut(&mut self) -> impl DerefMut<Target = Self::Item> {
-        unsafe { &mut *core::ptr::addr_of_mut!(STORAGE).cast::<RolesStorage>() }
-    }
-    fn replace(&mut self, _item: Self::Item) -> Self::Item {
-        unimplemented!("Replacing huge storage on stack is not allowed")
-    }
-}
-
-#[derive(Default)]
-pub struct Program;
 
 #[program]
 impl Program {
     pub fn new() -> Self {
         let deployer = Syscall::message_source();
+        let mut storage = RolesStorage::default();
 
-        unsafe {
-            let storage = &mut *core::ptr::addr_of_mut!(STORAGE).cast::<RolesStorage>();
+        storage.grant_initial_admin(deployer);
 
-            // Manual field-by-field reset to avoid stack overflow
-            storage.role_count = 0;
-            for d in storage.descriptors.iter_mut() {
-                core::ptr::write(d, None);
-            }
-
-            storage.grant_initial_admin(deployer);
+        Self {
+            roles: RefCell::new(storage),
         }
-
-        Self
     }
 
     pub fn access_control(
         &self,
-    ) -> access_control::AccessControl<'static, ROLES_LIMIT, MEMBERS_LIMIT, RolesStoragePtr> {
-        access_control::AccessControl::new(RolesStoragePtr)
+    ) -> access_control::AccessControl<
+        '_,
+        ROLES_LIMIT,
+        MEMBERS_LIMIT,
+        StorageRefCell<'_, RolesStorage>,
+    > {
+        access_control::AccessControl::new(StorageRefCell::new(&self.roles))
     }
 }

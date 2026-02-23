@@ -630,3 +630,50 @@ async fn enumeration_pagination_logic() {
         .unwrap();
     assert!(empty.is_empty());
 }
+
+#[tokio::test]
+async fn stress_test_max_members() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    const MAX_MEMBERS: u32 = 255;
+
+    let mut members = Vec::with_capacity(MAX_MEMBERS as usize);
+    for i in 1..=MAX_MEMBERS {
+        let mut id = [0u8; 32];
+        id[0..4].copy_from_slice(&(i as u32).to_le_bytes());
+        members.push(ActorId::from(id));
+    }
+
+    for &member in &members {
+        access_control_service
+            .grant_role(MINTER_ROLE, member)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+    }
+
+    let count = access_control_service
+        .get_role_member_count(MINTER_ROLE)
+        .await
+        .unwrap();
+    assert_eq!(count, MAX_MEMBERS);
+
+    for &member in &members {
+        let has_role = access_control_service
+            .has_role(MINTER_ROLE, member)
+            .await
+            .unwrap();
+        assert!(has_role, "Member {:?} should have the role", member);
+    }
+
+    let contract_members = access_control_service
+        .get_role_members(MINTER_ROLE, None)
+        .await
+        .unwrap();
+
+    assert_eq!(contract_members.len(), MAX_MEMBERS as usize);
+    for i in 0..MAX_MEMBERS as usize {
+        assert_eq!(contract_members[i], members[i], "Mismatch at index {}", i);
+    }
+}
