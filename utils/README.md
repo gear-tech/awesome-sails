@@ -88,7 +88,7 @@ fn example_nonzero() {
 The `storage` module provides traits to abstract over different storage backends (e.g., `RefCell` for testing or persistent storage).
 
 ```rust
-use awesome_sails_utils::storage::{InfallibleStorage, InfallibleStorageMut, StorageRefCell};
+use awesome_sails_storage::{InfallibleStorage, InfallibleStorageMut, StorageRefCell};
 use core::cell::RefCell;
 
 fn example_storage() {

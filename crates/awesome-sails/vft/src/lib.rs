@@ -23,12 +23,12 @@
 
 #![no_std]
 
+use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},
     ok_if,
     pause::PausableRef,
-    storage::StorageMut,
 };
 use awesome_sails_vft_utils::{Allowance, Allowances, Balance, Balances};
 use sails_rs::prelude::*;

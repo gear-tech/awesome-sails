@@ -24,11 +24,11 @@
 
 #![no_std]
 
+use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
     error::{EmitError, Error},
     math::Zero,
     ok_if,
-    storage::StorageMut,
 };
 use awesome_sails_vft::{
     self as vft,

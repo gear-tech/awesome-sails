@@ -23,7 +23,7 @@ To use the Access Control service in your Sails program, you need to include its
 #![no_std]
 
 use awesome_sails_access_control::{AccessControl, RolesStorage};
-use awesome_sails_utils::storage::StorageRefCell;
+use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]

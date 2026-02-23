@@ -43,7 +43,7 @@
 pub use awesome_sails_utils::ensure;
 
 use crate::error::{AccessDenied, EmitError, Error, NotAccountOwner};
-use awesome_sails_utils::storage::{InfallibleStorageMut, StorageRefCell};
+use awesome_sails_storage::{InfallibleStorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::{
     collections::{BTreeMap, BTreeSet},

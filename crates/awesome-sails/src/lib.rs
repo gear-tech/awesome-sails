@@ -55,3 +55,7 @@ pub use awesome_sails_vft_native_exchange_admin as vft_native_exchange_admin;
 /// Role-Based Access Control (RBAC) service.
 #[cfg(feature = "access-control")]
 pub use awesome_sails_access_control as access_control;
+
+/// Storage abstractions and traits.
+#[cfg(feature = "storage")]
+pub use awesome_sails_storage as storage;
