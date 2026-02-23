@@ -2,7 +2,7 @@
 
 > **Note:** Built using the Sails framework. It is highly recommended to study the [Sails Documentation](https://docs.rs/sails-rs/latest/sails_rs/) before using this crate.
 
-Foundational utilities for the `awesome-sails` workspace. This crate provides shared functionality, including error handling, macros, data structures, mathematical operations, pausable functionality, and storage helpers used across various services in the ecosystem.
+Foundational utilities for the `awesome-sails` workspace. This crate provides shared functionality, including error handling, macros, data structures, mathematical operations, and pausable functionality used across various services in the ecosystem.
 
 ## Installation
 
@@ -80,27 +80,5 @@ fn example_nonzero() {
     // Casting between types
     let as_u128: u128 = one.try_cast().unwrap();
     assert_eq!(as_u128, 1u128);
-}
-```
-
-### Storage Abstractions
-
-The `storage` module provides traits to abstract over different storage backends (e.g., `RefCell` for testing or persistent storage).
-
-```rust
-use awesome_sails_storage::{InfallibleStorage, InfallibleStorageMut, StorageRefCell};
-use core::cell::RefCell;
-
-fn example_storage() {
-    let storage_inner = RefCell::new(42u32);
-    let mut storage = StorageRefCell::new(&storage_inner);
-
-    // InfallibleStorageMut provides replace, take, etc.
-    let old_value = InfallibleStorageMut::replace(&mut storage, 10);
-    assert_eq!(old_value, 42);
-
-    // Access the value using InfallibleStorage
-    let current = InfallibleStorage::get(&storage);
-    assert_eq!(*current, 10);
 }
 ```

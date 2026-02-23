@@ -40,20 +40,10 @@ test = ["awesome-sails-vft-utils/test"]
 
 vft = ["dep:awesome-sails-vft", "vft-utils", "storage"]
 vft-utils = ["dep:awesome-sails-vft-utils"]
-vft-admin = [
-    "dep:awesome-sails-vft-admin",
-    "vft",
-    "access-control",
-]
-vft-extension = [
-    "dep:awesome-sails-vft-extension",
-    "vft",
-]
+vft-admin = ["dep:awesome-sails-vft-admin", "vft", "access-control"]
+vft-extension = ["dep:awesome-sails-vft-extension", "vft"]
 vft-metadata = ["dep:awesome-sails-vft-metadata", "storage"]
-vft-native-exchange = [
-    "dep:awesome-sails-vft-native-exchange",
-    "vft",
-]
+vft-native-exchange = ["dep:awesome-sails-vft-native-exchange", "vft"]
 vft-native-exchange-admin = [
     "dep:awesome-sails-vft-native-exchange-admin",
     "vft-admin",
