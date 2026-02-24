@@ -415,6 +415,7 @@ name = "awesome-sails"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-msg-tracker",
  "awesome-sails-storage",
  "awesome-sails-vft",
  "awesome-sails-vft-admin",
@@ -450,6 +451,16 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "awesome-sails-msg-tracker"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-storage",
+ "awesome-sails-utils",
+ "sails-rs",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

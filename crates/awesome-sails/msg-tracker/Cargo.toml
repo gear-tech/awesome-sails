@@ -1,0 +1,21 @@
+[package]
+name = "awesome-sails-msg-tracker"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Message tracking and status management for Sails-based programs"
+
+[dependencies]
+# Sails dependencies (provides scale-codec and scale-info)
+sails-rs = { workspace = true }
+
+# Local dependencies
+awesome-sails-utils = { workspace = true }
+awesome-sails-storage = { workspace = true }
+
+# Other dependencies
+thiserror = { workspace = true }
