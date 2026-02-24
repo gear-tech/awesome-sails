@@ -31,6 +31,8 @@ members = [
     "tests/awesome-sails-test/client",
     "tests/access-control-test/app",
     "tests/access-control-test/client",
+    "tests/msg-tracker-test/app",
+    "tests/msg-tracker-test/client",
 
     # benchmarks
     "benchmarks",

@@ -10,12 +10,6 @@ rust-version.workspace = true
 description = "Message tracking and status management for Sails-based programs"
 
 [dependencies]
-# Sails dependencies (provides scale-codec and scale-info)
 sails-rs = { workspace = true }
-
-# Local dependencies
-awesome-sails-utils = { workspace = true }
 awesome-sails-storage = { workspace = true }
-
-# Other dependencies
 thiserror = { workspace = true }

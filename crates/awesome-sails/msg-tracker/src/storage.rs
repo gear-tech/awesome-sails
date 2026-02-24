@@ -1,5 +1,6 @@
 use crate::{MessageStorage, TrackerError};
-use sails_rs::{collections::BTreeMap, prelude::*};
+pub use sails_rs::collections::BTreeMap;
+use sails_rs::prelude::*;
 
 impl<T> MessageStorage<T> for BTreeMap<MessageId, T> {
     fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError> {
