@@ -1,4 +1,4 @@
-use crate::{MessageStorage, TrackerError};
+use crate::MessageStorage;
 pub use sails_rs::collections::BTreeMap;
 use sails_rs::prelude::*;
 
@@ -18,6 +18,18 @@ impl<T> MessageStorage<T> for BTreeMap<MessageId, T> {
 
     fn remove(&mut self, msg_id: &MessageId) -> Option<T> {
         self.remove(msg_id)
+    }
+
+    fn get_statuses(&self, query: Option<crate::Pagination>) -> Vec<(MessageId, T)>
+    where
+        T: Clone,
+    {
+        let (offset, limit) = crate::Pagination::range(query);
+        self.iter()
+            .skip(offset)
+            .take(limit)
+            .map(|(&id, s)| (id, s.clone()))
+            .collect()
     }
 
     fn len(&self) -> usize {
@@ -104,6 +116,20 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
         }
     }
 
+    fn get_statuses(&self, query: Option<crate::Pagination>) -> Vec<(MessageId, T)>
+    where
+        T: Clone,
+    {
+        let (offset, limit) = crate::Pagination::range(query);
+        self.ids[..self.len as usize]
+            .iter()
+            .zip(self.statuses[..self.len as usize].iter().flatten())
+            .skip(offset)
+            .take(limit)
+            .map(|(&id, s)| (id, s.clone()))
+            .collect()
+    }
+
     fn len(&self) -> usize {
         self.len as usize
     }
@@ -114,4 +140,14 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
         }
         self.len = 0;
     }
+}
+
+/// Errors that can occur during message tracking.
+#[derive(Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub enum TrackerError {
+    /// Indicates that the fixed storage capacity has been exceeded.
+    #[error("Capacity exceeded")]
+    CapacityExceeded,
 }

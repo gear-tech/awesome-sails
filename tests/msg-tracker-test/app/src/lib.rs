@@ -1,7 +1,7 @@
 #![no_std]
 
 use awesome_sails::msg_tracker::{
-    MsgTracker,
+    MsgTracker, Pagination,
     storage::{BTreeMap, FixedStorage},
 };
 use awesome_sails_storage::StorageRefCell;
@@ -62,6 +62,11 @@ impl DynamicCounter<'_> {
     }
 
     #[export]
+    pub fn get_statuses(&self, query: Option<Pagination>) -> Vec<(MessageId, OpStatus)> {
+        self.tracker.get_statuses(query)
+    }
+
+    #[export]
     pub fn update_dynamic(&mut self, id: MessageId, status: OpStatus) -> bool {
         self.tracker.update_status(id, status).unwrap()
     }
@@ -106,6 +111,11 @@ impl FixedCounter<'_> {
     #[export]
     pub fn get_status(&self, id: MessageId) -> Option<OpStatus> {
         self.tracker.get_status(&id)
+    }
+
+    #[export]
+    pub fn get_statuses(&self, query: Option<Pagination>) -> Vec<(MessageId, OpStatus)> {
+        self.tracker.get_statuses(query)
     }
 
     #[export]

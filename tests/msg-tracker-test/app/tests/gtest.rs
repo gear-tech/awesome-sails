@@ -82,7 +82,7 @@ async fn test_fixed_storage_mixed_workload() {
 
     let id1 = fixed_counter.request_increment().await.unwrap();
     let id2 = fixed_counter.request_increment().await.unwrap();
-    let id3 = fixed_counter.request_increment().await.unwrap();
+    let _id3 = fixed_counter.request_increment().await.unwrap();
 
     let updated = fixed_counter
         .update_fixed(id2, OpStatus::Completed)
@@ -118,4 +118,31 @@ async fn test_clear_and_reutilize() {
     for _ in 0..5 {
         fixed_counter.request_increment().await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn test_pagination_logic() {
+    let (program, _env) = deploy_program().await;
+    let mut fixed_counter = program.fixed_counter();
+
+    let mut ids = Vec::new();
+    for _ in 0..5 {
+        ids.push(fixed_counter.request_increment().await.unwrap());
+    }
+
+    let all = fixed_counter.get_statuses(None).await.unwrap();
+    assert_eq!(all.len(), 5);
+
+    let page = fixed_counter
+        .get_statuses(Some(msg_tracker_test_client::Pagination {
+            offset: 2,
+            limit: 2,
+        }))
+        .await
+        .unwrap();
+    assert_eq!(page.len(), 2);
+
+    ids.sort();
+    assert_eq!(page[0].0, ids[2]);
+    assert_eq!(page[1].0, ids[3]);
 }

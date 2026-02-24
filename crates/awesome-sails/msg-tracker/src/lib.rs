@@ -4,7 +4,40 @@ use awesome_sails_storage::InfallibleStorageMut;
 use core::marker::PhantomData;
 use sails_rs::prelude::*;
 
+use crate::storage::TrackerError;
+
 pub mod storage;
+
+/// Trait for message status storage.
+pub trait MessageStorage<T> {
+    /// Inserts a message ID and its status.
+    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError>;
+
+    /// Returns a reference to the status associated with the message ID.
+    fn get(&self, msg_id: &MessageId) -> Option<&T>;
+
+    /// Returns a mutable reference to the status associated with the message ID.
+    fn get_mut(&mut self, msg_id: &MessageId) -> Option<&mut T>;
+
+    /// Removes the message ID and its status.
+    fn remove(&mut self, msg_id: &MessageId) -> Option<T>;
+
+    /// Returns a list of tracked message IDs and their statuses with optional pagination.
+    fn get_statuses(&self, query: Option<Pagination>) -> Vec<(MessageId, T)>
+    where
+        T: Clone;
+
+    /// Returns the number of tracked messages.
+    fn len(&self) -> usize;
+
+    /// Returns `true` if no messages are tracked.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Clears all tracked messages.
+    fn clear(&mut self);
+}
 
 /// Tracker for asynchronous messages and their statuses.
 pub struct MsgTracker<T, S>
@@ -14,6 +47,17 @@ where
 {
     storage: S,
     _phantom: PhantomData<T>,
+}
+
+/// Pagination parameters for listing tracked messages.
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct Pagination {
+    /// The number of items to skip.
+    pub offset: u32,
+    /// The maximum number of items to return.
+    pub limit: u32,
 }
 
 impl<T, S> MsgTracker<T, S>
@@ -40,6 +84,14 @@ where
         T: Clone,
     {
         self.storage.get().get(msg_id).cloned()
+    }
+
+    /// Retrieves all tracked messages and their statuses with optional pagination.
+    pub fn get_statuses(&self, query: Option<Pagination>) -> Vec<(MessageId, T)>
+    where
+        T: Clone,
+    {
+        self.storage.get().get_statuses(query)
     }
 
     /// Updates the status of a tracked message.
@@ -76,38 +128,11 @@ where
     }
 }
 
-/// Trait for message status storage.
-pub trait MessageStorage<T> {
-    /// Inserts a message ID and its status.
-    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError>;
-
-    /// Returns a reference to the status associated with the message ID.
-    fn get(&self, msg_id: &MessageId) -> Option<&T>;
-
-    /// Returns a mutable reference to the status associated with the message ID.
-    fn get_mut(&mut self, msg_id: &MessageId) -> Option<&mut T>;
-
-    /// Removes the message ID and its status.
-    fn remove(&mut self, msg_id: &MessageId) -> Option<T>;
-
-    /// Returns the number of tracked messages.
-    fn len(&self) -> usize;
-
-    /// Returns `true` if no messages are tracked.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
+impl Pagination {
+    /// Helper to convert optional pagination into (offset, limit).
+    pub fn range(query: Option<Self>) -> (usize, usize) {
+        query
+            .map(|q| (q.offset as usize, q.limit as usize))
+            .unwrap_or((0, usize::MAX))
     }
-
-    /// Clears all tracked messages.
-    fn clear(&mut self);
-}
-
-/// Errors that can occur during message tracking.
-#[derive(Debug, Decode, Encode, TypeInfo, thiserror::Error)]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
-pub enum TrackerError {
-    /// Indicates that the fixed storage capacity has been exceeded.
-    #[error("Capacity exceeded")]
-    CapacityExceeded,
 }

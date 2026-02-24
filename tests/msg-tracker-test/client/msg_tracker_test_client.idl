@@ -3,6 +3,14 @@ type OpStatus = enum {
   Completed,
 };
 
+/// Pagination parameters for listing tracked messages.
+type Pagination = struct {
+  /// The number of items to skip.
+  offset: u32,
+  /// The maximum number of items to return.
+  limit: u32,
+};
+
 constructor {
   New : ();
 };
@@ -13,6 +21,7 @@ service DynamicCounter {
   RequestIncrement : () -> message_id;
   UpdateDynamic : (id: message_id, status: OpStatus) -> bool;
   query GetStatus : (id: message_id) -> opt OpStatus;
+  query GetStatuses : (query: opt Pagination) -> vec struct { message_id, OpStatus };
   query GetVal : () -> u32;
 };
 
@@ -23,6 +32,7 @@ service FixedCounter {
   RequestIncrement : () -> message_id;
   UpdateFixed : (id: message_id, status: OpStatus) -> bool;
   query GetStatus : (id: message_id) -> opt OpStatus;
+  query GetStatuses : (query: opt Pagination) -> vec struct { message_id, OpStatus };
   query GetVal : () -> u32;
 };
 

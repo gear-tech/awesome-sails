@@ -68,6 +68,10 @@ pub mod dynamic_counter {
             &self,
             id: MessageId,
         ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env>;
+        fn get_statuses(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env>;
         fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env>;
     }
     pub struct DynamicCounterImpl;
@@ -102,6 +106,12 @@ pub mod dynamic_counter {
         ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env> {
             self.pending_call((id,))
         }
+        fn get_statuses(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env> {
+            self.pending_call((query,))
+        }
         fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env> {
             self.pending_call(())
         }
@@ -114,6 +124,7 @@ pub mod dynamic_counter {
         sails_rs::io_struct_impl!(RequestIncrement () -> MessageId);
         sails_rs::io_struct_impl!(UpdateDynamic (id: MessageId, status: super::OpStatus) -> bool);
         sails_rs::io_struct_impl!(GetStatus (id: MessageId) -> Option<super::OpStatus>);
+        sails_rs::io_struct_impl!(GetStatuses (query: Option<super::Pagination>) -> Vec<(MessageId,super::OpStatus,)>);
         sails_rs::io_struct_impl!(GetVal () -> u32);
     }
 }
@@ -143,6 +154,10 @@ pub mod fixed_counter {
             &self,
             id: MessageId,
         ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env>;
+        fn get_statuses(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env>;
         fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env>;
     }
     pub struct FixedCounterImpl;
@@ -181,6 +196,12 @@ pub mod fixed_counter {
         ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env> {
             self.pending_call((id,))
         }
+        fn get_statuses(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env> {
+            self.pending_call((query,))
+        }
         fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env> {
             self.pending_call(())
         }
@@ -194,6 +215,7 @@ pub mod fixed_counter {
         sails_rs::io_struct_impl!(RequestIncrement () -> MessageId);
         sails_rs::io_struct_impl!(UpdateFixed (id: MessageId, status: super::OpStatus) -> bool);
         sails_rs::io_struct_impl!(GetStatus (id: MessageId) -> Option<super::OpStatus>);
+        sails_rs::io_struct_impl!(GetStatuses (query: Option<super::Pagination>) -> Vec<(MessageId,super::OpStatus,)>);
         sails_rs::io_struct_impl!(GetVal () -> u32);
     }
 }
@@ -203,4 +225,14 @@ pub mod fixed_counter {
 pub enum OpStatus {
     Pending,
     Completed,
+}
+/// Pagination parameters for listing tracked messages.
+#[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub struct Pagination {
+    /// The number of items to skip.
+    pub offset: u32,
+    /// The maximum number of items to return.
+    pub limit: u32,
 }
