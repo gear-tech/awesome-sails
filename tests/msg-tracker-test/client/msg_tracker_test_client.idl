@@ -1,0 +1,28 @@
+type OpStatus = enum {
+  Pending,
+  Completed,
+};
+
+constructor {
+  New : ();
+};
+
+service DynamicCounter {
+  ClearDynamic : () -> null;
+  ConfirmIncrement : (id: message_id) -> null;
+  RequestIncrement : () -> message_id;
+  UpdateDynamic : (id: message_id, status: OpStatus) -> bool;
+  query GetStatus : (id: message_id) -> opt OpStatus;
+  query GetVal : () -> u32;
+};
+
+service FixedCounter {
+  ClearFixed : () -> null;
+  ConfirmIncrement : (id: message_id) -> bool;
+  RemoveFixed : (id: message_id) -> opt OpStatus;
+  RequestIncrement : () -> message_id;
+  UpdateFixed : (id: message_id, status: OpStatus) -> bool;
+  query GetStatus : (id: message_id) -> opt OpStatus;
+  query GetVal : () -> u32;
+};
+
