@@ -17,6 +17,7 @@ awesome-sails = { version = "x.y.z", features = ["all"] }
 
 | Service Name              | Crate Name                                | Feature Flag                | Description                                              |
 | ------------------------- | ----------------------------------------- | --------------------------- | -------------------------------------------------------- |
+| Storage                   | `awesome-sails-storage`                   | `storage`                   | Storage abstractions and traits for different backends.  |
 | Access Control            | `awesome-sails-access-control`            | `access-control`            | Role-Based Access Control (RBAC) service.                |
 | VFT                       | `awesome-sails-vft`                       | `vft`                       | Core Vara Fungible Token implementation.                 |
 | VFT Admin                 | `awesome-sails-vft-admin`                 | `vft-admin`                 | Administrative functionality (mint, burn, pause).        |
@@ -24,6 +25,7 @@ awesome-sails = { version = "x.y.z", features = ["all"] }
 | VFT Metadata              | `awesome-sails-vft-metadata`              | `vft-metadata`              | Metadata service (name, symbol, decimals).               |
 | VFT Native Exchange       | `awesome-sails-vft-native-exchange`       | `vft-native-exchange`       | Native token to VFT exchange service.                    |
 | VFT Native Exchange Admin | `awesome-sails-vft-native-exchange-admin` | `vft-native-exchange-admin` | Administrative recovery for Native Exchange.             |
+| Message Tracker           | `awesome-sails-msg-tracker`               | `msg-tracker`               | Asynchronous message status tracking and management.     |
 | VFT Utils                 | `awesome-sails-vft-utils`                 | `vft-utils`                 | Shared utilities for VFT storage (Allowances, Balances). |
 
 ## Usage
