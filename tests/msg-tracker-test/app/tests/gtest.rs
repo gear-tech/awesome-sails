@@ -20,7 +20,7 @@ async fn test_fixed_counter_overflow_panic() {
 
     assert!(res.is_err());
     if let Err(e) = res {
-        assert_str_panic(e, "CapacityReached");
+        assert_str_panic(e, "CapacityExceeded");
     }
 }
 

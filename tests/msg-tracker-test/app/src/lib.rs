@@ -1,7 +1,7 @@
 #![no_std]
 
 use awesome_sails::msg_tracker::{
-    MsgTracker, Pagination,
+    MsgTracker, Pagination, TrackerError,
     storage::{BTreeMap, FixedStorage},
 };
 use awesome_sails_storage::StorageRefCell;
@@ -19,7 +19,6 @@ pub enum OpStatus {
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum CounterError {
-    CapacityReached,
     OperationNotFound,
     AlreadyCompleted,
 }
@@ -85,11 +84,9 @@ pub struct FixedCounter<'a> {
 #[sails_rs::service]
 impl FixedCounter<'_> {
     #[export(unwrap_result)]
-    pub fn request_increment(&mut self) -> Result<MessageId, CounterError> {
+    pub fn request_increment(&mut self) -> Result<MessageId, TrackerError> {
         let id = sails_rs::gstd::msg::id();
-        self.tracker
-            .insert(id, OpStatus::Pending)
-            .map_err(|_| CounterError::CapacityReached)?;
+        self.tracker.insert(id, OpStatus::Pending)?;
         Ok(id)
     }
 

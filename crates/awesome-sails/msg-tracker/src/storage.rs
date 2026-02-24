@@ -1,9 +1,31 @@
+// This file is part of Gear.
+
+// Copyright (C) 2026 Gear Technologies Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::MessageStorage;
+use core::convert::Infallible;
+use error::TrackerError;
 pub use sails_rs::collections::BTreeMap;
 use sails_rs::prelude::*;
 
 impl<T> MessageStorage<T> for BTreeMap<MessageId, T> {
-    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError> {
+    type Error = Infallible;
+
+    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), Self::Error> {
         self.insert(msg_id, status);
         Ok(())
     }
@@ -42,14 +64,15 @@ impl<T> MessageStorage<T> for BTreeMap<MessageId, T> {
 }
 
 /// Storage implementation using fixed-size arrays.
-///
-/// Uses binary search on a sorted array of message IDs.
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct FixedStorage<T, const N: usize> {
+    /// Array of tracked message identifiers.
     pub ids: [MessageId; N],
+    /// Array of optional message statuses corresponding to the IDs.
     pub statuses: [Option<T>; N],
+    /// Current number of tracked messages.
     pub len: u32,
 }
 
@@ -64,21 +87,25 @@ impl<T, const N: usize> Default for FixedStorage<T, N> {
 }
 
 impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
-    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError> {
-        match self.ids[..self.len as usize].binary_search(&msg_id) {
+    type Error = TrackerError;
+
+    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), Self::Error> {
+        let length = self.len as usize;
+        match self.ids[..length].binary_search(&msg_id) {
             Ok(idx) => {
                 self.statuses[idx] = Some(status);
                 Ok(())
             }
             Err(idx) => {
-                if (self.len as usize) >= N {
+                if length >= N {
                     return Err(TrackerError::CapacityExceeded);
                 }
-                // Shift elements to the right to maintain sorted order
-                for i in (idx..self.len as usize).rev() {
-                    self.ids[i + 1] = self.ids[i];
+                self.ids.copy_within(idx..length, idx + 1);
+
+                for i in (idx..length).rev() {
                     self.statuses[i + 1] = self.statuses[i].take();
                 }
+
                 self.ids[idx] = msg_id;
                 self.statuses[idx] = Some(status);
                 self.len += 1;
@@ -102,13 +129,16 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
     }
 
     fn remove(&mut self, msg_id: &MessageId) -> Option<T> {
-        if let Ok(idx) = self.ids[..self.len as usize].binary_search(msg_id) {
+        let length = self.len as usize;
+        if let Ok(idx) = self.ids[..length].binary_search(msg_id) {
             let status = self.statuses[idx].take();
-            // Shift elements to the left
-            for i in idx..(self.len as usize - 1) {
-                self.ids[i] = self.ids[i + 1];
+
+            self.ids.copy_within(idx + 1..length, idx);
+
+            for i in idx..(length - 1) {
                 self.statuses[i] = self.statuses[i + 1].take();
             }
+
             self.len -= 1;
             status
         } else {
@@ -120,10 +150,11 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
     where
         T: Clone,
     {
+        let length = self.len as usize;
         let (offset, limit) = crate::Pagination::range(query);
-        self.ids[..self.len as usize]
+        self.ids[..length]
             .iter()
-            .zip(self.statuses[..self.len as usize].iter().flatten())
+            .zip(self.statuses[..length].iter().flatten())
             .skip(offset)
             .take(limit)
             .map(|(&id, s)| (id, s.clone()))
@@ -142,12 +173,16 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
     }
 }
 
-/// Errors that can occur during message tracking.
-#[derive(Debug, Decode, Encode, TypeInfo, thiserror::Error)]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
-pub enum TrackerError {
-    /// Indicates that the fixed storage capacity has been exceeded.
-    #[error("Capacity exceeded")]
-    CapacityExceeded,
+/// Errors that can occur during storage operations.
+pub mod error {
+    use sails_rs::prelude::*;
+
+    #[derive(Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    pub enum TrackerError {
+        /// Indicates that the fixed storage capacity has been exceeded.
+        #[error("Capacity exceeded")]
+        CapacityExceeded,
+    }
 }

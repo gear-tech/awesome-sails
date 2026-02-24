@@ -1,17 +1,42 @@
+// This file is part of Gear.
+
+// Copyright (C) 2026 Gear Technologies Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! Awesome Message Tracker service.
+//!
+//! This crate provides a library for tracking asynchronous messages and their statuses.
+
 #![no_std]
 
 use awesome_sails_storage::InfallibleStorageMut;
 use core::marker::PhantomData;
 use sails_rs::prelude::*;
 
-use crate::storage::TrackerError;
-
 pub mod storage;
+
+pub use storage::error::TrackerError;
 
 /// Trait for message status storage.
 pub trait MessageStorage<T> {
+    /// The error type returned by storage operations.
+    type Error;
+
     /// Inserts a message ID and its status.
-    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError>;
+    fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), Self::Error>;
 
     /// Returns a reference to the status associated with the message ID.
     fn get(&self, msg_id: &MessageId) -> Option<&T>;
@@ -60,10 +85,10 @@ pub struct Pagination {
     pub limit: u32,
 }
 
-impl<T, S> MsgTracker<T, S>
+impl<T, S, E> MsgTracker<T, S>
 where
     S: InfallibleStorageMut,
-    S::Item: MessageStorage<T>,
+    S::Item: MessageStorage<T, Error = E>,
 {
     /// Creates a new `MsgTracker` instance.
     pub fn new(storage: S) -> Self {
@@ -74,7 +99,7 @@ where
     }
 
     /// Starts tracking a message with the given ID and status.
-    pub fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), TrackerError> {
+    pub fn insert(&mut self, msg_id: MessageId, status: T) -> Result<(), E> {
         self.storage.get_mut().insert(msg_id, status)
     }
 
@@ -97,7 +122,7 @@ where
     /// Updates the status of a tracked message.
     ///
     /// Returns `Ok(true)` if the message was already tracked and its status was updated.
-    pub fn update_status(&mut self, msg_id: MessageId, status: T) -> Result<bool, TrackerError> {
+    pub fn update_status(&mut self, msg_id: MessageId, status: T) -> Result<bool, E> {
         let mut storage = self.storage.get_mut();
         if storage.get(&msg_id).is_some() {
             storage.insert(msg_id, status)?;
