@@ -57,7 +57,7 @@ pub struct MyService<'a> {
 #[service]
 impl MyService<'_> {
     pub fn do_something(&mut self) {
-        let msg_id = sails_rs::gstd::msg::id();
+        let msg_id = Syscall::message_id();
         self.tracker.insert(msg_id, OpStatus::Pending).expect("Storage full");
     }
 

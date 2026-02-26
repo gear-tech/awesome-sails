@@ -32,7 +32,7 @@ pub struct DynamicCounter<'a> {
 impl DynamicCounter<'_> {
     #[export]
     pub fn request_increment(&mut self) -> MessageId {
-        let id = sails_rs::gstd::msg::id();
+        let id = Syscall::message_id();
         self.tracker.insert(id, OpStatus::Pending).unwrap();
         id
     }
@@ -85,7 +85,7 @@ pub struct FixedCounter<'a> {
 impl FixedCounter<'_> {
     #[export(unwrap_result)]
     pub fn request_increment(&mut self) -> Result<MessageId, TrackerError> {
-        let id = sails_rs::gstd::msg::id();
+        let id = Syscall::message_id();
         self.tracker.insert(id, OpStatus::Pending)?;
         Ok(id)
     }
