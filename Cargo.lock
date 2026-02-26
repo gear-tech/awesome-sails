@@ -415,6 +415,7 @@ name = "awesome-sails"
 version = "0.1.0"
 dependencies = [
  "awesome-sails-access-control",
+ "awesome-sails-msg-tracker",
  "awesome-sails-storage",
  "awesome-sails-vft",
  "awesome-sails-vft-admin",
@@ -450,6 +451,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "awesome-sails-msg-tracker"
+version = "0.1.0"
+dependencies = [
+ "awesome-sails-storage",
+ "sails-rs",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -3865,6 +3875,28 @@ name = "more-asserts"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
+
+[[package]]
+name = "msg-tracker-test-app"
+version = "0.0.0"
+dependencies = [
+ "awesome-sails",
+ "awesome-sails-storage",
+ "awesome-sails-utils",
+ "gtest",
+ "msg-tracker-test-client",
+ "sails-rs",
+ "tokio",
+]
+
+[[package]]
+name = "msg-tracker-test-client"
+version = "0.1.0"
+dependencies = [
+ "mockall 0.14.0",
+ "msg-tracker-test-app",
+ "sails-rs",
+]
 
 [[package]]
 name = "multi-stash"

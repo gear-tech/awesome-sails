@@ -24,12 +24,15 @@ members = [
     "crates/awesome-sails/vft-native-exchange-admin",
     "crates/awesome-sails/access-control",
     "crates/awesome-sails/storage",
+    "crates/awesome-sails/msg-tracker",
 
     # tests
     "tests/awesome-sails-test/app",
     "tests/awesome-sails-test/client",
     "tests/access-control-test/app",
     "tests/access-control-test/client",
+    "tests/msg-tracker-test/app",
+    "tests/msg-tracker-test/client",
 
     # benchmarks
     "benchmarks",
@@ -66,4 +69,5 @@ awesome-sails-vft-native-exchange = { path = "crates/awesome-sails/vft-native-ex
 awesome-sails-vft-native-exchange-admin = { path = "crates/awesome-sails/vft-native-exchange-admin", version = "0.1.0", default-features = false }
 awesome-sails-access-control = { path = "crates/awesome-sails/access-control", version = "0.1.0", default-features = false }
 awesome-sails-storage = { path = "crates/awesome-sails/storage", version = "0.1.0", default-features = false }
+awesome-sails-msg-tracker = { path = "crates/awesome-sails/msg-tracker", version = "0.1.0", default-features = false }
 awesome-sails-benchmarks = { path = "benchmarks", version = "0.1.0", default-features = false }
