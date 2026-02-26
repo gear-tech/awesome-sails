@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Gear Technologies"]
 edition = "2024"
 homepage = "https://gear-tech.io"
@@ -41,7 +41,7 @@ members = [
 
 [workspace.dependencies]
 sails-rs = { version = "0.10.1", default-features = false, features = ["gstd"] }
-awesome-sails-utils = { path = "utils", version = "0.1.0", default-features = false }
+awesome-sails-utils = { path = "utils", version = "0.2.0", default-features = false }
 gtest = "=1.10.0"
 gprimitives = { version = "1.10.0", default-features = false }
 
@@ -59,15 +59,15 @@ keccak-const = { version = "0.2", default-features = false }
 
 
 # awesome-sails
-awesome-sails = { path = "crates/awesome-sails", version = "0.1.0", default-features = false }
-awesome-sails-vft = { path = "crates/awesome-sails/vft", version = "0.1.0", default-features = false }
-awesome-sails-vft-utils = { path = "crates/awesome-sails/vft/utils", version = "0.1.0", default-features = false }
-awesome-sails-vft-admin = { path = "crates/awesome-sails/vft-admin", version = "0.1.0", default-features = false }
-awesome-sails-vft-extension = { path = "crates/awesome-sails/vft-extension", version = "0.1.0", default-features = false }
-awesome-sails-vft-metadata = { path = "crates/awesome-sails/vft-metadata", version = "0.1.0", default-features = false }
-awesome-sails-vft-native-exchange = { path = "crates/awesome-sails/vft-native-exchange", version = "0.1.0", default-features = false }
-awesome-sails-vft-native-exchange-admin = { path = "crates/awesome-sails/vft-native-exchange-admin", version = "0.1.0", default-features = false }
-awesome-sails-access-control = { path = "crates/awesome-sails/access-control", version = "0.1.0", default-features = false }
-awesome-sails-storage = { path = "crates/awesome-sails/storage", version = "0.1.0", default-features = false }
-awesome-sails-msg-tracker = { path = "crates/awesome-sails/msg-tracker", version = "0.1.0", default-features = false }
-awesome-sails-benchmarks = { path = "benchmarks", version = "0.1.0", default-features = false }
+awesome-sails = { path = "crates/awesome-sails", version = "0.2.0", default-features = false }
+awesome-sails-vft = { path = "crates/awesome-sails/vft", version = "0.2.0", default-features = false }
+awesome-sails-vft-utils = { path = "crates/awesome-sails/vft/utils", version = "0.2.0", default-features = false }
+awesome-sails-vft-admin = { path = "crates/awesome-sails/vft-admin", version = "0.2.0", default-features = false }
+awesome-sails-vft-extension = { path = "crates/awesome-sails/vft-extension", version = "0.2.0", default-features = false }
+awesome-sails-vft-metadata = { path = "crates/awesome-sails/vft-metadata", version = "0.2.0", default-features = false }
+awesome-sails-vft-native-exchange = { path = "crates/awesome-sails/vft-native-exchange", version = "0.2.0", default-features = false }
+awesome-sails-vft-native-exchange-admin = { path = "crates/awesome-sails/vft-native-exchange-admin", version = "0.2.0", default-features = false }
+awesome-sails-access-control = { path = "crates/awesome-sails/access-control", version = "0.2.0", default-features = false }
+awesome-sails-storage = { path = "crates/awesome-sails/storage", version = "0.2.0", default-features = false }
+awesome-sails-msg-tracker = { path = "crates/awesome-sails/msg-tracker", version = "0.2.0", default-features = false }
+awesome-sails-benchmarks = { path = "benchmarks", version = "0.2.0", default-features = false }
