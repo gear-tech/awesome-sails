@@ -677,3 +677,77 @@ async fn stress_test_max_members() {
         assert_eq!(contract_members[i], members[i], "Mismatch at index {}", i);
     }
 }
+
+#[tokio::test]
+async fn roles_capacity_exceeded() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // ROLES_LIMIT is 41 in tests
+    // 1st role is default admin, so we can add 40 more custom roles
+    for i in 1..=40 {
+        let mut rid = [0u8; 32];
+        rid[0..4].copy_from_slice(&(i as u32).to_le_bytes());
+        access_control_service
+            .grant_role(rid, BOB)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+    }
+
+    // Try to add 42nd role (1 admin + 40 custom + 1 new)
+    let mut rid_42 = [0u8; 32];
+    rid_42[0..4].copy_from_slice(&42u32.to_le_bytes());
+    let res = access_control_service
+        .grant_role(rid_42, BOB)
+        .with_actor_id(ALICE)
+        .await;
+
+    assert_str_panic(res.unwrap_err(), "Capacity exceeded");
+}
+
+#[tokio::test]
+async fn members_capacity_exceeded() {
+    let (program, _env, pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+    let listener = access_control_service.listener();
+    let mut events = listener.listen().await.unwrap();
+
+    // MEMBERS_LIMIT is 255 in tests
+    for i in 1..=255 {
+        let mut id = [0u8; 32];
+        id[0..4].copy_from_slice(&(i as u32 + 1000).to_le_bytes());
+        let member = ActorId::from(id);
+
+        access_control_service
+            .grant_role(MINTER_ROLE, member)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+
+        let (actor, event) = events.next().await.unwrap();
+        assert_eq!(actor, pid);
+        assert_eq!(
+            event,
+            AccessControlEvents::RoleGranted {
+                role_id: MINTER_ROLE,
+                target_account: member,
+                sender: ALICE,
+            }
+        );
+    }
+
+    let count = access_control_service
+        .get_role_member_count(MINTER_ROLE)
+        .await
+        .unwrap();
+    assert_eq!(count, 255);
+
+    // Try to add 256th member
+    let res = access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+
+    assert_str_panic(res.unwrap_err(), "Capacity exceeded");
+}
