@@ -59,3 +59,7 @@ pub use awesome_sails_access_control as access_control;
 /// Storage abstractions and traits.
 #[cfg(feature = "storage")]
 pub use awesome_sails_storage as storage;
+
+/// Message tracking and status management.
+#[cfg(feature = "msg-tracker")]
+pub use awesome_sails_msg_tracker as msg_tracker;

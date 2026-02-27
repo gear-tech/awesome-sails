@@ -1,0 +1,19 @@
+[package]
+name = "msg-tracker-test-app"
+edition.workspace = true
+publish = false
+
+[dependencies]
+awesome-sails = { workspace = true, default-features = false, features = ["msg-tracker"] }
+awesome-sails-utils = { workspace = true }
+awesome-sails-storage = { workspace = true }
+sails-rs = { workspace = true }
+
+[build-dependencies]
+sails-rs = { workspace = true, features = ["wasm-builder"] }
+
+[dev-dependencies]
+msg-tracker-test-client = { path = "../client" }
+gtest.workspace = true
+sails-rs = { workspace = true, features = ["gtest"] }
+tokio = { workspace = true, features = ["rt", "macros"] }

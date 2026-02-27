@@ -20,6 +20,7 @@ awesome-sails-vft-native-exchange = { workspace = true, optional = true }
 awesome-sails-vft-native-exchange-admin = { workspace = true, optional = true }
 awesome-sails-access-control = { workspace = true, optional = true }
 awesome-sails-storage = { workspace = true, optional = true }
+awesome-sails-msg-tracker = { workspace = true, optional = true }
 
 [features]
 default = ["all"]
@@ -34,6 +35,7 @@ all = [
     "vft-native-exchange-admin",
     "access-control",
     "storage",
+    "msg-tracker",
 ]
 
 test = ["awesome-sails-vft-utils/test"]
@@ -50,3 +52,4 @@ vft-native-exchange-admin = [
 ]
 access-control = ["dep:awesome-sails-access-control", "storage"]
 storage = ["dep:awesome-sails-storage"]
+msg-tracker = ["dep:awesome-sails-msg-tracker", "storage"]

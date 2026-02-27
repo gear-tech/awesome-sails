@@ -9,7 +9,7 @@ env:
   GITHUB_USER_NAME: github-actions[bot]
   GITHUB_USER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
   # List of programs to build assets for (WASM/IDL)
-  RELEASE_PROGRAMS: "awesome-sails-test-app access-control-test-app"
+  RELEASE_PROGRAMS: "awesome-sails-test-app access-control-test-app msg-tracker-test-app"
 
 jobs:
   prepare:
@@ -59,8 +59,10 @@ jobs:
           sed -i 's/^version = ".*"/version = "'$VERSION'"/' Cargo.toml
           # Update internal dependencies
           sed -i "/^awesome-sails/ s/version = \"[^\"]*\"/version = \"$VERSION\"/" Cargo.toml
+          # Cargo update
+          cargo update
           
-          git add Cargo.toml
+          git add Cargo.toml Cargo.lock
           if ! git diff --cached --quiet; then
             git commit -m "build: update version to v$VERSION"
             git push origin "${{ steps.rc_branch.outputs.branch }}"
@@ -78,7 +80,7 @@ jobs:
   assets:
     name: Build Assets
     runs-on: ubuntu-latest
-    needs: tests
+    needs: [prepare, tests]
     defaults:
       run:
         shell: bash
@@ -125,7 +127,7 @@ jobs:
   publish:
     name: Publish Crates
     runs-on: ubuntu-latest
-    needs: tests
+    needs: [prepare, tests]
     defaults:
       run:
         shell: bash
@@ -148,7 +150,7 @@ jobs:
       - name: Publish Workspace
         if: env.CRATES_TOKEN != ''
         run: |
-          cargo publish --workspace --allow-dirty
+          cargo publish --workspace
 
       - name: Skip Publish Warning
         if: env.CRATES_TOKEN == ''
