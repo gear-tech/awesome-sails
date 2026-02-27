@@ -22,8 +22,8 @@ use awesome_sails::access_control;
 use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
-const ROLES_LIMIT: usize = 41;
-const MEMBERS_LIMIT: usize = 255;
+pub const ROLES_LIMIT: usize = 101;
+pub const MEMBERS_LIMIT: usize = 1001;
 
 type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
 

@@ -54,7 +54,7 @@ async fn bench_access_control() {
     let wasm_name = "access_control_test_app.opt.wasm";
     let wasm_path = common::get_wasm_path(wasm_name);
 
-    let member_counts: [u32; 5] = [0, 100, 1000, 5000, 10000];
+    let member_counts: [u32; 4] = [0, 100, 500, 1000];
     let multi_role_counts: [u32; 4] = [1, 10, 50, 100];
     let role_id_base = [1u8; 32];
 

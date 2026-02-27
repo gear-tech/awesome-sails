@@ -18,6 +18,7 @@
 
 mod common;
 
+use access_control_test_app::{MEMBERS_LIMIT, ROLES_LIMIT};
 use access_control_test_client::{
     AccessControlTestClient, Pagination,
     access_control::{AccessControl, events::AccessControlEvents},
@@ -683,9 +684,8 @@ async fn roles_capacity_exceeded() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
 
-    // ROLES_LIMIT is 41 in tests
-    // 1st role is default admin, so we can add 40 more custom roles
-    for i in 1..=40 {
+    // 1st role is default admin, so we can add custom roles up to the limit
+    for i in 1..ROLES_LIMIT {
         let mut rid = [0u8; 32];
         rid[0..4].copy_from_slice(&(i as u32).to_le_bytes());
         access_control_service
@@ -695,11 +695,11 @@ async fn roles_capacity_exceeded() {
             .unwrap();
     }
 
-    // Try to add 42nd role (1 admin + 40 custom + 1 new)
-    let mut rid_42 = [0u8; 32];
-    rid_42[0..4].copy_from_slice(&42u32.to_le_bytes());
+    // Try to add one more role beyond the limit
+    let mut extra_rid = [0u8; 32];
+    extra_rid[0..4].copy_from_slice(&(ROLES_LIMIT as u32 + 1).to_le_bytes());
     let res = access_control_service
-        .grant_role(rid_42, BOB)
+        .grant_role(extra_rid, BOB)
         .with_actor_id(ALICE)
         .await;
 
@@ -713,8 +713,7 @@ async fn members_capacity_exceeded() {
     let listener = access_control_service.listener();
     let mut events = listener.listen().await.unwrap();
 
-    // MEMBERS_LIMIT is 255 in tests
-    for i in 1..=255 {
+    for i in 1..=MEMBERS_LIMIT {
         let mut id = [0u8; 32];
         id[0..4].copy_from_slice(&(i as u32 + 1000).to_le_bytes());
         let member = ActorId::from(id);
@@ -741,9 +740,9 @@ async fn members_capacity_exceeded() {
         .get_role_member_count(MINTER_ROLE)
         .await
         .unwrap();
-    assert_eq!(count, 255);
+    assert_eq!(count, MEMBERS_LIMIT as u32);
 
-    // Try to add 256th member
+    // Try to add one more member beyond the limit
     let res = access_control_service
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
