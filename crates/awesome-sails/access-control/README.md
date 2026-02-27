@@ -22,9 +22,14 @@ To use the Access Control service in your Sails program, you need to include its
 ```rust
 #![no_std]
 
-use awesome_sails_access_control::{AccessControl, RolesStorage};
+use awesome_sails_access_control::{AccessControl, AccessControlStorage};
 use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
+
+const ROLES_LIMIT: usize = 8;
+const MEMBERS_LIMIT: usize = 16;
+
+type RolesStorage = AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
 
 #[derive(Default)]
 pub struct Program {
@@ -46,7 +51,7 @@ impl Program {
     }
 
     // Expose the Access Control service
-    pub fn access_control(&self) -> AccessControl<'_> {
+    pub fn access_control(&self) -> AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT> {
         AccessControl::new(StorageRefCell::new(&self.roles))
     }
 }

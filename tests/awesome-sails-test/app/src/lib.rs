@@ -95,7 +95,7 @@ impl TestService<'_> {
 
 #[derive(Default)]
 pub struct Program {
-    access_control_roles: RefCell<RolesStorage>, // New field for access control
+    access_control_roles: RefCell<RolesStorage>,
     allowances: RefCell<Allowances>,
     balances: RefCell<Balances>,
     metadata: Metadata,
