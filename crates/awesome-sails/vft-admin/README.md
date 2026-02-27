@@ -22,8 +22,7 @@ To use the VFT Admin service, you must instantiate it with references to the Acc
 ```rust
 #![no_std]
 
-use awesome_sails_vft_admin::VftAdmin;
-use awesome_sails_access_control::{AccessControl, RolesStorage};
+use awesome_sails_vft_admin::{VftAdmin, RolesStorage, AccessControl};
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_storage::StorageRefCell;
@@ -83,23 +82,6 @@ impl Program {
         PausableRef<'_, Allowances>,
         PausableRef<'_, Balances>,
     > {
-        VftAdmin::new(
-            self.access_control(),
-            self.allowances(),
-            self.balances(),
-            &self.pause,
-            self.vft(),
-        )
-    }
-}
-
-#[program]
-impl Program {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn vft_admin(&self) -> VftAdmin<'_> {
         VftAdmin::new(
             self.access_control(),
             self.allowances(),

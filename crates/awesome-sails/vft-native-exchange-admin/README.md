@@ -23,11 +23,11 @@ To use the Native Exchange Admin service, instantiate it with the VFT Admin serv
 #![no_std]
 
 use awesome_sails_vft_native_exchange_admin::VftNativeExchangeAdmin;
-use awesome_sails_vft_admin::VftAdmin;
+use awesome_sails_vft_admin::{VftAdmin, RolesStorage, AccessControl};
 use awesome_sails_vft::Vft;
-use awesome_sails_access_control::{AccessControl, RolesStorage};
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
+use awesome_sails_storage::StorageRefCell;
+use awesome_sails_utils::pause::{PausableRef, Pause};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
