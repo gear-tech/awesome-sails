@@ -175,6 +175,19 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
             .binary_search_by(|d| d.role_id.cmp(role_id))
     }
 
+    fn get_role_data(&self, role_id: &RoleId) -> Option<&RoleData<M>> {
+        self.find_descriptor_idx(role_id)
+            .ok()
+            .map(|idx| &self.role_data.0[self.descriptors.0[idx].data_idx as usize])
+    }
+
+    fn get_role_data_mut(&mut self, role_id: &RoleId) -> Option<&mut RoleData<M>> {
+        self.find_descriptor_idx(role_id).ok().map(|idx| {
+            let data_idx = self.descriptors.0[idx].data_idx as usize;
+            &mut self.role_data.0[data_idx]
+        })
+    }
+
     /// Checks if an account possesses a specific role.
     ///
     /// # Arguments
@@ -186,11 +199,8 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     ///
     /// `true` if the account has the role, `false` otherwise.
     pub fn has_role(&self, role_id: RoleId, account_id: ActorId) -> bool {
-        if let Ok(idx) = self.find_descriptor_idx(&role_id) {
-            let data_idx = self.descriptors.0[idx].data_idx as usize;
-            return self.role_data.0[data_idx].has_member(account_id);
-        }
-        false
+        self.get_role_data(&role_id)
+            .is_some_and(|data| data.has_member(account_id))
     }
 
     /// Retrieves the administrator role for a given role.
@@ -203,11 +213,8 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     ///
     /// The `RoleId` of the administrator role. Returns `DEFAULT_ADMIN_ROLE` if not explicitly set.
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
-        if let Ok(idx) = self.find_descriptor_idx(&role_id) {
-            let data_idx = self.descriptors.0[idx].data_idx as usize;
-            return self.role_data.0[data_idx].admin_role_id;
-        }
-        default_admin_role()
+        self.get_role_data(&role_id)
+            .map_or(default_admin_role(), |data| data.admin_role_id)
     }
 
     /// Returns the total number of roles defined in the storage.
@@ -241,11 +248,8 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     ///
     /// * `role_id` - The identifier of the role.
     pub fn get_role_member_count(&self, role_id: RoleId) -> u32 {
-        if let Ok(idx) = self.find_descriptor_idx(&role_id) {
-            let data_idx = self.descriptors.0[idx].data_idx as usize;
-            return self.role_data.0[data_idx].members.0.len() as u32;
-        }
-        0
+        self.get_role_data(&role_id)
+            .map_or(0, |data| data.members.0.len() as u32)
     }
 
     /// Retrieves a list of members assigned to a specific role, optionally paginated.
@@ -260,19 +264,15 @@ impl<const N: usize, const M: usize> AccessControlStorage<N, M> {
     /// A vector of `ActorId`s.
     pub fn get_role_members(&self, role_id: RoleId, query: Option<Pagination>) -> Vec<ActorId> {
         let (offset, limit) = Pagination::range(query);
-        if let Ok(idx) = self.find_descriptor_idx(&role_id) {
-            let data_idx = self.descriptors.0[idx].data_idx as usize;
-            let data = &self.role_data.0[data_idx];
-            return data
-                .members
+        self.get_role_data(&role_id).map_or_else(Vec::new, |data| {
+            data.members
                 .0
                 .iter()
                 .copied()
                 .skip(offset)
                 .take(limit)
-                .collect();
-        }
-        Vec::new()
+                .collect()
+        })
     }
 
     /// Returns the number of roles assigned to a specific account.
@@ -423,12 +423,10 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
     }
 
     fn revoke_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
-        let mut storage = self.storage.get_mut();
-        if let Ok(idx) = storage.find_descriptor_idx(&role_id) {
-            let data_idx = storage.descriptors.0[idx].data_idx;
-            return storage.role_data.0[data_idx as usize].remove_member(target_account);
-        }
-        false
+        self.storage
+            .get_mut()
+            .get_role_data_mut(&role_id)
+            .is_some_and(|data| data.remove_member(target_account))
     }
 
     fn set_role_admin_unchecked(
@@ -457,6 +455,7 @@ impl<'a, const N: usize, const M: usize, S: InfallibleStorageMut<Item = AccessCo
         let admin = default_admin_role();
 
         if !storage.descriptors.0.is_empty() {
+            // Optimization: The default admin role ([0u8; 32]) will always be at index 0 in a sorted array
             let first_desc = &storage.descriptors.0[0];
             if first_desc.role_id == admin
                 && storage.role_data.0[first_desc.data_idx as usize].has_member(account_id)
