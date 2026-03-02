@@ -40,11 +40,12 @@ use awesome_sails_vft::{
 use sails_rs::prelude::*;
 
 pub const ROLES_LIMIT: usize = 4;
-pub const MEMBERS_LIMIT: usize = 16;
+pub const MEMBERS_LIMIT: usize = 17;
 
-pub type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
+pub type RolesStorage =
+    access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT, ROLES_LIMIT, MEMBERS_LIMIT>;
 pub type AccessControl<'a, ACS> =
-    access_control::AccessControl<'a, ROLES_LIMIT, MEMBERS_LIMIT, ACS>;
+    access_control::AccessControl<'a, ROLES_LIMIT, MEMBERS_LIMIT, ROLES_LIMIT, MEMBERS_LIMIT, ACS>;
 
 pub const MINTER_ROLE: RoleId = keccak_const::Keccak256::new()
     .update(b"MINTER_ROLE")

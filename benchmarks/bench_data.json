@@ -1,20 +1,20 @@
 {
   "access_control": {
-    "grant_role.0": 940239148,
-    "grant_role.100": 827111188,
-    "grant_role.1000": 1451020927,
-    "grant_role.500": 1124708432,
-    "has_role.0": 956977723,
-    "has_role.100": 812240826,
-    "has_role.1000": 855644080,
-    "has_role.500": 854463460,
-    "has_role_multi.1": 956977723,
-    "has_role_multi.10": 842943738,
-    "has_role_multi.100": 868681967,
-    "has_role_multi.50": 883202733,
-    "revoke_role.0": 966419663,
-    "revoke_role.100": 831802725,
-    "revoke_role.1000": 1455998094,
-    "revoke_role.500": 1129521472
+    "grant_role.0": 951546290,
+    "grant_role.100": 851494425,
+    "grant_role.25": 819796017,
+    "grant_role.50": 830441321,
+    "has_role.0": 956974072,
+    "has_role.100": 804184116,
+    "has_role.25": 803709108,
+    "has_role.50": 803946612,
+    "has_role_multi.1": 956974072,
+    "has_role_multi.16": 954212870,
+    "has_role_multi.32": 843416281,
+    "has_role_multi.8": 842940087,
+    "revoke_role.0": 966416012,
+    "revoke_role.100": 855430719,
+    "revoke_role.25": 823687911,
+    "revoke_role.50": 834348015
   }
 }

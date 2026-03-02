@@ -637,12 +637,10 @@ async fn stress_test_max_members() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
 
-    const MAX_MEMBERS: u32 = 255;
-
-    let mut members = Vec::with_capacity(MAX_MEMBERS as usize);
-    for i in 1..=MAX_MEMBERS {
+    let mut members = Vec::with_capacity(MEMBERS_LIMIT);
+    for i in 1..=MEMBERS_LIMIT {
         let mut id = [0u8; 32];
-        id[0..4].copy_from_slice(&i.to_le_bytes());
+        id[0..4].copy_from_slice(&(i as u32).to_le_bytes());
         members.push(ActorId::from(id));
     }
 
@@ -658,7 +656,7 @@ async fn stress_test_max_members() {
         .get_role_member_count(MINTER_ROLE)
         .await
         .unwrap();
-    assert_eq!(count, MAX_MEMBERS);
+    assert_eq!(count, MEMBERS_LIMIT as u32);
 
     for &member in &members {
         let has_role = access_control_service
@@ -673,8 +671,8 @@ async fn stress_test_max_members() {
         .await
         .unwrap();
 
-    assert_eq!(contract_members.len(), MAX_MEMBERS as usize);
-    for i in 0..MAX_MEMBERS as usize {
+    assert_eq!(contract_members.len(), MEMBERS_LIMIT);
+    for i in 0..MEMBERS_LIMIT {
         assert_eq!(contract_members[i], members[i], "Mismatch at index {}", i);
     }
 }

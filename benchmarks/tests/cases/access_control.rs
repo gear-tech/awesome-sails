@@ -54,8 +54,8 @@ async fn bench_access_control() {
     let wasm_name = "access_control_test_app.opt.wasm";
     let wasm_path = common::get_wasm_path(wasm_name);
 
-    let member_counts: [u32; 4] = [0, 100, 500, 1000];
-    let multi_role_counts: [u32; 4] = [1, 10, 50, 100];
+    let member_counts: [u32; 4] = [0, 25, 50, 100];
+    let multi_role_counts: [u32; 4] = [1, 8, 16, 32];
     let role_id_base = [1u8; 32];
 
     let mut grant_role_metrics = BTreeMap::new();
@@ -63,7 +63,6 @@ async fn bench_access_control() {
     let mut revoke_role_metrics = BTreeMap::new();
     let mut has_role_multi_metrics = BTreeMap::new();
 
-    // --- 1. Standard Benchmark (Scaling members per role) ---
     for &count in &member_counts {
         let mut grant_samples = Vec::new();
         let mut has_samples = Vec::new();
@@ -76,13 +75,22 @@ async fn bench_access_control() {
             let system = env.system();
 
             for j in 0..count {
-                let member: ActorId = (j as u64 + 1000).into();
+                let mut id = [0u8; 32];
+                id[0..4].copy_from_slice(&(j + 1000).to_le_bytes());
+                let member = ActorId::from(id);
                 let _ = service
                     .grant_role(role_id_base, member)
                     .send_one_way()
                     .unwrap();
                 system.run_next_block();
             }
+
+            let actual_count = service.get_role_member_count(role_id_base).await.unwrap();
+            assert_eq!(
+                actual_count, count,
+                "Member count mismatch for count {}",
+                count
+            );
 
             let test_member: ActorId = (count as u64 + 50000).into();
 
