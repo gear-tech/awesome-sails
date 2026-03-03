@@ -10,6 +10,20 @@ env:
   GITHUB_USER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
   # List of programs to build assets for (WASM/IDL)
   RELEASE_PROGRAMS: "awesome-sails-test-app access-control-test-app msg-tracker-test-app"
+  PUBLISH_CRATES: |
+    awesome-sails-benchmarks
+    awesome-sails-storage
+    awesome-sails-msg-tracker
+    awesome-sails-utils
+    awesome-sails-access-control
+    awesome-sails-vft-utils
+    awesome-sails-vft
+    awesome-sails-vft-admin
+    awesome-sails-vft-extension
+    awesome-sails-vft-metadata
+    awesome-sails-vft-native-exchange
+    awesome-sails-vft-native-exchange-admin
+    awesome-sails
 
 jobs:
   prepare:
@@ -150,7 +164,19 @@ jobs:
       - name: Publish Workspace
         if: env.CRATES_TOKEN != ''
         run: |
-          cargo publish --workspace
+          for CRATE in $PUBLISH_CRATES; do
+            echo "Publishing $CRATE..."
+            if ! OUT=$(cargo publish -p "$CRATE" --locked 2>&1); then
+              echo "$OUT"
+              if echo "$OUT" | grep -Eqi "already exists on crates\.io|already uploaded"; then
+                echo "Skipping $CRATE (already published on crates.io)"
+              else
+                echo "Publish failed for $CRATE"
+                exit 1
+              fi
+            fi
+            sleep 5
+          done
 
       - name: Skip Publish Warning
         if: env.CRATES_TOKEN == ''
