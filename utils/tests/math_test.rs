@@ -16,15 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use awesome_sails_utils::{math::*, impl_math_wrapper};
+use awesome_sails_utils::{impl_math_wrapper, math::*};
 use parity_scale_codec::{Decode, Encode};
 use primitive_types::U256;
 use proptest::prelude::*;
 
 // UPDATED: Now defining types by BYTE count, not bits/limbs.
 // Supports up to 32 bytes (256 bits), matching U256 size.
-type Uint64 = LeBytes<8>;  // 64 bits = 8 bytes
-type Uint72 = LeBytes<9>;  // 72 bits = 9 bytes
+type Uint64 = LeBytes<8>; // 64 bits = 8 bytes
+type Uint72 = LeBytes<9>; // 72 bits = 9 bytes
 type Uint80 = LeBytes<10>; // 80 bits = 10 bytes
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
