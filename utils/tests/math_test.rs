@@ -16,15 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use awesome_sails_utils::math::*;
+use awesome_sails_utils::{math::*, impl_math_wrapper};
 use parity_scale_codec::{Decode, Encode};
 use primitive_types::U256;
 use proptest::prelude::*;
 
 // UPDATED: Now defining types by BYTE count, not bits/limbs.
-type Uint64 = LeBytes<8>; // 64 bits = 8 bytes
-type Uint72 = LeBytes<9>; // 72 bits = 9 bytes
+// Supports up to 32 bytes (256 bits), matching U256 size.
+type Uint64 = LeBytes<8>;  // 64 bits = 8 bytes
+type Uint72 = LeBytes<9>;  // 72 bits = 9 bytes
 type Uint80 = LeBytes<10>; // 80 bits = 10 bytes
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
+struct Uint256(LeBytes<32>);
+impl_math_wrapper!(Uint256, LeBytes<32>);
 
 macro_rules! test_primitive_math {
     ($(($t:ty, $mod_name:ident)),*) => {
@@ -177,6 +182,38 @@ mod custom_uint {
             assert_eq!(Uint64::default().encode().len(), 8);
             assert_eq!(Uint72::default().encode().len(), 9);
             assert_eq!(Uint80::default().encode().len(), 10);
+            assert_eq!(Uint256::default().encode().len(), 32);
+        }
+    }
+
+    mod uint256_tests {
+        use super::*;
+
+        #[test]
+        fn test_u256_conversions() {
+            let val = U256::from(u128::MAX) + U256::one();
+            let u256_wrapped = Uint256::try_from(val).unwrap();
+
+            // From wrapper to U256 (should be always safe)
+            let back_u256: U256 = u256_wrapped.into();
+            assert_eq!(back_u256, val);
+
+            // From wrapper to u128 (should fail if > u128::MAX)
+            let res_u128 = u128::try_from(u256_wrapped);
+            assert!(res_u128.is_err());
+
+            // From wrapper to u128 (should succeed if <= u128::MAX)
+            let small_val = Uint256::try_from(100u128).unwrap();
+            assert_eq!(u128::try_from(small_val).unwrap(), 100);
+        }
+
+        #[test]
+        fn test_arithmetic() {
+            let max = Uint256::MAX;
+            let one = Uint256::ONE;
+
+            assert_eq!(max.checked_add(one), None);
+            assert_eq!(Uint256::ZERO.checked_sub(one), None);
         }
     }
 
