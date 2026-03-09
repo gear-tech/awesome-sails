@@ -25,7 +25,8 @@ To use the Native Exchange service, instantiate it with references to the balanc
 use awesome_sails_vft_native_exchange::VftNativeExchange;
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
+use awesome_sails_storage::StorageRefCell;
+use awesome_sails_utils::pause::{PausableRef, Pause};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]

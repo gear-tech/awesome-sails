@@ -18,11 +18,12 @@
 
 mod common;
 
+use access_control_test_app::{MEMBERS_LIMIT, ROLES_LIMIT};
 use access_control_test_client::{
     AccessControlTestClient, Pagination,
     access_control::{AccessControl, events::AccessControlEvents},
 };
-use awesome_sails::access_control::{DEFAULT_ADMIN_ROLE, RoleId};
+use awesome_sails::access_control::{RoleId, default_admin_role};
 use awesome_sails_utils::assert_ok;
 use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic, deploy_program};
 use futures::StreamExt;
@@ -39,13 +40,13 @@ async fn initial_admin_role_granted() {
 
     // Alice should have DEFAULT_ADMIN_ROLE
     let has_role = access_control_service
-        .has_role(DEFAULT_ADMIN_ROLE, ALICE)
+        .has_role(default_admin_role(), ALICE)
         .await;
     assert_ok!(has_role, true);
 
     // Bob should not have DEFAULT_ADMIN_ROLE
     let has_role = access_control_service
-        .has_role(DEFAULT_ADMIN_ROLE, BOB)
+        .has_role(default_admin_role(), BOB)
         .await;
     assert_ok!(has_role, false);
 }
@@ -57,7 +58,7 @@ async fn grant_and_revoke_role_success() {
     let listener = access_control_service.listener();
     let mut events = listener.listen().await.unwrap();
 
-    // Alice (DEFAULT_ADMIN_ROLE) grants MINTER_ROLE to Bob
+    // Alice (default_admin_role()) grants MINTER_ROLE to Bob
     access_control_service
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
@@ -223,9 +224,9 @@ async fn set_role_admin_success() {
 
     // Initial admin for MINTER_ROLE is DEFAULT_ADMIN_ROLE (Alice)
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
-    assert_ok!(admin_role, DEFAULT_ADMIN_ROLE);
+    assert_ok!(admin_role, default_admin_role());
 
-    // Alice (as DEFAULT_ADMIN_ROLE) grants MODERATOR_ROLE to Dave
+    // Alice (as default_admin_role()) grants MODERATOR_ROLE to Dave
     access_control_service
         .grant_role(MODERATOR_ROLE, DAVE)
         .with_actor_id(ALICE)
@@ -233,7 +234,7 @@ async fn set_role_admin_success() {
         .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
-    // Alice (as DEFAULT_ADMIN_ROLE) sets MODERATOR_ROLE as admin for MINTER_ROLE
+    // Alice (as default_admin_role()) sets MODERATOR_ROLE as admin for MINTER_ROLE
     access_control_service
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(ALICE)
@@ -246,7 +247,7 @@ async fn set_role_admin_success() {
         event,
         AccessControlEvents::RoleAdminChanged {
             role_id: MINTER_ROLE,
-            previous_admin_role_id: DEFAULT_ADMIN_ROLE,
+            previous_admin_role_id: default_admin_role(),
             new_admin_role_id: MODERATOR_ROLE,
             sender: ALICE,
         }
@@ -268,7 +269,7 @@ async fn set_role_admin_success() {
     let has_role = access_control_service.has_role(MINTER_ROLE, BOB).await;
     assert_ok!(has_role, true);
 
-    // Alice (as DEFAULT_ADMIN_ROLE) should STILL be able to grant MINTER_ROLE (because she is super admin)
+    // Alice (as default_admin_role()) should STILL be able to grant MINTER_ROLE (because she is super admin)
     access_control_service
         .grant_role(MINTER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
@@ -281,7 +282,7 @@ async fn set_role_admin_success() {
 
     // Revert admin role to DEFAULT_ADMIN_ROLE
     access_control_service
-        .set_role_admin(MINTER_ROLE, DEFAULT_ADMIN_ROLE)
+        .set_role_admin(MINTER_ROLE, default_admin_role())
         .with_actor_id(DAVE) // Dave is MODERATOR_ROLE, which is admin for MINTER_ROLE
         .await
         .expect("Failed for Dave to revert admin role");
@@ -315,7 +316,7 @@ async fn set_role_admin_fail_unauthorized() {
 
     // Admin for MINTER_ROLE should still be DEFAULT_ADMIN_ROLE
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
-    assert_ok!(admin_role, DEFAULT_ADMIN_ROLE);
+    assert_ok!(admin_role, default_admin_role());
 }
 
 #[tokio::test]
@@ -461,7 +462,7 @@ async fn enumeration_roles_success() {
 
     let all_roles = access_control_service.get_roles(None).await.unwrap();
     assert_eq!(all_roles.len(), 4);
-    assert!(all_roles.contains(&DEFAULT_ADMIN_ROLE));
+    assert!(all_roles.contains(&default_admin_role()));
     for r in &roles {
         assert!(all_roles.contains(r));
     }
@@ -629,4 +630,121 @@ async fn enumeration_pagination_logic() {
         .await
         .unwrap();
     assert!(empty.is_empty());
+}
+
+#[tokio::test]
+async fn stress_test_max_members() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let mut members = Vec::with_capacity(MEMBERS_LIMIT);
+    for i in 1..=MEMBERS_LIMIT {
+        let mut id = [0u8; 32];
+        id[0..4].copy_from_slice(&(i as u32).to_le_bytes());
+        members.push(ActorId::from(id));
+    }
+
+    for &member in &members {
+        access_control_service
+            .grant_role(MINTER_ROLE, member)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+    }
+
+    let count = access_control_service
+        .get_role_member_count(MINTER_ROLE)
+        .await
+        .unwrap();
+    assert_eq!(count, MEMBERS_LIMIT as u32);
+
+    for &member in &members {
+        let has_role = access_control_service
+            .has_role(MINTER_ROLE, member)
+            .await
+            .unwrap();
+        assert!(has_role, "Member {:?} should have the role", member);
+    }
+
+    let contract_members = access_control_service
+        .get_role_members(MINTER_ROLE, None)
+        .await
+        .unwrap();
+
+    assert_eq!(contract_members.len(), MEMBERS_LIMIT);
+    for i in 0..MEMBERS_LIMIT {
+        assert_eq!(contract_members[i], members[i], "Mismatch at index {}", i);
+    }
+}
+
+#[tokio::test]
+async fn roles_capacity_exceeded() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    // 1st role is default admin, so we can add custom roles up to the limit
+    for i in 1..ROLES_LIMIT {
+        let mut rid = [0u8; 32];
+        rid[0..4].copy_from_slice(&(i as u32).to_le_bytes());
+        access_control_service
+            .grant_role(rid, BOB)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+    }
+
+    // Try to add one more role beyond the limit
+    let mut extra_rid = [0u8; 32];
+    extra_rid[0..4].copy_from_slice(&(ROLES_LIMIT as u32 + 1).to_le_bytes());
+    let res = access_control_service
+        .grant_role(extra_rid, BOB)
+        .with_actor_id(ALICE)
+        .await;
+
+    assert_str_panic(res.unwrap_err(), "Capacity exceeded");
+}
+
+#[tokio::test]
+async fn members_capacity_exceeded() {
+    let (program, _env, pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+    let listener = access_control_service.listener();
+    let mut events = listener.listen().await.unwrap();
+
+    for i in 1..=MEMBERS_LIMIT {
+        let mut id = [0u8; 32];
+        id[0..4].copy_from_slice(&(i as u32 + 1000).to_le_bytes());
+        let member = ActorId::from(id);
+
+        access_control_service
+            .grant_role(MINTER_ROLE, member)
+            .with_actor_id(ALICE)
+            .await
+            .unwrap();
+
+        let (actor, event) = events.next().await.unwrap();
+        assert_eq!(actor, pid);
+        assert_eq!(
+            event,
+            AccessControlEvents::RoleGranted {
+                role_id: MINTER_ROLE,
+                target_account: member,
+                sender: ALICE,
+            }
+        );
+    }
+
+    let count = access_control_service
+        .get_role_member_count(MINTER_ROLE)
+        .await
+        .unwrap();
+    assert_eq!(count, MEMBERS_LIMIT as u32);
+
+    // Try to add one more member beyond the limit
+    let res = access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+
+    assert_str_panic(res.unwrap_err(), "Capacity exceeded");
 }

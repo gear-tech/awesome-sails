@@ -24,12 +24,13 @@
 
 #![no_std]
 
-use awesome_sails_access_control::{RolesStorage, error::Error};
+use awesome_sails_access_control::error::Error;
 use awesome_sails_storage::{InfallibleStorageMut, StorageMut};
 use awesome_sails_utils::ok_if;
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_vft_admin::{self as vft_admin};
 use sails_rs::{gstd, prelude::*};
+use vft_admin::RolesStorage;
 
 /// The VFT Native Exchange Admin service struct.
 pub struct VftNativeExchangeAdmin<'a, ACS, A, B>
