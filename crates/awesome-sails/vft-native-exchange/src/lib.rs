@@ -26,7 +26,7 @@
 
 use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
-    error::{EmitError, Error},
+    error::{BadValue, EmitError, Error},
     math::Zero,
     ok_if,
 };
@@ -109,6 +109,8 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
 
         ok_if!(value.is_zero());
 
+        let value_u128 = value.try_into().map_err(|_| BadValue)?;
+
         self.vft
             .emit_event(vft::Event::Transfer {
                 from,
@@ -117,7 +119,7 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
             })
             .map_err(|_| EmitError)?;
 
-        Ok(CommandReply::new(()).with_value(value.into()))
+        Ok(CommandReply::new(()).with_value(value_u128))
     }
 
     /// Mints VFT tokens to the caller equal to the amount of native value attached to the message.

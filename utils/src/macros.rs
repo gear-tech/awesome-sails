@@ -126,7 +126,7 @@ macro_rules! impl_non_zero_conversion {
 
 /// Generates a newtype wrapper around `LeBytes` with math trait implementations.
 ///
-/// Verifies that the given wrapper is small enough (< 16 bytes) to be used with default math operations.
+/// Verifies that the given wrapper is small enough (<= 32 bytes) to be used with default math operations.
 ///
 /// # Usage
 /// `impl_math_wrapper!(WrapperName, LeBytes<AMOUNT_OF_BYTES>);`
@@ -136,7 +136,7 @@ macro_rules! impl_non_zero_conversion {
 ///
 /// # Derives
 /// - `TryFrom<u128>`, `TryFrom<U256>`
-/// - `Into<u128>`, `Into<U256>`
+/// - `TryInto<u128>`, `Into<U256>`
 /// - `TryInto<NonZero<Self>>`
 /// - `From<NonZero<Self>>`
 /// - `Max`, `Min`, `One`, `Zero`
@@ -145,8 +145,8 @@ macro_rules! impl_non_zero_conversion {
 macro_rules! impl_math_wrapper {
     ($wrapper:ident, LeBytes<$n:literal>) => {
         const _: () = assert!(
-            $n < 16,
-            "should only be used for small le bytes wrappers (< 16 bytes)"
+            $n <= 32,
+            "should only be used for small le bytes wrappers (<= 32 bytes)"
         );
 
         const _: $wrapper = $wrapper(<$crate::math::LeBytes<$n> as $crate::math::Zero>::ZERO);
@@ -222,21 +222,17 @@ macro_rules! impl_math_wrapper {
             }
         }
 
-        impl From<$wrapper> for u128 {
-            fn from(value: $wrapper) -> u128 {
-                match value.0.try_into().map_err(|_| unreachable!()) {
-                    Ok(v) => v,
-                    Err(inf) => inf,
-                }
+        impl TryFrom<$wrapper> for u128 {
+            type Error = $crate::math::OverflowError;
+            fn try_from(value: $wrapper) -> Result<Self, Self::Error> {
+                value.0.try_into()
             }
         }
 
         impl From<$wrapper> for $crate::math::U256 {
             fn from(value: $wrapper) -> $crate::math::U256 {
-                match value.0.try_into().map_err(|_| unreachable!()) {
-                    Ok(v) => v,
-                    Err(inf) => inf,
-                }
+                // Safe because N <= 32 and U256 is 32 bytes
+                value.0.try_into().unwrap_or_else(|_| unreachable!())
             }
         }
 
