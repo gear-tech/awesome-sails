@@ -52,8 +52,8 @@ impl<'a, B: Storage<Item = Balances>> Service<'a, B> {
 #[service]
 impl<B: Storage<Item = Balances>> Service<'_, B> {
     #[export(unwrap_result)]
-    pub fn burn(&mut self, value: U256) -> Result<CommandReply<()>, Error> {
-        ok_if!(value.is_zero());
+    pub fn burn(&mut self, value: U256) -> Result<CommandReply<bool>, Error> {
+        ok_if!(value.is_zero(), false);
 
         let from = Syscall::message_source();
 
@@ -69,16 +69,16 @@ impl<B: Storage<Item = Balances>> Service<'_, B> {
             })
             .map_err(|_| EmitError)?;
 
-        Ok(CommandReply::new(()).with_value(value.as_u128()))
+        Ok(CommandReply::new(true).with_value(value.as_u128()))
     }
 
     #[export(unwrap_result)]
-    pub fn burn_all(&mut self) -> Result<CommandReply<()>, Error> {
+    pub fn burn_all(&mut self) -> Result<CommandReply<bool>, Error> {
         let from = Syscall::message_source();
 
         let value = self.balances.get_mut()?.burn_all(from.try_into()?);
 
-        ok_if!(value.is_zero());
+        ok_if!(value.is_zero(), false);
 
         self.vft
             .emit_event(vft::Event::Transfer {
@@ -88,7 +88,7 @@ impl<B: Storage<Item = Balances>> Service<'_, B> {
             })
             .map_err(|_| EmitError)?;
 
-        Ok(CommandReply::new(()).with_value(value.into()))
+        Ok(CommandReply::new(true).with_value(value.into()))
     }
 
     #[export(unwrap_result)]
