@@ -224,6 +224,22 @@ impl<
     }
 
     #[export(unwrap_result)]
+    pub fn mint_list(&mut self, list: Vec<(ActorId, U256)>) -> Result<(), Error> {
+        ensure!(Syscall::message_source() == self.minter(), BadOrigin);
+
+        for (to, value) in list {
+            unsafe {
+                self.do_mint(to, value)?;
+            }
+        }
+
+        self.emit_event(Event::MinterTookPlace)
+            .map_err(|_| EmitError)?;
+
+        Ok(())
+    }
+
+    #[export(unwrap_result)]
     pub fn pause(&mut self) -> Result<(), Error> {
         ensure!(Syscall::message_source() == self.pauser(), BadOrigin);
 
