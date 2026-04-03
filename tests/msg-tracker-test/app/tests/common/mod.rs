@@ -31,23 +31,7 @@ pub async fn deploy_program() -> (Actor<MsgTrackerTestClientProgram, GtestEnv>, 
         .deploy::<MsgTrackerTestClientProgram>(code_id, b"salt".to_vec())
         .new()
         .await
-        .expect("failed to deploy program");
+        .unwrap();
 
     (program, env)
-}
-
-#[track_caller]
-pub fn assert_str_panic(e: GtestError, exp: &str) {
-    match e {
-        GtestError::ReplyHasError(
-            ErrorReplyReason::Execution(SimpleExecutionError::UserspacePanic),
-            res,
-        ) => {
-            let actual = String::from_utf8_lossy(&res);
-            let expected =
-                format!("panicked with 'called `Result::unwrap()` on an `Err` value: {exp}'");
-            assert_eq!(actual, expected);
-        }
-        _ => core::panic!("not an expected error reply type: {e:?}"),
-    }
 }

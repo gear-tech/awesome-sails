@@ -7,17 +7,19 @@ use awesome_sails::msg_tracker::{
 use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
-#[derive(Clone, Encode, Decode, TypeInfo, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, TypeInfo, PartialEq, Debug, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub enum OpStatus {
     Pending,
     Completed,
 }
 
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq)]
+#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub enum CounterError {
     OperationNotFound,
     AlreadyCompleted,

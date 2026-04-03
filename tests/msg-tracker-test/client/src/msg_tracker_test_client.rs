@@ -2,7 +2,14 @@
 #[allow(unused_imports)]
 use sails_rs::{client::*, collections::*, prelude::*};
 pub struct MsgTrackerTestClientProgram;
+
+impl MsgTrackerTestClientProgram {
+    pub const ROUTE_ID_DYNAMIC_COUNTER: u8 = 1;
+    pub const ROUTE_ID_FIXED_COUNTER: u8 = 2;
+}
+
 impl sails_rs::client::Program for MsgTrackerTestClientProgram {}
+
 pub trait MsgTrackerTestClient {
     type Env: sails_rs::client::GearEnv;
     fn dynamic_counter(
@@ -12,6 +19,7 @@ pub trait MsgTrackerTestClient {
         &self,
     ) -> sails_rs::client::Service<fixed_counter::FixedCounterImpl, Self::Env>;
 }
+
 impl<E: sails_rs::client::GearEnv> MsgTrackerTestClient
     for sails_rs::client::Actor<MsgTrackerTestClientProgram, E>
 {
@@ -19,12 +27,12 @@ impl<E: sails_rs::client::GearEnv> MsgTrackerTestClient
     fn dynamic_counter(
         &self,
     ) -> sails_rs::client::Service<dynamic_counter::DynamicCounterImpl, Self::Env> {
-        self.service(stringify!(DynamicCounter))
+        self.service(MsgTrackerTestClientProgram::ROUTE_ID_DYNAMIC_COUNTER)
     }
     fn fixed_counter(
         &self,
     ) -> sails_rs::client::Service<fixed_counter::FixedCounterImpl, Self::Env> {
-        self.service(stringify!(FixedCounter))
+        self.service(MsgTrackerTestClientProgram::ROUTE_ID_FIXED_COUNTER)
     }
 }
 pub trait MsgTrackerTestClientCtors {
@@ -33,6 +41,7 @@ pub trait MsgTrackerTestClientCtors {
     #[allow(clippy::wrong_self_convention)]
     fn new(self) -> sails_rs::client::PendingCtor<MsgTrackerTestClientProgram, io::New, Self::Env>;
 }
+
 impl<E: sails_rs::client::GearEnv> MsgTrackerTestClientCtors
     for sails_rs::client::Deployment<MsgTrackerTestClientProgram, E>
 {
@@ -44,11 +53,40 @@ impl<E: sails_rs::client::GearEnv> MsgTrackerTestClientCtors
 
 pub mod io {
     use super::*;
-    sails_rs::io_struct_impl!(New () -> ());
+    sails_rs::io_struct_impl!(New () -> (), 0);
 }
 
 pub mod dynamic_counter {
     use super::*;
+
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub enum CounterError {
+        OperationNotFound,
+        AlreadyCompleted,
+    }
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub enum OpStatus {
+        Pending,
+        Completed,
+    }
+    /// Pagination parameters for listing tracked messages.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Pagination {
+        /// The number of items to skip.
+        pub offset: u32,
+        /// The maximum number of items to return.
+        pub limit: u32,
+    }
+
     pub trait DynamicCounter {
         type Env: sails_rs::client::GearEnv;
         fn clear_dynamic(&mut self) -> sails_rs::client::PendingCall<io::ClearDynamic, Self::Env>;
@@ -56,14 +94,6 @@ pub mod dynamic_counter {
             &mut self,
             id: MessageId,
         ) -> sails_rs::client::PendingCall<io::ConfirmIncrement, Self::Env>;
-        fn request_increment(
-            &mut self,
-        ) -> sails_rs::client::PendingCall<io::RequestIncrement, Self::Env>;
-        fn update_dynamic(
-            &mut self,
-            id: MessageId,
-            status: OpStatus,
-        ) -> sails_rs::client::PendingCall<io::UpdateDynamic, Self::Env>;
         fn get_status(
             &self,
             id: MessageId,
@@ -73,8 +103,23 @@ pub mod dynamic_counter {
             query: Option<Pagination>,
         ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env>;
         fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env>;
+        fn request_increment(
+            &mut self,
+        ) -> sails_rs::client::PendingCall<io::RequestIncrement, Self::Env>;
+        fn update_dynamic(
+            &mut self,
+            id: MessageId,
+            status: OpStatus,
+        ) -> sails_rs::client::PendingCall<io::UpdateDynamic, Self::Env>;
     }
+
     pub struct DynamicCounterImpl;
+
+    impl sails_rs::client::Identifiable for DynamicCounterImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([212, 115, 76, 100, 213, 87, 180, 25]);
+    }
+
     impl<E: sails_rs::client::GearEnv> DynamicCounter
         for sails_rs::client::Service<DynamicCounterImpl, E>
     {
@@ -87,18 +132,6 @@ pub mod dynamic_counter {
             id: MessageId,
         ) -> sails_rs::client::PendingCall<io::ConfirmIncrement, Self::Env> {
             self.pending_call((id,))
-        }
-        fn request_increment(
-            &mut self,
-        ) -> sails_rs::client::PendingCall<io::RequestIncrement, Self::Env> {
-            self.pending_call(())
-        }
-        fn update_dynamic(
-            &mut self,
-            id: MessageId,
-            status: OpStatus,
-        ) -> sails_rs::client::PendingCall<io::UpdateDynamic, Self::Env> {
-            self.pending_call((id, status))
         }
         fn get_status(
             &self,
@@ -115,22 +148,63 @@ pub mod dynamic_counter {
         fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env> {
             self.pending_call(())
         }
+        fn request_increment(
+            &mut self,
+        ) -> sails_rs::client::PendingCall<io::RequestIncrement, Self::Env> {
+            self.pending_call(())
+        }
+        fn update_dynamic(
+            &mut self,
+            id: MessageId,
+            status: OpStatus,
+        ) -> sails_rs::client::PendingCall<io::UpdateDynamic, Self::Env> {
+            self.pending_call((id, status))
+        }
     }
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(ClearDynamic () -> ());
-        sails_rs::io_struct_impl!(ConfirmIncrement (id: MessageId) -> ());
-        sails_rs::io_struct_impl!(RequestIncrement () -> MessageId);
-        sails_rs::io_struct_impl!(UpdateDynamic (id: MessageId, status: super::OpStatus) -> bool);
-        sails_rs::io_struct_impl!(GetStatus (id: MessageId) -> Option<super::OpStatus>);
-        sails_rs::io_struct_impl!(GetStatuses (query: Option<super::Pagination>) -> Vec<(MessageId,super::OpStatus,)>);
-        sails_rs::io_struct_impl!(GetVal () -> u32);
+        sails_rs::io_struct_impl!(ClearDynamic () -> (), 0, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(ConfirmIncrement (id: MessageId) -> () | super::CounterError, 1, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetStatus (id: MessageId) -> super::Option<super::OpStatus, >, 2, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetStatuses (query: super::Option<super::Pagination, >) -> Vec<(MessageId, super::OpStatus, )>, 3, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetVal () -> u32, 4, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RequestIncrement () -> MessageId, 5, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(UpdateDynamic (id: MessageId, status: super::OpStatus) -> bool, 6, <super::DynamicCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 }
 
 pub mod fixed_counter {
     use super::*;
+
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub enum OpStatus {
+        Pending,
+        Completed,
+    }
+    /// Pagination parameters for listing tracked messages.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Pagination {
+        /// The number of items to skip.
+        pub offset: u32,
+        /// The maximum number of items to return.
+        pub limit: u32,
+    }
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub enum TrackerError {
+        /// Indicates that the fixed storage capacity has been exceeded.
+        CapacityExceeded,
+    }
+
     pub trait FixedCounter {
         type Env: sails_rs::client::GearEnv;
         fn clear_fixed(&mut self) -> sails_rs::client::PendingCall<io::ClearFixed, Self::Env>;
@@ -138,6 +212,15 @@ pub mod fixed_counter {
             &mut self,
             id: MessageId,
         ) -> sails_rs::client::PendingCall<io::ConfirmIncrement, Self::Env>;
+        fn get_status(
+            &self,
+            id: MessageId,
+        ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env>;
+        fn get_statuses(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env>;
+        fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env>;
         fn remove_fixed(
             &mut self,
             id: MessageId,
@@ -150,17 +233,15 @@ pub mod fixed_counter {
             id: MessageId,
             status: OpStatus,
         ) -> sails_rs::client::PendingCall<io::UpdateFixed, Self::Env>;
-        fn get_status(
-            &self,
-            id: MessageId,
-        ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env>;
-        fn get_statuses(
-            &self,
-            query: Option<Pagination>,
-        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env>;
-        fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env>;
     }
+
     pub struct FixedCounterImpl;
+
+    impl sails_rs::client::Identifiable for FixedCounterImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([203, 111, 47, 177, 123, 98, 150, 230]);
+    }
+
     impl<E: sails_rs::client::GearEnv> FixedCounter for sails_rs::client::Service<FixedCounterImpl, E> {
         type Env = E;
         fn clear_fixed(&mut self) -> sails_rs::client::PendingCall<io::ClearFixed, Self::Env> {
@@ -171,6 +252,21 @@ pub mod fixed_counter {
             id: MessageId,
         ) -> sails_rs::client::PendingCall<io::ConfirmIncrement, Self::Env> {
             self.pending_call((id,))
+        }
+        fn get_status(
+            &self,
+            id: MessageId,
+        ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env> {
+            self.pending_call((id,))
+        }
+        fn get_statuses(
+            &self,
+            query: Option<Pagination>,
+        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env> {
+            self.pending_call((query,))
+        }
+        fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env> {
+            self.pending_call(())
         }
         fn remove_fixed(
             &mut self,
@@ -190,49 +286,17 @@ pub mod fixed_counter {
         ) -> sails_rs::client::PendingCall<io::UpdateFixed, Self::Env> {
             self.pending_call((id, status))
         }
-        fn get_status(
-            &self,
-            id: MessageId,
-        ) -> sails_rs::client::PendingCall<io::GetStatus, Self::Env> {
-            self.pending_call((id,))
-        }
-        fn get_statuses(
-            &self,
-            query: Option<Pagination>,
-        ) -> sails_rs::client::PendingCall<io::GetStatuses, Self::Env> {
-            self.pending_call((query,))
-        }
-        fn get_val(&self) -> sails_rs::client::PendingCall<io::GetVal, Self::Env> {
-            self.pending_call(())
-        }
     }
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(ClearFixed () -> ());
-        sails_rs::io_struct_impl!(ConfirmIncrement (id: MessageId) -> bool);
-        sails_rs::io_struct_impl!(RemoveFixed (id: MessageId) -> Option<super::OpStatus>);
-        sails_rs::io_struct_impl!(RequestIncrement () -> MessageId);
-        sails_rs::io_struct_impl!(UpdateFixed (id: MessageId, status: super::OpStatus) -> bool);
-        sails_rs::io_struct_impl!(GetStatus (id: MessageId) -> Option<super::OpStatus>);
-        sails_rs::io_struct_impl!(GetStatuses (query: Option<super::Pagination>) -> Vec<(MessageId,super::OpStatus,)>);
-        sails_rs::io_struct_impl!(GetVal () -> u32);
+        sails_rs::io_struct_impl!(ClearFixed () -> (), 0, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(ConfirmIncrement (id: MessageId) -> bool, 1, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetStatus (id: MessageId) -> super::Option<super::OpStatus, >, 2, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetStatuses (query: super::Option<super::Pagination, >) -> Vec<(MessageId, super::OpStatus, )>, 3, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetVal () -> u32, 4, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RemoveFixed (id: MessageId) -> super::Option<super::OpStatus, >, 5, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RequestIncrement () -> MessageId | super::TrackerError, 6, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(UpdateFixed (id: MessageId, status: super::OpStatus) -> bool, 7, <super::FixedCounterImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
-}
-#[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
-pub enum OpStatus {
-    Pending,
-    Completed,
-}
-/// Pagination parameters for listing tracked messages.
-#[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
-pub struct Pagination {
-    /// The number of items to skip.
-    pub offset: u32,
-    /// The maximum number of items to return.
-    pub limit: u32,
 }

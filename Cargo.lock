@@ -4940,8 +4940,8 @@ dependencies = [
  "flate2",
  "tempfile",
  "thiserror 2.0.17",
- "wasm-encoder 0.230.0",
- "wasmparser 0.230.0",
+ "wasm-encoder 0.244.0",
+ "wasmparser 0.244.0",
 ]
 
 [[package]]
@@ -7093,10 +7093,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "808198a69b5a0535583370a51d459baa14261dfab04800c4864ee9e1a14346ed"
 dependencies = [
  "bitflags 2.11.0",
- "hashbrown 0.15.5",
  "indexmap 2.13.0",
- "semver",
- "serde",
 ]
 
 [[package]]
@@ -7109,6 +7106,7 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap 2.13.0",
  "semver",
+ "serde",
 ]
 
 [[package]]

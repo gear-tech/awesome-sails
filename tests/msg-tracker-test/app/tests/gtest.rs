@@ -1,9 +1,10 @@
 mod common;
 
-use common::{assert_str_panic, deploy_program};
+use common::deploy_program;
 use msg_tracker_test_client::{
-    MsgTrackerTestClient, OpStatus, dynamic_counter::DynamicCounter as _,
-    fixed_counter::FixedCounter as _,
+    MsgTrackerTestClient,
+    dynamic_counter::{self, DynamicCounter as _},
+    fixed_counter::{self, FixedCounter as _, TrackerError},
 };
 use sails_rs::prelude::*;
 
@@ -16,11 +17,11 @@ async fn test_fixed_counter_overflow_panic() {
         fixed_counter.request_increment().await.unwrap();
     }
 
-    let res = fixed_counter.request_increment().await;
+    let res = fixed_counter.request_increment().await.unwrap();
 
     assert!(res.is_err());
     if let Err(e) = res {
-        assert_str_panic(e, "CapacityExceeded");
+        assert_eq!(e, TrackerError::CapacityExceeded);
     }
 }
 
@@ -31,16 +32,18 @@ async fn test_dynamic_counter_flow() {
 
     let msg_id = dynamic_counter.request_increment().await.unwrap();
 
-    let status = dynamic_counter.get_status(msg_id).await.unwrap();
-    assert_eq!(status, Some(OpStatus::Pending));
+    let status = dynamic_counter.get_status(msg_id).await.unwrap().unwrap();
+    assert_eq!(status, dynamic_counter::OpStatus::Pending);
 
-    dynamic_counter.confirm_increment(msg_id).await.unwrap();
+    dynamic_counter
+        .confirm_increment(msg_id)
+        .await
+        .unwrap()
+        .unwrap();
 
     assert_eq!(dynamic_counter.get_val().await.unwrap(), 1);
-    assert_eq!(
-        dynamic_counter.get_status(msg_id).await.unwrap(),
-        Some(OpStatus::Completed)
-    );
+    let status = dynamic_counter.get_status(msg_id).await.unwrap().unwrap();
+    assert_eq!(status, dynamic_counter::OpStatus::Completed);
 }
 
 #[tokio::test]
@@ -50,16 +53,16 @@ async fn test_fixed_counter_removal_and_reuse() {
 
     let mut last_id = MessageId::zero();
     for _ in 0..5 {
-        last_id = fixed_counter.request_increment().await.unwrap();
+        last_id = fixed_counter.request_increment().await.unwrap().unwrap();
     }
 
-    let res = fixed_counter.request_increment().await;
+    let res = fixed_counter.request_increment().await.unwrap();
     assert!(res.is_err());
 
-    let removed = fixed_counter.remove_fixed(last_id).await.unwrap();
-    assert_eq!(removed, Some(OpStatus::Pending));
+    let removed = fixed_counter.remove_fixed(last_id).await.unwrap().unwrap();
+    assert_eq!(removed, fixed_counter::OpStatus::Pending);
 
-    fixed_counter.request_increment().await.unwrap();
+    fixed_counter.request_increment().await.unwrap().unwrap();
 }
 
 #[tokio::test]
@@ -69,7 +72,7 @@ async fn test_update_non_existent() {
 
     let random_id = MessageId::from([1u8; 32]);
     let updated = dynamic_counter
-        .update_dynamic(random_id, OpStatus::Completed)
+        .update_dynamic(random_id, dynamic_counter::OpStatus::Completed)
         .await
         .unwrap();
     assert!(!updated);
@@ -80,27 +83,27 @@ async fn test_fixed_storage_mixed_workload() {
     let (program, _env) = deploy_program().await;
     let mut fixed_counter = program.fixed_counter();
 
-    let id1 = fixed_counter.request_increment().await.unwrap();
-    let id2 = fixed_counter.request_increment().await.unwrap();
-    let _id3 = fixed_counter.request_increment().await.unwrap();
+    let id1 = fixed_counter.request_increment().await.unwrap().unwrap();
+    let id2 = fixed_counter.request_increment().await.unwrap().unwrap();
+    let _id3 = fixed_counter.request_increment().await.unwrap().unwrap();
 
     let updated = fixed_counter
-        .update_fixed(id2, OpStatus::Completed)
+        .update_fixed(id2, fixed_counter::OpStatus::Completed)
         .await
         .unwrap();
     assert!(updated);
     assert_eq!(
-        fixed_counter.get_status(id2).await.unwrap(),
-        Some(OpStatus::Completed)
+        fixed_counter.get_status(id2).await.unwrap().unwrap(),
+        fixed_counter::OpStatus::Completed
     );
 
-    fixed_counter.remove_fixed(id1).await.unwrap();
+    fixed_counter.remove_fixed(id1).await.unwrap().unwrap();
 
-    fixed_counter.request_increment().await.unwrap();
-    fixed_counter.request_increment().await.unwrap();
-    fixed_counter.request_increment().await.unwrap();
+    fixed_counter.request_increment().await.unwrap().unwrap();
+    fixed_counter.request_increment().await.unwrap().unwrap();
+    fixed_counter.request_increment().await.unwrap().unwrap();
 
-    assert!(fixed_counter.request_increment().await.is_err());
+    assert!(fixed_counter.request_increment().await.unwrap().is_err());
 }
 
 #[tokio::test]
@@ -109,14 +112,14 @@ async fn test_clear_and_reutilize() {
     let mut fixed_counter = program.fixed_counter();
 
     for _ in 0..5 {
-        fixed_counter.request_increment().await.unwrap();
+        fixed_counter.request_increment().await.unwrap().unwrap();
     }
-    assert!(fixed_counter.request_increment().await.is_err());
+    assert!(fixed_counter.request_increment().await.unwrap().is_err());
 
     fixed_counter.clear_fixed().await.unwrap();
 
     for _ in 0..5 {
-        fixed_counter.request_increment().await.unwrap();
+        fixed_counter.request_increment().await.unwrap().unwrap();
     }
 }
 
@@ -127,14 +130,14 @@ async fn test_pagination_logic() {
 
     let mut ids = Vec::new();
     for _ in 0..5 {
-        ids.push(fixed_counter.request_increment().await.unwrap());
+        ids.push(fixed_counter.request_increment().await.unwrap().unwrap());
     }
 
     let all = fixed_counter.get_statuses(None).await.unwrap();
     assert_eq!(all.len(), 5);
 
     let page = fixed_counter
-        .get_statuses(Some(msg_tracker_test_client::Pagination {
+        .get_statuses(Some(fixed_counter::Pagination {
             offset: 2,
             limit: 2,
         }))

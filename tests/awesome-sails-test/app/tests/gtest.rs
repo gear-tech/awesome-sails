@@ -28,7 +28,7 @@ use awesome_sails_test_client::{
     vft_extension::VftExtension,
 };
 use awesome_sails_utils::{assert_ok, math::Max};
-use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic, deploy_with_data};
+use common::{ALICE, BOB, CHARLIE, DAVE, deploy_with_data};
 use futures::StreamExt;
 use sails_rs::{U256, prelude::*};
 
@@ -49,20 +49,20 @@ async fn allowance() {
     // Approve is returned if exists.
     {
         let res = vft_extension_service.allowance_of(ALICE, BOB).await;
-        assert_ok!(res, Some((U256::exp10(MAGIC), BN)));
+        assert_ok!(res.unwrap(), Some((U256::exp10(MAGIC), BN)));
 
         let res = vft_service.allowance(ALICE, BOB).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
     }
 
     // # Test case #2.
     // U256::zero() is returned if not exists.
     {
         let res = vft_extension_service.allowance_of(BOB, ALICE).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
 
         let res = vft_service.allowance(BOB, ALICE).await;
-        assert_ok!(res, U256::zero());
+        assert_ok!(res.unwrap(), U256::zero());
     }
 }
 
@@ -79,7 +79,7 @@ async fn approve() {
     // Allowance from Alice to Bob doesn't exist and created.
     {
         let res = vft_service.approve(BOB, U256::exp10(MAGIC)).await;
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -93,7 +93,7 @@ async fn approve() {
         );
 
         let res = vft_service.allowance(ALICE, BOB).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
     }
 
     // # Test case #2.
@@ -103,11 +103,12 @@ async fn approve() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible");
+            .expect("infallible")
+            .unwrap();
 
         let res = vft_service.approve(BOB, U256::exp10(MAGIC - 1)).await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -124,7 +125,8 @@ async fn approve() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible");
+            .expect("infallible")
+            .unwrap();
 
         assert_eq!(res, U256::exp10(MAGIC - 1));
 
@@ -136,14 +138,14 @@ async fn approve() {
     {
         let res = vft_service.approve(BOB, U256::exp10(MAGIC - 1)).await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
     }
 
     // # Test case #4.
     // Allowance from Alice to Bob exists and removed.
     {
         let res = vft_service.approve(BOB, U256::zero()).await;
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -157,36 +159,36 @@ async fn approve() {
         );
 
         let res = vft_service.allowance(ALICE, BOB).await;
-        assert_ok!(res, U256::zero());
+        assert_ok!(res.unwrap(), U256::zero());
 
         let res = vft_extension_service.allowance_of(ALICE, BOB).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
     }
 
     // # Test case #5.
     // Allowance from Alice to Bob doesn't exists and not created.
     {
         let res = vft_service.approve(BOB, U256::zero()).await;
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_service.allowance(ALICE, BOB).await;
-        assert_ok!(res, U256::zero());
+        assert_ok!(res.unwrap(), U256::zero());
     }
 
     // # Test case #6.
     // Allowance is always noop on owner == spender.
     {
         let res = vft_service.approve(ALICE, U256::exp10(MAGIC)).await;
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_service.allowance(ALICE, ALICE).await;
-        assert_ok!(res, U256::zero());
+        assert_ok!(res.unwrap(), U256::zero());
 
         let res = vft_service.approve(ALICE, U256::zero()).await;
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_service.allowance(ALICE, ALICE).await;
-        assert_ok!(res, U256::zero());
+        assert_ok!(res.unwrap(), U256::zero());
     }
 }
 
@@ -204,20 +206,20 @@ async fn balance_of() {
     // Balance is returned if exists.
     {
         let res = vft_extension_service.balance_of(ALICE).await;
-        assert_ok!(res, Some(U256::exp10(MAGIC)));
+        assert_ok!(res.unwrap(), Some(U256::exp10(MAGIC)));
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
     }
 
     // # Test case #2.
     // U256::zero() is returned if not exists.
     {
         let res = vft_extension_service.balance_of(BOB).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
 
         let res = vft_service.balance_of(BOB).await;
-        assert_ok!(res, U256::zero());
+        assert_ok!(res.unwrap(), U256::zero());
     }
 }
 
@@ -242,7 +244,8 @@ async fn transfer() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_str_panic(res.unwrap_err(), "insufficient balance");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("insufficient balance"));
     }
 
     // # Test case #2.
@@ -253,7 +256,8 @@ async fn transfer() {
             .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(res.unwrap_err(), "insufficient balance");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("insufficient balance"));
     }
 
     // # Test case #3.
@@ -268,7 +272,8 @@ async fn transfer() {
             .with_actor_id(DAVE)
             .await;
 
-        assert_str_panic(res.unwrap_err(), "balance or supply overflow");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("balance or supply overflow"));
     }
 
     // # Test case #4.
@@ -279,7 +284,7 @@ async fn transfer() {
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -293,10 +298,10 @@ async fn transfer() {
         );
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC - 1));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC - 1));
 
         let res = vft_service.balance_of(BOB).await;
-        assert_ok!(res, U256::exp10(MAGIC) - U256::exp10(MAGIC - 1));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC) - U256::exp10(MAGIC - 1));
     }
 
     // # Test case #5.
@@ -307,7 +312,7 @@ async fn transfer() {
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -321,11 +326,11 @@ async fn transfer() {
         );
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC - 1) + U256::exp10(MAGIC - 2));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC - 1) + U256::exp10(MAGIC - 2));
 
         let res = vft_service.balance_of(BOB).await;
         assert_ok!(
-            res,
+            res.unwrap(),
             U256::exp10(MAGIC) - U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2)
         );
     }
@@ -341,7 +346,7 @@ async fn transfer() {
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -355,10 +360,10 @@ async fn transfer() {
         );
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
 
         let res = vft_extension_service.balance_of(BOB).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
     }
 
     // # Test case #7.
@@ -369,7 +374,7 @@ async fn transfer() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -383,10 +388,10 @@ async fn transfer() {
         );
 
         let res = vft_service.balance_of(CHARLIE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
 
         let res = vft_extension_service.balance_of(ALICE).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
     }
 
     // # Test case #8.
@@ -397,20 +402,20 @@ async fn transfer() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_extension_service.balance_of(ALICE).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
 
         let res = vft_service
             .transfer(CHARLIE, U256::exp10(MAGIC))
             .with_actor_id(CHARLIE)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_service.balance_of(CHARLIE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
     }
 
     // # Test case #9.
@@ -421,20 +426,20 @@ async fn transfer() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_service.balance_of(CHARLIE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
 
         let res = vft_service
             .transfer(ALICE, U256::zero())
             .with_actor_id(CHARLIE)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_extension_service.balance_of(ALICE).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
     }
 }
 
@@ -462,7 +467,7 @@ async fn transfer_from() {
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
     }
 
     // # Test case #2.
@@ -473,7 +478,7 @@ async fn transfer_from() {
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -487,10 +492,10 @@ async fn transfer_from() {
         );
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
 
         let res = vft_extension_service.balance_of(BOB).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
     }
 
     // # Test case #3.
@@ -501,20 +506,20 @@ async fn transfer_from() {
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_extension_service.balance_of(BOB).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
 
         let res = vft_service
             .transfer_from(ALICE, ALICE, U256::exp10(MAGIC))
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, false);
+        assert_ok!(res.unwrap(), false);
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
     }
 
     // # Test case #4.
@@ -525,7 +530,8 @@ async fn transfer_from() {
             .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(res.unwrap_err(), "insufficient allowance");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("insufficient allowance"));
     }
 
     // # Test case #5.
@@ -536,7 +542,7 @@ async fn transfer_from() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -554,7 +560,8 @@ async fn transfer_from() {
             .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(res.unwrap_err(), "insufficient allowance");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("insufficient allowance"));
     }
 
     // # Test case #6.
@@ -565,7 +572,7 @@ async fn transfer_from() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -583,7 +590,8 @@ async fn transfer_from() {
             .with_actor_id(BOB)
             .await;
 
-        assert_str_panic(res.unwrap_err(), "insufficient balance");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("insufficient balance"));
     }
 
     // # Test case #7.
@@ -593,14 +601,15 @@ async fn transfer_from() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible");
+            .expect("infallible")
+            .unwrap();
 
         let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC - 1))
             .with_actor_id(BOB)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -614,16 +623,17 @@ async fn transfer_from() {
         );
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res, U256::exp10(MAGIC) - U256::exp10(MAGIC - 1));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC) - U256::exp10(MAGIC - 1));
 
         let res = vft_service.balance_of(CHARLIE).await;
-        assert_ok!(res, U256::exp10(MAGIC - 1));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC - 1));
 
         let (res, bn2) = vft_extension_service
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible");
+            .expect("infallible")
+            .unwrap();
 
         assert_eq!(res, U256::MAX);
 
@@ -638,7 +648,7 @@ async fn transfer_from() {
             .with_actor_id(CHARLIE)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -655,14 +665,15 @@ async fn transfer_from() {
             .allowance_of(CHARLIE, ALICE)
             .await
             .expect("infallible")
-            .expect("infallible");
+            .expect("infallible")
+            .unwrap();
 
         let res = vft_service
             .transfer_from(CHARLIE, DAVE, U256::exp10(MAGIC - 3))
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -679,7 +690,8 @@ async fn transfer_from() {
             .allowance_of(CHARLIE, ALICE)
             .await
             .expect("infallible")
-            .expect("infallible");
+            .expect("infallible")
+            .unwrap();
 
         assert_eq!(res, U256::exp10(MAGIC - 2) - U256::exp10(MAGIC - 3));
 
@@ -698,7 +710,7 @@ async fn transfer_from() {
             .with_actor_id(ALICE)
             .await;
 
-        assert_ok!(res, true);
+        assert_ok!(res.unwrap(), true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -712,13 +724,13 @@ async fn transfer_from() {
         );
 
         let res = vft_extension_service.allowance_of(CHARLIE, ALICE).await;
-        assert_ok!(res, None);
+        assert_ok!(res.unwrap(), None);
 
         let res = vft_service.balance_of(CHARLIE).await;
-        assert_ok!(res, U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2));
 
         let res = vft_service.balance_of(DAVE).await;
-        assert_ok!(res, U256::exp10(MAGIC) + U256::exp10(MAGIC - 2));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC) + U256::exp10(MAGIC - 2));
     }
 }
 
@@ -739,15 +751,16 @@ async fn pause() {
         .grant_role(PAUSER_ROLE, ALICE)
         .with_actor_id(ALICE)
         .await
-        .expect("Alice failed to grant PAUSER_ROLE to herself");
+        .expect("Alice failed to grant PAUSER_ROLE to herself")
+        .unwrap();
 
     // Call not paused.
     {
         let res = vft_extension_service.allowance_of(ALICE, BOB).await;
-        assert_ok!(res, Some((U256::exp10(MAGIC), BN)));
+        assert_ok!(res.unwrap(), Some((U256::exp10(MAGIC), BN)));
 
         let res = vft_service.allowance(ALICE, BOB).await;
-        assert_ok!(res, U256::exp10(MAGIC));
+        assert_ok!(res.unwrap(), U256::exp10(MAGIC));
     }
 
     // Pause (Alice has PAUSER_ROLE)
@@ -756,6 +769,7 @@ async fn pause() {
             .pause()
             .with_actor_id(ALICE)
             .await
+            .unwrap()
             .unwrap(); // Call from Alice
 
         let paused = vft_admin_service.is_paused().await.unwrap();
@@ -766,6 +780,7 @@ async fn pause() {
     {
         let res = vft_service.transfer(BOB, U256::exp10(10)).await;
 
-        assert_str_panic(res.unwrap_err(), "storage is paused");
+        let err = res.unwrap().unwrap_err();
+        assert!(err.0.contains("storage is paused"));
     }
 }

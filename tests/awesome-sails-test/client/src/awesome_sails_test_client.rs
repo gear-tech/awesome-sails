@@ -2,7 +2,20 @@
 #[allow(unused_imports)]
 use sails_rs::{client::*, collections::*, prelude::*};
 pub struct AwesomeSailsTestClientProgram;
+
+impl AwesomeSailsTestClientProgram {
+    pub const ROUTE_ID_TEST: u8 = 1;
+    pub const ROUTE_ID_ACCESS_CONTROL: u8 = 2;
+    pub const ROUTE_ID_VFT: u8 = 3;
+    pub const ROUTE_ID_VFT_ADMIN: u8 = 4;
+    pub const ROUTE_ID_VFT_EXTENSION: u8 = 5;
+    pub const ROUTE_ID_VFT_METADATA: u8 = 6;
+    pub const ROUTE_ID_VFT_NATIVE_EXCHANGE: u8 = 7;
+    pub const ROUTE_ID_VFT_NATIVE_EXCHANGE_ADMIN: u8 = 8;
+}
+
 impl sails_rs::client::Program for AwesomeSailsTestClientProgram {}
+
 pub trait AwesomeSailsTestClient {
     type Env: sails_rs::client::GearEnv;
     fn test(&self) -> sails_rs::client::Service<test::TestImpl, Self::Env>;
@@ -22,42 +35,43 @@ pub trait AwesomeSailsTestClient {
         &self,
     ) -> sails_rs::client::Service<vft_native_exchange_admin::VftNativeExchangeAdminImpl, Self::Env>;
 }
+
 impl<E: sails_rs::client::GearEnv> AwesomeSailsTestClient
     for sails_rs::client::Actor<AwesomeSailsTestClientProgram, E>
 {
     type Env = E;
     fn test(&self) -> sails_rs::client::Service<test::TestImpl, Self::Env> {
-        self.service(stringify!(Test))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_TEST)
     }
     fn access_control(
         &self,
     ) -> sails_rs::client::Service<access_control::AccessControlImpl, Self::Env> {
-        self.service(stringify!(AccessControl))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_ACCESS_CONTROL)
     }
     fn vft(&self) -> sails_rs::client::Service<vft::VftImpl, Self::Env> {
-        self.service(stringify!(Vft))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_VFT)
     }
     fn vft_admin(&self) -> sails_rs::client::Service<vft_admin::VftAdminImpl, Self::Env> {
-        self.service(stringify!(VftAdmin))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_VFT_ADMIN)
     }
     fn vft_extension(
         &self,
     ) -> sails_rs::client::Service<vft_extension::VftExtensionImpl, Self::Env> {
-        self.service(stringify!(VftExtension))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_VFT_EXTENSION)
     }
     fn vft_metadata(&self) -> sails_rs::client::Service<vft_metadata::VftMetadataImpl, Self::Env> {
-        self.service(stringify!(VftMetadata))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_VFT_METADATA)
     }
     fn vft_native_exchange(
         &self,
     ) -> sails_rs::client::Service<vft_native_exchange::VftNativeExchangeImpl, Self::Env> {
-        self.service(stringify!(VftNativeExchange))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_VFT_NATIVE_EXCHANGE)
     }
     fn vft_native_exchange_admin(
         &self,
     ) -> sails_rs::client::Service<vft_native_exchange_admin::VftNativeExchangeAdminImpl, Self::Env>
     {
-        self.service(stringify!(VftNativeExchangeAdmin))
+        self.service(AwesomeSailsTestClientProgram::ROUTE_ID_VFT_NATIVE_EXCHANGE_ADMIN)
     }
 }
 pub trait AwesomeSailsTestClientCtors {
@@ -68,6 +82,7 @@ pub trait AwesomeSailsTestClientCtors {
         self,
     ) -> sails_rs::client::PendingCtor<AwesomeSailsTestClientProgram, io::New, Self::Env>;
 }
+
 impl<E: sails_rs::client::GearEnv> AwesomeSailsTestClientCtors
     for sails_rs::client::Deployment<AwesomeSailsTestClientProgram, E>
 {
@@ -81,11 +96,21 @@ impl<E: sails_rs::client::GearEnv> AwesomeSailsTestClientCtors
 
 pub mod io {
     use super::*;
-    sails_rs::io_struct_impl!(New () -> ());
+    sails_rs::io_struct_impl!(New () -> (), 0);
 }
 
 pub mod test {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+
     pub trait Test {
         type Env: sails_rs::client::GearEnv;
         fn set(
@@ -95,7 +120,14 @@ pub mod test {
             expiry_period: u32,
         ) -> sails_rs::client::PendingCall<io::Set, Self::Env>;
     }
+
     pub struct TestImpl;
+
+    impl sails_rs::client::Identifiable for TestImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([39, 158, 87, 239, 227, 222, 55, 29]);
+    }
+
     impl<E: sails_rs::client::GearEnv> Test for sails_rs::client::Service<TestImpl, E> {
         type Env = E;
         fn set(
@@ -110,94 +142,35 @@ pub mod test {
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(Set (new_allowances: Vec<(ActorId,ActorId,U256,u32,)>, new_balances: Vec<(ActorId,U256,)>, expiry_period: u32) -> ());
+        sails_rs::io_struct_impl!(Set (new_allowances: Vec<(ActorId, ActorId, U256, u32, )>, new_balances: Vec<(ActorId, U256, )>, expiry_period: u32) -> () | super::Error, 0, <super::TestImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 }
 
 pub mod access_control {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+    /// Pagination parameters for listing roles or members.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Pagination {
+        /// The number of items to skip.
+        pub offset: u32,
+        /// The maximum number of items to return.
+        pub limit: u32,
+    }
+
     pub trait AccessControl {
         type Env: sails_rs::client::GearEnv;
-        /// Grants `role_id` to `target_account`.
-        ///
-        /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
-        /// event.
-        ///
-        /// # Requirements
-        ///
-        /// * The caller must have `role_id`'s admin role.
-        fn grant_role(
-            &mut self,
-            role_id: [u8; 32],
-            target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env>;
-        /// Grants `role_ids` to `target_account`.
-        ///
-        /// If `target_account` had not been already granted any of the `role_ids`,
-        /// emits a `RoleGranted` event for each newly granted role.
-        ///
-        /// # Requirements
-        ///
-        /// * The caller must have the admin role for all specified `role_ids`.
-        fn grant_roles_batch(
-            &mut self,
-            role_ids: Vec<[u8; 32]>,
-            target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env>;
-        /// Revokes `role_id` from the calling account.
-        ///
-        /// Roles are often managed via `grant_role` and `revoke_role`: this function's
-        /// purpose is to provide a mechanism for accounts to lose their privileges
-        /// if they are compromised (such as when a trusted device is misplaced).
-        ///
-        /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
-        /// event.
-        ///
-        /// # Requirements
-        ///
-        /// * The caller must be `account_id`.
-        fn renounce_role(
-            &mut self,
-            role_id: [u8; 32],
-            account_id: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RenounceRole, Self::Env>;
-        /// Revokes `role_id` from `target_account`.
-        ///
-        /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
-        ///
-        /// # Requirements
-        ///
-        /// * The caller must have `role_id`'s admin role.
-        fn revoke_role(
-            &mut self,
-            role_id: [u8; 32],
-            target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env>;
-        /// Revokes `role_ids` from `target_account`.
-        ///
-        /// If `target_account` had been granted any of the `role_ids`,
-        /// emits a `RoleRevoked` event for each newly revoked role.
-        ///
-        /// # Requirements
-        ///
-        /// * The caller must have the admin role for all specified `role_ids`.
-        fn revoke_roles_batch(
-            &mut self,
-            role_ids: Vec<[u8; 32]>,
-            target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env>;
-        /// Sets `new_admin_role_id` as the admin role for `role_id`.
-        ///
-        /// Emits a `RoleAdminChanged` event.
-        ///
-        /// # Requirements
-        ///
-        /// * The caller must have `role_id`'s admin role.
-        fn set_role_admin(
-            &mut self,
-            role_id: [u8; 32],
-            new_admin_role_id: [u8; 32],
-        ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env>;
         /// Returns the number of roles assigned to the specified member.
         ///
         /// # Arguments
@@ -262,6 +235,32 @@ pub mod access_control {
             &self,
             query: Option<Pagination>,
         ) -> sails_rs::client::PendingCall<io::GetRoles, Self::Env>;
+        /// Grants `role_id` to `target_account`.
+        ///
+        /// If `target_account` had not been already granted `role_id`, emits a `RoleGranted`
+        /// event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have `role_id`'s admin role.
+        fn grant_role(
+            &mut self,
+            role_id: [u8; 32],
+            target_account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env>;
+        /// Grants `role_ids` to `target_account`.
+        ///
+        /// If `target_account` had not been already granted any of the `role_ids`,
+        /// emits a `RoleGranted` event for each newly granted role.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have the admin role for all specified `role_ids`.
+        fn grant_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env>;
         /// Checks if `account_id` has been granted `role_id`.
         ///
         /// # Arguments
@@ -277,54 +276,73 @@ pub mod access_control {
             role_id: [u8; 32],
             account_id: ActorId,
         ) -> sails_rs::client::PendingCall<io::HasRole, Self::Env>;
-    }
-    pub struct AccessControlImpl;
-    impl<E: sails_rs::client::GearEnv> AccessControl
-        for sails_rs::client::Service<AccessControlImpl, E>
-    {
-        type Env = E;
-        fn grant_role(
-            &mut self,
-            role_id: [u8; 32],
-            target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env> {
-            self.pending_call((role_id, target_account))
-        }
-        fn grant_roles_batch(
-            &mut self,
-            role_ids: Vec<[u8; 32]>,
-            target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env> {
-            self.pending_call((role_ids, target_account))
-        }
+        /// Revokes `role_id` from the calling account.
+        ///
+        /// Roles are often managed via `grant_role` and `revoke_role`: this function's
+        /// purpose is to provide a mechanism for accounts to lose their privileges
+        /// if they are compromised (such as when a trusted device is misplaced).
+        ///
+        /// If the calling account had been granted `role_id`, emits a `RoleRevoked`
+        /// event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must be `account_id`.
         fn renounce_role(
             &mut self,
             role_id: [u8; 32],
             account_id: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RenounceRole, Self::Env> {
-            self.pending_call((role_id, account_id))
-        }
+        ) -> sails_rs::client::PendingCall<io::RenounceRole, Self::Env>;
+        /// Revokes `role_id` from `target_account`.
+        ///
+        /// If `target_account` had been granted `role_id`, emits a `RoleRevoked` event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have `role_id`'s admin role.
         fn revoke_role(
             &mut self,
             role_id: [u8; 32],
             target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env> {
-            self.pending_call((role_id, target_account))
-        }
+        ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env>;
+        /// Revokes `role_ids` from `target_account`.
+        ///
+        /// If `target_account` had been granted any of the `role_ids`,
+        /// emits a `RoleRevoked` event for each newly revoked role.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have the admin role for all specified `role_ids`.
         fn revoke_roles_batch(
             &mut self,
             role_ids: Vec<[u8; 32]>,
             target_account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env> {
-            self.pending_call((role_ids, target_account))
-        }
+        ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env>;
+        /// Sets `new_admin_role_id` as the admin role for `role_id`.
+        ///
+        /// Emits a `RoleAdminChanged` event.
+        ///
+        /// # Requirements
+        ///
+        /// * The caller must have `role_id`'s admin role.
         fn set_role_admin(
             &mut self,
             role_id: [u8; 32],
             new_admin_role_id: [u8; 32],
-        ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env> {
-            self.pending_call((role_id, new_admin_role_id))
-        }
+        ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env>;
+    }
+
+    pub struct AccessControlImpl;
+
+    impl sails_rs::client::Identifiable for AccessControlImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([38, 102, 43, 171, 118, 254, 141, 15]);
+    }
+
+    impl<E: sails_rs::client::GearEnv> AccessControl
+        for sails_rs::client::Service<AccessControlImpl, E>
+    {
+        type Env = E;
         fn get_member_role_count(
             &self,
             member_id: ActorId,
@@ -366,6 +384,20 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::GetRoles, Self::Env> {
             self.pending_call((query,))
         }
+        fn grant_role(
+            &mut self,
+            role_id: [u8; 32],
+            target_account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::GrantRole, Self::Env> {
+            self.pending_call((role_id, target_account))
+        }
+        fn grant_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::GrantRolesBatch, Self::Env> {
+            self.pending_call((role_ids, target_account))
+        }
         fn has_role(
             &self,
             role_id: [u8; 32],
@@ -373,56 +405,102 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::HasRole, Self::Env> {
             self.pending_call((role_id, account_id))
         }
+        fn renounce_role(
+            &mut self,
+            role_id: [u8; 32],
+            account_id: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RenounceRole, Self::Env> {
+            self.pending_call((role_id, account_id))
+        }
+        fn revoke_role(
+            &mut self,
+            role_id: [u8; 32],
+            target_account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RevokeRole, Self::Env> {
+            self.pending_call((role_id, target_account))
+        }
+        fn revoke_roles_batch(
+            &mut self,
+            role_ids: Vec<[u8; 32]>,
+            target_account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env> {
+            self.pending_call((role_ids, target_account))
+        }
+        fn set_role_admin(
+            &mut self,
+            role_id: [u8; 32],
+            new_admin_role_id: [u8; 32],
+        ) -> sails_rs::client::PendingCall<io::SetRoleAdmin, Self::Env> {
+            self.pending_call((role_id, new_admin_role_id))
+        }
     }
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(GrantRole (role_id: [u8; 32], target_account: ActorId) -> ());
-        sails_rs::io_struct_impl!(GrantRolesBatch (role_ids: Vec<[u8; 32]>, target_account: ActorId) -> ());
-        sails_rs::io_struct_impl!(RenounceRole (role_id: [u8; 32], account_id: ActorId) -> ());
-        sails_rs::io_struct_impl!(RevokeRole (role_id: [u8; 32], target_account: ActorId) -> ());
-        sails_rs::io_struct_impl!(RevokeRolesBatch (role_ids: Vec<[u8; 32]>, target_account: ActorId) -> ());
-        sails_rs::io_struct_impl!(SetRoleAdmin (role_id: [u8; 32], new_admin_role_id: [u8; 32]) -> ());
-        sails_rs::io_struct_impl!(GetMemberRoleCount (member_id: ActorId) -> u32);
-        sails_rs::io_struct_impl!(GetMemberRoles (member_id: ActorId, query: Option<super::Pagination>) -> Vec<[u8; 32]>);
-        sails_rs::io_struct_impl!(GetRoleAdmin (role_id: [u8; 32]) -> [u8; 32]);
-        sails_rs::io_struct_impl!(GetRoleCount () -> u32);
-        sails_rs::io_struct_impl!(GetRoleMemberCount (role_id: [u8; 32]) -> u32);
-        sails_rs::io_struct_impl!(GetRoleMembers (role_id: [u8; 32], query: Option<super::Pagination>) -> Vec<ActorId>);
-        sails_rs::io_struct_impl!(GetRoles (query: Option<super::Pagination>) -> Vec<[u8; 32]>);
-        sails_rs::io_struct_impl!(HasRole (role_id: [u8; 32], account_id: ActorId) -> bool);
+        sails_rs::io_struct_impl!(GetMemberRoleCount (member_id: ActorId) -> u32, 0, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetMemberRoles (member_id: ActorId, query: super::Option<super::Pagination, >) -> Vec<[u8; 32]>, 1, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetRoleAdmin (role_id: [u8; 32]) -> [u8; 32], 2, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetRoleCount () -> u32, 3, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetRoleMemberCount (role_id: [u8; 32]) -> u32, 4, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetRoleMembers (role_id: [u8; 32], query: super::Option<super::Pagination, >) -> Vec<ActorId>, 5, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GetRoles (query: super::Option<super::Pagination, >) -> Vec<[u8; 32]>, 6, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GrantRole (role_id: [u8; 32], target_account: ActorId) -> () | super::Error, 7, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(GrantRolesBatch (role_ids: Vec<[u8; 32]>, target_account: ActorId) -> () | super::Error, 8, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(HasRole (role_id: [u8; 32], account_id: ActorId) -> bool, 9, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RenounceRole (role_id: [u8; 32], account_id: ActorId) -> () | super::Error, 10, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RevokeRole (role_id: [u8; 32], target_account: ActorId) -> () | super::Error, 11, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RevokeRolesBatch (role_ids: Vec<[u8; 32]>, target_account: ActorId) -> () | super::Error, 12, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(SetRoleAdmin (role_id: [u8; 32], new_admin_role_id: [u8; 32]) -> () | super::Error, 13, <super::AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode)]
+        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
         #[codec(crate = sails_rs::scale_codec)]
+        #[reflect_hash(crate = sails_rs)]
         pub enum AccessControlEvents {
-            /// Emitted when `target_account` is granted `role_id`.
-            RoleGranted {
-                role_id: [u8; 32],
-                target_account: ActorId,
-                sender: ActorId,
-            },
-            /// Emitted when `role_id` is revoked from `target_account`.
-            RoleRevoked {
-                role_id: [u8; 32],
-                target_account: ActorId,
-                sender: ActorId,
-            },
             /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
+            #[codec(index = 0)]
             RoleAdminChanged {
                 role_id: [u8; 32],
                 previous_admin_role_id: [u8; 32],
                 new_admin_role_id: [u8; 32],
                 sender: ActorId,
             },
+            /// Emitted when `target_account` is granted `role_id`.
+            #[codec(index = 1)]
+            RoleGranted {
+                role_id: [u8; 32],
+                target_account: ActorId,
+                sender: ActorId,
+            },
+            /// Emitted when `role_id` is revoked from `target_account`.
+            #[codec(index = 2)]
+            RoleRevoked {
+                role_id: [u8; 32],
+                target_account: ActorId,
+                sender: ActorId,
+            },
         }
-        impl sails_rs::client::Event for AccessControlEvents {
-            const EVENT_NAMES: &'static [Route] =
-                &["RoleGranted", "RoleRevoked", "RoleAdminChanged"];
+
+        impl AccessControlEvents {
+            pub fn entry_id(&self) -> u16 {
+                match self {
+                    Self::RoleAdminChanged { .. } => 0,
+                    Self::RoleGranted { .. } => 1,
+                    Self::RoleRevoked { .. } => 2,
+                }
+            }
         }
+
+        impl sails_rs::client::Event for AccessControlEvents {}
+
+        impl sails_rs::client::Identifiable for AccessControlEvents {
+            const INTERFACE_ID: sails_rs::InterfaceId =
+                <AccessControlImpl as sails_rs::client::Identifiable>::INTERFACE_ID;
+        }
+
         impl sails_rs::client::ServiceWithEvents for AccessControlImpl {
             type Event = AccessControlEvents;
         }
@@ -431,8 +509,33 @@ pub mod access_control {
 
 pub mod vft {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+
     pub trait Vft {
         type Env: sails_rs::client::GearEnv;
+        /// Returns the amount of tokens that `spender` is allowed to spend on behalf of `owner`.
+        ///
+        /// # Arguments
+        ///
+        /// * `owner` - The account that owns the tokens.
+        /// * `spender` - The account allowed to spend the tokens.
+        ///
+        /// # Returns
+        ///
+        /// The remaining allowance as `U256`.
+        fn allowance(
+            &self,
+            owner: ActorId,
+            spender: ActorId,
+        ) -> sails_rs::client::PendingCall<io::Allowance, Self::Env>;
         /// Approves `spender` to spend `value` amount of tokens on behalf of the caller.
         ///
         /// If `value` is `U256::MAX`, the allowance is treated as infinite.
@@ -451,6 +554,25 @@ pub mod vft {
             spender: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::Approve, Self::Env>;
+        /// Returns the token balance of `account`.
+        ///
+        /// # Arguments
+        ///
+        /// * `account` - The account to query the balance of.
+        ///
+        /// # Returns
+        ///
+        /// The balance as `U256`.
+        fn balance_of(
+            &self,
+            account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env>;
+        /// Returns the total supply of tokens.
+        ///
+        /// # Returns
+        ///
+        /// The total supply as `U256`.
+        fn total_supply(&self) -> sails_rs::client::PendingCall<io::TotalSupply, Self::Env>;
         /// Transfers `value` amount of tokens from the caller to `to`.
         ///
         /// Emits a `Transfer` event.
@@ -488,50 +610,39 @@ pub mod vft {
             to: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::TransferFrom, Self::Env>;
-        /// Returns the amount of tokens that `spender` is allowed to spend on behalf of `owner`.
-        ///
-        /// # Arguments
-        ///
-        /// * `owner` - The account that owns the tokens.
-        /// * `spender` - The account allowed to spend the tokens.
-        ///
-        /// # Returns
-        ///
-        /// The remaining allowance as `U256`.
+    }
+
+    pub struct VftImpl;
+
+    impl sails_rs::client::Identifiable for VftImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([80, 54, 215, 111, 230, 31, 97, 11]);
+    }
+
+    impl<E: sails_rs::client::GearEnv> Vft for sails_rs::client::Service<VftImpl, E> {
+        type Env = E;
         fn allowance(
             &self,
             owner: ActorId,
             spender: ActorId,
-        ) -> sails_rs::client::PendingCall<io::Allowance, Self::Env>;
-        /// Returns the token balance of `account`.
-        ///
-        /// # Arguments
-        ///
-        /// * `account` - The account to query the balance of.
-        ///
-        /// # Returns
-        ///
-        /// The balance as `U256`.
-        fn balance_of(
-            &self,
-            account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env>;
-        /// Returns the total supply of tokens.
-        ///
-        /// # Returns
-        ///
-        /// The total supply as `U256`.
-        fn total_supply(&self) -> sails_rs::client::PendingCall<io::TotalSupply, Self::Env>;
-    }
-    pub struct VftImpl;
-    impl<E: sails_rs::client::GearEnv> Vft for sails_rs::client::Service<VftImpl, E> {
-        type Env = E;
+        ) -> sails_rs::client::PendingCall<io::Allowance, Self::Env> {
+            self.pending_call((owner, spender))
+        }
         fn approve(
             &mut self,
             spender: ActorId,
             value: U256,
         ) -> sails_rs::client::PendingCall<io::Approve, Self::Env> {
             self.pending_call((spender, value))
+        }
+        fn balance_of(
+            &self,
+            account: ActorId,
+        ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env> {
+            self.pending_call((account,))
+        }
+        fn total_supply(&self) -> sails_rs::client::PendingCall<io::TotalSupply, Self::Env> {
+            self.pending_call(())
         }
         fn transfer(
             &mut self,
@@ -548,56 +659,57 @@ pub mod vft {
         ) -> sails_rs::client::PendingCall<io::TransferFrom, Self::Env> {
             self.pending_call((from, to, value))
         }
-        fn allowance(
-            &self,
-            owner: ActorId,
-            spender: ActorId,
-        ) -> sails_rs::client::PendingCall<io::Allowance, Self::Env> {
-            self.pending_call((owner, spender))
-        }
-        fn balance_of(
-            &self,
-            account: ActorId,
-        ) -> sails_rs::client::PendingCall<io::BalanceOf, Self::Env> {
-            self.pending_call((account,))
-        }
-        fn total_supply(&self) -> sails_rs::client::PendingCall<io::TotalSupply, Self::Env> {
-            self.pending_call(())
-        }
     }
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(Approve (spender: ActorId, value: U256) -> bool);
-        sails_rs::io_struct_impl!(Transfer (to: ActorId, value: U256) -> bool);
-        sails_rs::io_struct_impl!(TransferFrom (from: ActorId, to: ActorId, value: U256) -> bool);
-        sails_rs::io_struct_impl!(Allowance (owner: ActorId, spender: ActorId) -> U256);
-        sails_rs::io_struct_impl!(BalanceOf (account: ActorId) -> U256);
-        sails_rs::io_struct_impl!(TotalSupply () -> U256);
+        sails_rs::io_struct_impl!(Allowance (owner: ActorId, spender: ActorId) -> U256 | super::Error, 0, <super::VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Approve (spender: ActorId, value: U256) -> bool | super::Error, 1, <super::VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(BalanceOf (account: ActorId) -> U256 | super::Error, 2, <super::VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(TotalSupply () -> U256 | super::Error, 3, <super::VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Transfer (to: ActorId, value: U256) -> bool | super::Error, 4, <super::VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(TransferFrom (from: ActorId, to: ActorId, value: U256) -> bool | super::Error, 5, <super::VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode)]
+        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
         #[codec(crate = sails_rs::scale_codec)]
+        #[reflect_hash(crate = sails_rs)]
         pub enum VftEvents {
             /// Emitted when an approval is granted or updated.
+            #[codec(index = 0)]
             Approval {
                 owner: ActorId,
                 spender: ActorId,
                 value: U256,
             },
             /// Emitted when tokens are transferred.
+            #[codec(index = 1)]
             Transfer {
                 from: ActorId,
                 to: ActorId,
                 value: U256,
             },
         }
-        impl sails_rs::client::Event for VftEvents {
-            const EVENT_NAMES: &'static [Route] = &["Approval", "Transfer"];
+
+        impl VftEvents {
+            pub fn entry_id(&self) -> u16 {
+                match self {
+                    Self::Approval { .. } => 0,
+                    Self::Transfer { .. } => 1,
+                }
+            }
         }
+
+        impl sails_rs::client::Event for VftEvents {}
+
+        impl sails_rs::client::Identifiable for VftEvents {
+            const INTERFACE_ID: sails_rs::InterfaceId =
+                <VftImpl as sails_rs::client::Identifiable>::INTERFACE_ID;
+        }
+
         impl sails_rs::client::ServiceWithEvents for VftImpl {
             type Event = VftEvents;
         }
@@ -606,6 +718,16 @@ pub mod vft {
 
 pub mod vft_admin {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+
     pub trait VftAdmin {
         type Env: sails_rs::client::GearEnv;
         /// Appends a new shard to the allowances storage map.
@@ -669,6 +791,8 @@ pub mod vft_admin {
             &mut self,
             inheritor: ActorId,
         ) -> sails_rs::client::PendingCall<io::Exit, Self::Env>;
+        /// Returns `true` if the contract is paused.
+        fn is_paused(&self) -> sails_rs::client::PendingCall<io::IsPaused, Self::Env>;
         /// Mints `value` tokens to `to` account.
         ///
         /// # Requirements
@@ -703,10 +827,15 @@ pub mod vft_admin {
             &mut self,
             period: u32,
         ) -> sails_rs::client::PendingCall<io::SetExpiryPeriod, Self::Env>;
-        /// Returns `true` if the contract is paused.
-        fn is_paused(&self) -> sails_rs::client::PendingCall<io::IsPaused, Self::Env>;
     }
+
     pub struct VftAdminImpl;
+
+    impl sails_rs::client::Identifiable for VftAdminImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([97, 16, 16, 141, 198, 124, 141, 79]);
+    }
+
     impl<E: sails_rs::client::GearEnv> VftAdmin for sails_rs::client::Service<VftAdminImpl, E> {
         type Env = E;
         fn append_allowances_shard(
@@ -742,6 +871,9 @@ pub mod vft_admin {
         ) -> sails_rs::client::PendingCall<io::Exit, Self::Env> {
             self.pending_call((inheritor,))
         }
+        fn is_paused(&self) -> sails_rs::client::PendingCall<io::IsPaused, Self::Env> {
+            self.pending_call(())
+        }
         fn mint(
             &mut self,
             to: ActorId,
@@ -761,50 +893,69 @@ pub mod vft_admin {
         ) -> sails_rs::client::PendingCall<io::SetExpiryPeriod, Self::Env> {
             self.pending_call((period,))
         }
-        fn is_paused(&self) -> sails_rs::client::PendingCall<io::IsPaused, Self::Env> {
-            self.pending_call(())
-        }
     }
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(AppendAllowancesShard (capacity: u32) -> ());
-        sails_rs::io_struct_impl!(AppendBalancesShard (capacity: u32) -> ());
-        sails_rs::io_struct_impl!(ApproveFrom (owner: ActorId, spender: ActorId, value: U256) -> bool);
-        sails_rs::io_struct_impl!(Burn (from: ActorId, value: U256) -> ());
-        sails_rs::io_struct_impl!(Exit (inheritor: ActorId) -> ());
-        sails_rs::io_struct_impl!(Mint (to: ActorId, value: U256) -> ());
-        sails_rs::io_struct_impl!(Pause () -> ());
-        sails_rs::io_struct_impl!(Resume () -> ());
-        sails_rs::io_struct_impl!(SetExpiryPeriod (period: u32) -> ());
-        sails_rs::io_struct_impl!(IsPaused () -> bool);
+        sails_rs::io_struct_impl!(AppendAllowancesShard (capacity: u32) -> () | super::Error, 0, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(AppendBalancesShard (capacity: u32) -> () | super::Error, 1, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(ApproveFrom (owner: ActorId, spender: ActorId, value: U256) -> bool | super::Error, 2, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Burn (from: ActorId, value: U256) -> () | super::Error, 3, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Exit (inheritor: ActorId) -> () | super::Error, 4, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(IsPaused () -> bool, 5, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Mint (to: ActorId, value: U256) -> () | super::Error, 6, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Pause () -> () | super::Error, 7, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Resume () -> () | super::Error, 8, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(SetExpiryPeriod (period: u32) -> () | super::Error, 9, <super::VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode)]
+        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
         #[codec(crate = sails_rs::scale_codec)]
+        #[reflect_hash(crate = sails_rs)]
         pub enum VftAdminEvents {
+            /// Emitted when a burn operation occurs.
+            #[codec(index = 0)]
             BurnerTookPlace,
-            MinterTookPlace,
-            /// Emitted when the allowance expiry period is changed.
-            ExpiryPeriodChanged(u32),
             /// Emitted when the program exits.
+            #[codec(index = 1)]
             Exited(ActorId),
+            /// Emitted when the allowance expiry period is changed.
+            #[codec(index = 2)]
+            ExpiryPeriodChanged(u32),
+            /// Emitted when a mint operation occurs.
+            #[codec(index = 3)]
+            MinterTookPlace,
+            /// Emitted when the contract is paused.
+            #[codec(index = 4)]
             Paused,
+            /// Emitted when the contract is resumed.
+            #[codec(index = 5)]
             Resumed,
         }
-        impl sails_rs::client::Event for VftAdminEvents {
-            const EVENT_NAMES: &'static [Route] = &[
-                "BurnerTookPlace",
-                "MinterTookPlace",
-                "ExpiryPeriodChanged",
-                "Exited",
-                "Paused",
-                "Resumed",
-            ];
+
+        impl VftAdminEvents {
+            pub fn entry_id(&self) -> u16 {
+                match self {
+                    Self::BurnerTookPlace { .. } => 0,
+                    Self::Exited { .. } => 1,
+                    Self::ExpiryPeriodChanged { .. } => 2,
+                    Self::MinterTookPlace { .. } => 3,
+                    Self::Paused { .. } => 4,
+                    Self::Resumed { .. } => 5,
+                }
+            }
         }
+
+        impl sails_rs::client::Event for VftAdminEvents {}
+
+        impl sails_rs::client::Identifiable for VftAdminEvents {
+            const INTERFACE_ID: sails_rs::InterfaceId =
+                <VftAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID;
+        }
+
         impl sails_rs::client::ServiceWithEvents for VftAdminImpl {
             type Event = VftAdminEvents;
         }
@@ -813,6 +964,16 @@ pub mod vft_admin {
 
 pub mod vft_extension {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+
     pub trait VftExtension {
         type Env: sails_rs::client::GearEnv;
         /// Allocates the next shard for allowances storage.
@@ -835,53 +996,6 @@ pub mod vft_extension {
         fn allocate_next_balances_shard(
             &mut self,
         ) -> sails_rs::client::PendingCall<io::AllocateNextBalancesShard, Self::Env>;
-        /// Removes an expired allowance.
-        ///
-        /// If the allowance from `owner` to `spender` has expired, it is removed to free up storage.
-        ///
-        /// # Arguments
-        ///
-        /// * `owner` - The account that granted the allowance.
-        /// * `spender` - The account that was granted the allowance.
-        ///
-        /// # Returns
-        ///
-        /// `true` if the allowance was removed, `false` otherwise (e.g., if it didn't exist).
-        fn remove_expired_allowance(
-            &mut self,
-            owner: ActorId,
-            spender: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RemoveExpiredAllowance, Self::Env>;
-        /// Transfers the entire balance from the caller to `to`.
-        ///
-        /// # Arguments
-        ///
-        /// * `to` - The recipient of the tokens.
-        ///
-        /// # Returns
-        ///
-        /// `true` if any tokens were transferred.
-        fn transfer_all(
-            &mut self,
-            to: ActorId,
-        ) -> sails_rs::client::PendingCall<io::TransferAll, Self::Env>;
-        /// Transfers the entire balance from `from` to `to` using the allowance mechanism.
-        ///
-        /// The caller must have sufficient allowance.
-        ///
-        /// # Arguments
-        ///
-        /// * `from` - The account to transfer tokens from.
-        /// * `to` - The recipient of the tokens.
-        ///
-        /// # Returns
-        ///
-        /// `true` if any tokens were transferred.
-        fn transfer_all_from(
-            &mut self,
-            from: ActorId,
-            to: ActorId,
-        ) -> sails_rs::client::PendingCall<io::TransferAllFrom, Self::Env>;
         /// Returns the allowance detail (amount and expiration block) for a given owner and spender.
         ///
         /// # Arguments
@@ -944,10 +1058,64 @@ pub mod vft_extension {
         ) -> sails_rs::client::PendingCall<io::Balances, Self::Env>;
         /// Returns the configured allowance expiry period.
         fn expiry_period(&self) -> sails_rs::client::PendingCall<io::ExpiryPeriod, Self::Env>;
+        /// Removes an expired allowance.
+        ///
+        /// If the allowance from `owner` to `spender` has expired, it is removed to free up storage.
+        ///
+        /// # Arguments
+        ///
+        /// * `owner` - The account that granted the allowance.
+        /// * `spender` - The account that was granted the allowance.
+        ///
+        /// # Returns
+        ///
+        /// `true` if the allowance was removed, `false` otherwise (e.g., if it didn't exist).
+        fn remove_expired_allowance(
+            &mut self,
+            owner: ActorId,
+            spender: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RemoveExpiredAllowance, Self::Env>;
+        /// Transfers the entire balance from the caller to `to`.
+        ///
+        /// # Arguments
+        ///
+        /// * `to` - The recipient of the tokens.
+        ///
+        /// # Returns
+        ///
+        /// `true` if any tokens were transferred.
+        fn transfer_all(
+            &mut self,
+            to: ActorId,
+        ) -> sails_rs::client::PendingCall<io::TransferAll, Self::Env>;
+        /// Transfers the entire balance from `from` to `to` using the allowance mechanism.
+        ///
+        /// The caller must have sufficient allowance.
+        ///
+        /// # Arguments
+        ///
+        /// * `from` - The account to transfer tokens from.
+        /// * `to` - The recipient of the tokens.
+        ///
+        /// # Returns
+        ///
+        /// `true` if any tokens were transferred.
+        fn transfer_all_from(
+            &mut self,
+            from: ActorId,
+            to: ActorId,
+        ) -> sails_rs::client::PendingCall<io::TransferAllFrom, Self::Env>;
         /// Returns the amount of value (tokens) that are currently "unused" or reserved.
         fn unused_value(&self) -> sails_rs::client::PendingCall<io::UnusedValue, Self::Env>;
     }
+
     pub struct VftExtensionImpl;
+
+    impl sails_rs::client::Identifiable for VftExtensionImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([210, 92, 197, 126, 90, 156, 251, 38]);
+    }
+
     impl<E: sails_rs::client::GearEnv> VftExtension for sails_rs::client::Service<VftExtensionImpl, E> {
         type Env = E;
         fn allocate_next_allowances_shard(
@@ -959,26 +1127,6 @@ pub mod vft_extension {
             &mut self,
         ) -> sails_rs::client::PendingCall<io::AllocateNextBalancesShard, Self::Env> {
             self.pending_call(())
-        }
-        fn remove_expired_allowance(
-            &mut self,
-            owner: ActorId,
-            spender: ActorId,
-        ) -> sails_rs::client::PendingCall<io::RemoveExpiredAllowance, Self::Env> {
-            self.pending_call((owner, spender))
-        }
-        fn transfer_all(
-            &mut self,
-            to: ActorId,
-        ) -> sails_rs::client::PendingCall<io::TransferAll, Self::Env> {
-            self.pending_call((to,))
-        }
-        fn transfer_all_from(
-            &mut self,
-            from: ActorId,
-            to: ActorId,
-        ) -> sails_rs::client::PendingCall<io::TransferAllFrom, Self::Env> {
-            self.pending_call((from, to))
         }
         fn allowance_of(
             &self,
@@ -1010,6 +1158,26 @@ pub mod vft_extension {
         fn expiry_period(&self) -> sails_rs::client::PendingCall<io::ExpiryPeriod, Self::Env> {
             self.pending_call(())
         }
+        fn remove_expired_allowance(
+            &mut self,
+            owner: ActorId,
+            spender: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RemoveExpiredAllowance, Self::Env> {
+            self.pending_call((owner, spender))
+        }
+        fn transfer_all(
+            &mut self,
+            to: ActorId,
+        ) -> sails_rs::client::PendingCall<io::TransferAll, Self::Env> {
+            self.pending_call((to,))
+        }
+        fn transfer_all_from(
+            &mut self,
+            from: ActorId,
+            to: ActorId,
+        ) -> sails_rs::client::PendingCall<io::TransferAllFrom, Self::Env> {
+            self.pending_call((from, to))
+        }
         fn unused_value(&self) -> sails_rs::client::PendingCall<io::UnusedValue, Self::Env> {
             self.pending_call(())
         }
@@ -1017,22 +1185,23 @@ pub mod vft_extension {
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(AllocateNextAllowancesShard () -> bool);
-        sails_rs::io_struct_impl!(AllocateNextBalancesShard () -> bool);
-        sails_rs::io_struct_impl!(RemoveExpiredAllowance (owner: ActorId, spender: ActorId) -> bool);
-        sails_rs::io_struct_impl!(TransferAll (to: ActorId) -> bool);
-        sails_rs::io_struct_impl!(TransferAllFrom (from: ActorId, to: ActorId) -> bool);
-        sails_rs::io_struct_impl!(AllowanceOf (owner: ActorId, spender: ActorId) -> Option<(U256,u32,)>);
-        sails_rs::io_struct_impl!(Allowances (cursor: u32, len: u32) -> Vec<((ActorId,ActorId,),(U256,u32,),)>);
-        sails_rs::io_struct_impl!(BalanceOf (account: ActorId) -> Option<U256>);
-        sails_rs::io_struct_impl!(Balances (cursor: u32, len: u32) -> Vec<(ActorId,U256,)>);
-        sails_rs::io_struct_impl!(ExpiryPeriod () -> u32);
-        sails_rs::io_struct_impl!(UnusedValue () -> U256);
+        sails_rs::io_struct_impl!(AllocateNextAllowancesShard () -> bool | super::Error, 0, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(AllocateNextBalancesShard () -> bool | super::Error, 1, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(AllowanceOf (owner: ActorId, spender: ActorId) -> super::Option<(U256, u32, ), > | super::Error, 2, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Allowances (cursor: u32, len: u32) -> Vec<((ActorId, ActorId, ), (U256, u32, ), )> | super::Error, 3, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(BalanceOf (account: ActorId) -> super::Option<U256, > | super::Error, 4, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Balances (cursor: u32, len: u32) -> Vec<(ActorId, U256, )> | super::Error, 5, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(ExpiryPeriod () -> u32 | super::Error, 6, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(RemoveExpiredAllowance (owner: ActorId, spender: ActorId) -> bool | super::Error, 7, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(TransferAll (to: ActorId) -> bool | super::Error, 8, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(TransferAllFrom (from: ActorId, to: ActorId) -> bool | super::Error, 9, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(UnusedValue () -> U256 | super::Error, 10, <super::VftExtensionImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 }
 
 pub mod vft_metadata {
     use super::*;
+
     pub trait VftMetadata {
         type Env: sails_rs::client::GearEnv;
         /// Returns the number of decimals used by the VFT.
@@ -1054,7 +1223,14 @@ pub mod vft_metadata {
         /// The symbol as a `String`.
         fn symbol(&self) -> sails_rs::client::PendingCall<io::Symbol, Self::Env>;
     }
+
     pub struct VftMetadataImpl;
+
+    impl sails_rs::client::Identifiable for VftMetadataImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([89, 79, 52, 7, 191, 255, 84, 241]);
+    }
+
     impl<E: sails_rs::client::GearEnv> VftMetadata for sails_rs::client::Service<VftMetadataImpl, E> {
         type Env = E;
         fn decimals(&self) -> sails_rs::client::PendingCall<io::Decimals, Self::Env> {
@@ -1070,14 +1246,24 @@ pub mod vft_metadata {
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(Decimals () -> u8);
-        sails_rs::io_struct_impl!(Name () -> String);
-        sails_rs::io_struct_impl!(Symbol () -> String);
+        sails_rs::io_struct_impl!(Decimals () -> u8, 0, <super::VftMetadataImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Name () -> String, 1, <super::VftMetadataImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Symbol () -> String, 2, <super::VftMetadataImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 }
 
 pub mod vft_native_exchange {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+
     pub trait VftNativeExchange {
         type Env: sails_rs::client::GearEnv;
         /// Burns `value` amount of VFT tokens and returns the equivalent amount of native value to the caller.
@@ -1103,7 +1289,14 @@ pub mod vft_native_exchange {
         /// `Ok(())` on success.
         fn mint(&mut self) -> sails_rs::client::PendingCall<io::Mint, Self::Env>;
     }
+
     pub struct VftNativeExchangeImpl;
+
+    impl sails_rs::client::Identifiable for VftNativeExchangeImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([118, 174, 113, 9, 23, 127, 207, 171]);
+    }
+
     impl<E: sails_rs::client::GearEnv> VftNativeExchange
         for sails_rs::client::Service<VftNativeExchangeImpl, E>
     {
@@ -1121,14 +1314,24 @@ pub mod vft_native_exchange {
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(Burn (value: U256) -> ());
-        sails_rs::io_struct_impl!(BurnAll () -> ());
-        sails_rs::io_struct_impl!(Mint () -> ());
+        sails_rs::io_struct_impl!(Burn (value: U256) -> () | super::Error, 0, <super::VftNativeExchangeImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(BurnAll () -> () | super::Error, 1, <super::VftNativeExchangeImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
+        sails_rs::io_struct_impl!(Mint () -> () | super::Error, 2, <super::VftNativeExchangeImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 }
 
 pub mod vft_native_exchange_admin {
     use super::*;
+
+    /// Represents a generic error type within the `awesome-sails` ecosystem.
+    ///
+    /// This struct wraps a string message providing details about the error.
+    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct Error(pub String);
+
     pub trait VftNativeExchangeAdmin {
         type Env: sails_rs::client::GearEnv;
         /// Burns `value` amount of VFT tokens from `from` account and sends the equivalent
@@ -1150,7 +1353,14 @@ pub mod vft_native_exchange_admin {
             value: U256,
         ) -> sails_rs::client::PendingCall<io::BurnFrom, Self::Env>;
     }
+
     pub struct VftNativeExchangeAdminImpl;
+
+    impl sails_rs::client::Identifiable for VftNativeExchangeAdminImpl {
+        const INTERFACE_ID: sails_rs::InterfaceId =
+            sails_rs::InterfaceId::from_bytes_8([140, 18, 35, 47, 254, 9, 125, 209]);
+    }
+
     impl<E: sails_rs::client::GearEnv> VftNativeExchangeAdmin
         for sails_rs::client::Service<VftNativeExchangeAdminImpl, E>
     {
@@ -1166,33 +1376,38 @@ pub mod vft_native_exchange_admin {
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(BurnFrom (from: ActorId, value: U256) -> ());
+        sails_rs::io_struct_impl!(BurnFrom (from: ActorId, value: U256) -> () | super::Error, 0, <super::VftNativeExchangeAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode)]
+        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
         #[codec(crate = sails_rs::scale_codec)]
+        #[reflect_hash(crate = sails_rs)]
         pub enum VftNativeExchangeAdminEvents {
             /// Emitted when re-minting tokens after a failed transfer fails.
+            #[codec(index = 0)]
             FailedMint { to: ActorId, value: U256 },
         }
-        impl sails_rs::client::Event for VftNativeExchangeAdminEvents {
-            const EVENT_NAMES: &'static [Route] = &["FailedMint"];
+
+        impl VftNativeExchangeAdminEvents {
+            pub fn entry_id(&self) -> u16 {
+                match self {
+                    Self::FailedMint { .. } => 0,
+                }
+            }
         }
+
+        impl sails_rs::client::Event for VftNativeExchangeAdminEvents {}
+
+        impl sails_rs::client::Identifiable for VftNativeExchangeAdminEvents {
+            const INTERFACE_ID: sails_rs::InterfaceId =
+                <VftNativeExchangeAdminImpl as sails_rs::client::Identifiable>::INTERFACE_ID;
+        }
+
         impl sails_rs::client::ServiceWithEvents for VftNativeExchangeAdminImpl {
             type Event = VftNativeExchangeAdminEvents;
         }
     }
-}
-/// Pagination parameters for listing roles or members.
-#[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
-#[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
-pub struct Pagination {
-    /// The number of items to skip.
-    pub offset: u32,
-    /// The maximum number of items to return.
-    pub limit: u32,
 }

@@ -19,12 +19,14 @@
 mod common;
 
 use access_control_test_client::{
-    AccessControlTestClient, Pagination,
-    access_control::{AccessControl, events::AccessControlEvents},
+    AccessControlTestClient,
+    access_control::{
+        AccessControl, Error as AccessControlError, Pagination, events::AccessControlEvents,
+    },
 };
 use awesome_sails::access_control::{DEFAULT_ADMIN_ROLE, RoleId};
 use awesome_sails_utils::assert_ok;
-use common::{ALICE, BOB, CHARLIE, DAVE, assert_str_panic, deploy_program};
+use common::{ALICE, BOB, CHARLIE, DAVE, deploy_program};
 use futures::StreamExt;
 use sails_rs::prelude::*;
 
@@ -62,7 +64,8 @@ async fn grant_and_revoke_role_success() {
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
-        .expect("Failed to grant MINTER_ROLE to Bob");
+        .expect("Failed to grant MINTER_ROLE to Bob")
+        .unwrap();
 
     let (actor, event) = events.next().await.unwrap();
     assert_eq!(actor, pid);
@@ -84,7 +87,8 @@ async fn grant_and_revoke_role_success() {
         .revoke_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
-        .expect("Failed to revoke MINTER_ROLE from Bob");
+        .expect("Failed to revoke MINTER_ROLE from Bob")
+        .unwrap();
 
     let (actor, event) = events.next().await.unwrap();
     assert_eq!(actor, pid);
@@ -111,10 +115,15 @@ async fn grant_role_fail_unauthorized() {
     let res = access_control_service
         .grant_role(MINTER_ROLE, DAVE)
         .with_actor_id(CHARLIE)
-        .await;
-    assert_str_panic(
-        res.unwrap_err(),
-        "Access denied: account 0x0000000000000000000000002c00000000000000000000000000000000000000 does not have role [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+        .await
+        .unwrap();
+    let err = res.unwrap_err();
+    assert_eq!(
+        err.0,
+        format!(
+            "Access denied: account {:?} does not have role {:?}",
+            CHARLIE, DEFAULT_ADMIN_ROLE
+        )
     );
 
     // Dave should not have MINTER_ROLE
@@ -132,16 +141,22 @@ async fn revoke_role_fail_unauthorized() {
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
 
     // Charlie tries to revoke MINTER_ROLE from Bob (unauthorized)
     let res = access_control_service
         .revoke_role(MINTER_ROLE, BOB)
         .with_actor_id(CHARLIE)
-        .await;
-    assert_str_panic(
-        res.unwrap_err(),
-        "Access denied: account 0x0000000000000000000000002c00000000000000000000000000000000000000 does not have role [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+        .await
+        .unwrap();
+    let err = res.unwrap_err();
+    assert_eq!(
+        err.0,
+        format!(
+            "Access denied: account {:?} does not have role {:?}",
+            CHARLIE, DEFAULT_ADMIN_ROLE
+        )
     );
 
     // Bob should still have MINTER_ROLE
@@ -161,6 +176,7 @@ async fn renounce_role_success() {
         .grant_role(PAUSER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
@@ -169,7 +185,8 @@ async fn renounce_role_success() {
         .renounce_role(PAUSER_ROLE, CHARLIE)
         .with_actor_id(CHARLIE)
         .await
-        .expect("Failed for Charlie to renounce PAUSER_ROLE");
+        .expect("Failed for Charlie to renounce PAUSER_ROLE")
+        .unwrap();
 
     let (actor, event) = events.next().await.unwrap();
     assert_eq!(actor, pid);
@@ -197,16 +214,22 @@ async fn renounce_role_fail_other_account() {
         .grant_role(PAUSER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
 
     // Bob tries to renounce PAUSER_ROLE for Charlie (unauthorized)
     let res = access_control_service
         .renounce_role(PAUSER_ROLE, CHARLIE)
         .with_actor_id(BOB)
-        .await;
-    assert_str_panic(
-        res.unwrap_err(),
-        "Not account owner: account 0x0000000000000000000000002c00000000000000000000000000000000000000, message source 0x0000000000000000000000002b00000000000000000000000000000000000000",
+        .await
+        .unwrap();
+    let err = res.unwrap_err();
+    assert_eq!(
+        err.0,
+        format!(
+            "Not account owner: account {:?}, message source {:?}",
+            CHARLIE, BOB
+        )
     );
 
     // Charlie should still have PAUSER_ROLE
@@ -230,6 +253,7 @@ async fn set_role_admin_success() {
         .grant_role(MODERATOR_ROLE, DAVE)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
@@ -238,7 +262,8 @@ async fn set_role_admin_success() {
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(ALICE)
         .await
-        .expect("Failed for Alice to set MODERATOR_ROLE as admin for MINTER_ROLE");
+        .expect("Failed for Alice to set MODERATOR_ROLE as admin for MINTER_ROLE")
+        .unwrap();
 
     let (actor, event) = events.next().await.unwrap();
     assert_eq!(actor, pid);
@@ -261,7 +286,8 @@ async fn set_role_admin_success() {
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(DAVE)
         .await
-        .expect("Failed for Dave to grant MINTER_ROLE to Bob");
+        .expect("Failed for Dave to grant MINTER_ROLE to Bob")
+        .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
     // Bob should have MINTER_ROLE
@@ -273,7 +299,8 @@ async fn set_role_admin_success() {
         .grant_role(MINTER_ROLE, CHARLIE)
         .with_actor_id(ALICE)
         .await
-        .expect("Alice (super admin) should still be able to grant roles");
+        .expect("Alice (super admin) should still be able to grant roles")
+        .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
     let has_role = access_control_service.has_role(MINTER_ROLE, CHARLIE).await;
@@ -284,7 +311,8 @@ async fn set_role_admin_success() {
         .set_role_admin(MINTER_ROLE, DEFAULT_ADMIN_ROLE)
         .with_actor_id(DAVE) // Dave is MODERATOR_ROLE, which is admin for MINTER_ROLE
         .await
-        .expect("Failed for Dave to revert admin role");
+        .expect("Failed for Dave to revert admin role")
+        .unwrap();
     events.next().await.unwrap(); // Consume RoleAdminChanged event
 
     // Alice should now be able to grant MINTER_ROLE again
@@ -292,7 +320,8 @@ async fn set_role_admin_success() {
         .grant_role(MINTER_ROLE, DAVE)
         .with_actor_id(ALICE)
         .await
-        .expect("Failed for Alice to grant MINTER_ROLE to Dave after revert");
+        .expect("Failed for Alice to grant MINTER_ROLE to Dave after revert")
+        .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
     let has_role = access_control_service.has_role(MINTER_ROLE, DAVE).await;
     assert_ok!(has_role, true);
@@ -307,10 +336,15 @@ async fn set_role_admin_fail_unauthorized() {
     let res = access_control_service
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(CHARLIE)
-        .await;
-    assert_str_panic(
-        res.unwrap_err(),
-        "Access denied: account 0x0000000000000000000000002c00000000000000000000000000000000000000 does not have role [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+        .await
+        .unwrap();
+    let err = res.unwrap_err();
+    assert_eq!(
+        err.0,
+        format!(
+            "Access denied: account {:?} does not have role {:?}",
+            CHARLIE, DEFAULT_ADMIN_ROLE
+        )
     );
 
     // Admin for MINTER_ROLE should still be DEFAULT_ADMIN_ROLE
@@ -330,6 +364,7 @@ async fn multiple_roles() {
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
@@ -338,6 +373,7 @@ async fn multiple_roles() {
         .grant_role(PAUSER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
     events.next().await.unwrap(); // Consume RoleGranted event
 
@@ -359,7 +395,8 @@ async fn self_admin_role_success() {
         .set_role_admin(MINTER_ROLE, MINTER_ROLE)
         .with_actor_id(ALICE)
         .await
-        .expect("Failed to set self-admin role");
+        .expect("Failed to set self-admin role")
+        .unwrap();
 
     // 1. Alice (Super Admin) should still be able to grant MINTER_ROLE to Bob
     // even though she doesn't have MINTER_ROLE herself.
@@ -367,7 +404,8 @@ async fn self_admin_role_success() {
         .grant_role(MINTER_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
-        .expect("Super Admin should be able to grant self-administered role");
+        .expect("Super Admin should be able to grant self-administered role")
+        .unwrap();
 
     assert_ok!(
         access_control_service.has_role(MINTER_ROLE, BOB).await,
@@ -380,7 +418,8 @@ async fn self_admin_role_success() {
         .grant_role(MINTER_ROLE, CHARLIE)
         .with_actor_id(BOB)
         .await
-        .expect("Member of self-administered role should be able to grant it to others");
+        .expect("Member of self-administered role should be able to grant it to others")
+        .unwrap();
 
     assert_ok!(
         access_control_service.has_role(MINTER_ROLE, CHARLIE).await,
@@ -401,7 +440,8 @@ async fn batch_grant_success() {
         .grant_roles_batch(roles.clone(), BOB)
         .with_actor_id(ALICE)
         .await
-        .expect("Batch grant failed");
+        .expect("Batch grant failed")
+        .unwrap();
 
     for role_id in roles.clone() {
         let (actor, event) = events.next().await.unwrap();
@@ -431,13 +471,15 @@ async fn batch_revoke_success() {
         .grant_roles_batch(roles.clone(), BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
 
     access_control_service
         .revoke_roles_batch(roles.clone(), BOB)
         .with_actor_id(ALICE)
         .await
-        .expect("Batch revoke failed");
+        .expect("Batch revoke failed")
+        .unwrap();
 
     for role in roles {
         assert_ok!(access_control_service.has_role(role, BOB).await, false);
@@ -454,6 +496,7 @@ async fn enumeration_roles_success() {
         .grant_roles_batch(roles.clone(), BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
 
     // count: admin + 3 new = 4
@@ -478,6 +521,7 @@ async fn enumeration_members_success() {
             .grant_role(MINTER_ROLE, m)
             .with_actor_id(ALICE)
             .await
+            .unwrap()
             .unwrap();
     }
 
@@ -508,6 +552,7 @@ async fn enumeration_member_roles_success() {
         .grant_roles_batch(roles.clone(), BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
 
     assert_ok!(access_control_service.get_member_role_count(BOB).await, 3);
@@ -532,11 +577,13 @@ async fn batch_grant_atomic_failure() {
         .grant_role(MODERATOR_ROLE, BOB)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
     access_control_service
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(ALICE)
         .await
+        .unwrap()
         .unwrap();
 
     // 2. Bob tries to grant [MINTER_ROLE, PAUSER_ROLE] to Charlie.
@@ -545,7 +592,8 @@ async fn batch_grant_atomic_failure() {
     let res = access_control_service
         .grant_roles_batch(roles, CHARLIE)
         .with_actor_id(BOB)
-        .await;
+        .await
+        .unwrap();
 
     // 3. Must fail
     assert!(res.is_err());
