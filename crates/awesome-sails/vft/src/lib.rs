@@ -239,9 +239,10 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
 
 /// Events emitted by the VFT service.
 #[event]
-#[derive(Clone, Debug, PartialEq, Encode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Encode, TypeInfo, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub enum Event {
     /// Emitted when an approval is granted or updated.
     Approval {

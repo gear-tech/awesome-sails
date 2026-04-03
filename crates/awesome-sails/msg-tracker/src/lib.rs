@@ -75,9 +75,10 @@ where
 }
 
 /// Pagination parameters for listing tracked messages.
-#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub struct Pagination {
     /// The number of items to skip.
     pub offset: u32,

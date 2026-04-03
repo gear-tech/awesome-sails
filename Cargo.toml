@@ -40,7 +40,8 @@ members = [
 
 
 [workspace.dependencies]
-sails-rs = { version = "0.10.1", default-features = false, features = ["gstd"] }
+sails-rs = { path = "../sails/rs", default-features = false, features = ["gstd"] }
+sails-reflect-hash = { path = "../sails/rs/reflect-hash", default-features = false }
 awesome-sails-utils = { path = "utils", version = "0.2.0", default-features = false }
 gtest = "=1.10.0"
 gprimitives = { version = "1.10.0", default-features = false }

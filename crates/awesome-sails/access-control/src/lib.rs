@@ -46,6 +46,7 @@ use crate::error::{AccessDenied, EmitError, Error, NotAccountOwner};
 use awesome_sails_storage::{InfallibleStorageMut, StorageRefCell};
 use core::marker::PhantomData;
 use sails_rs::{
+    ReflectHash,
     collections::{BTreeMap, BTreeSet},
     prelude::*,
 };
@@ -70,9 +71,10 @@ pub struct RoleData {
 }
 
 /// Pagination parameters for listing roles or members.
-#[derive(Encode, Decode, TypeInfo, Debug, Clone, Copy)]
+#[derive(Encode, Decode, TypeInfo, Debug, Clone, Copy, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub struct Pagination {
     /// The number of items to skip.
     pub offset: u32,
@@ -577,9 +579,10 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
 
 /// Events emitted by the Access Control service.
 #[event]
-#[derive(Clone, Debug, PartialEq, Encode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Encode, TypeInfo, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub enum Event {
     /// Emitted when `target_account` is granted `role_id`.
     RoleGranted {
@@ -607,26 +610,28 @@ pub mod error {
     use crate::RoleId;
     pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
     use sails_rs::{
-        ActorId,
+        ActorId, ReflectHash,
         scale_codec::{Decode, Encode},
         scale_info::TypeInfo,
     };
 
     /// Error indicating access was denied due to missing role permissions.
-    #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[derive(Clone, Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Access denied: account {account_id:?} does not have role {role_id:?}")]
     #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
     pub struct AccessDenied {
         pub account_id: ActorId,
         pub role_id: RoleId,
     }
 
     /// Error indicating that an operation required the caller to be the account owner, but they were not.
-    #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[derive(Clone, Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Not account owner: account {account_id:?}, message source {message_source:?}")]
     #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
     pub struct NotAccountOwner {
         pub account_id: ActorId,
         pub message_source: ActorId,

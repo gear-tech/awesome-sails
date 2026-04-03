@@ -22,6 +22,7 @@ derive_more = { workspace = true, features = [
     "deref",
 ] }
 thiserror = { workspace = true }
+sails-reflect-hash = { workspace = true }
 awesome-sails-storage = { workspace = true }
 hashbrown = { workspace = true, features = ["ahash"] }
 bnum = { version = "0.13.0", default-features = false }

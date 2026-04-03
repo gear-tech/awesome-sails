@@ -177,9 +177,10 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
 pub mod error {
     use sails_rs::prelude::*;
 
-    #[derive(Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[derive(Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
     pub enum TrackerError {
         /// Indicates that the fixed storage capacity has been exceeded.
         #[error("Capacity exceeded")]

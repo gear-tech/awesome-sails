@@ -25,12 +25,13 @@
 use alloc::string::{String, ToString};
 use core::fmt;
 use parity_scale_codec::{Decode, Encode};
+use sails_reflect_hash::ReflectHash;
 use scale_info::TypeInfo;
 
 /// Represents a generic error type within the `awesome-sails` ecosystem.
 ///
 /// This struct wraps a string message providing details about the error.
-#[derive(Clone, Decode, Encode, TypeInfo, derive_more::Display)]
+#[derive(Clone, Decode, Encode, TypeInfo, ReflectHash, derive_more::Display)]
 #[codec(crate = parity_scale_codec)]
 #[scale_info(crate = scale_info)]
 #[display("{}", _0)]
@@ -66,7 +67,7 @@ impl<E: core::error::Error> From<E> for Error {
 /// Indicates an incorrect input argument was provided.
 ///
 /// This error is typically returned when an argument does not meet the expected criteria.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect input argument")]
 #[scale_info(crate = scale_info)]
@@ -76,7 +77,7 @@ pub struct BadInput;
 ///
 /// This error is typically returned when the message sender does not have the required permissions
 /// or is not the expected entity.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect message origin")]
 #[scale_info(crate = scale_info)]
@@ -85,7 +86,7 @@ pub struct BadOrigin;
 /// Indicates an incorrect value was attached to the message.
 ///
 /// This error is typically returned when the transferred value is insufficient or invalid for the operation.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect message value")]
 #[scale_info(crate = scale_info)]
@@ -94,7 +95,7 @@ pub struct BadValue;
 /// Indicates a failure occurred while attempting to emit an event.
 ///
 /// This error is typically returned when the event emission mechanism encounters an issue.
-#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, thiserror::Error)]
+#[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("emit event error")]
 #[scale_info(crate = scale_info)]
