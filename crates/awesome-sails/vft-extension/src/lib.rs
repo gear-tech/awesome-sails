@@ -334,5 +334,4 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
 )]
 #[codec(crate = sails_rs::scale_codec)]
 #[error("allowance is not expired")]
-#[scale_info(crate = sails_rs::scale_info)]
 pub struct AllowanceNotExpiredError;

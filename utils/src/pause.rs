@@ -30,7 +30,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
+use sails_type_registry::TypeInfo;
 
 /// A wrapper around a storage type that adds pause functionality.
 ///
@@ -194,7 +194,6 @@ impl Pause {
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
 #[codec(crate = parity_scale_codec)]
-#[scale_info(crate = scale_info)]
 pub enum PausableError<E: error::Error> {
     /// The operation failed because the storage is paused.
     #[error("storage is paused")]
@@ -210,7 +209,6 @@ pub enum PausableError<E: error::Error> {
 )]
 #[codec(crate = parity_scale_codec)]
 #[error("enabled pause error")]
-#[scale_info(crate = scale_info)]
 pub struct PausedError;
 
 /// Error indicating that an operation required the system to be paused, but it was unpaused.
@@ -219,5 +217,4 @@ pub struct PausedError;
 )]
 #[codec(crate = parity_scale_codec)]
 #[error("disabled pause error")]
-#[scale_info(crate = scale_info)]
 pub struct UnpausedError;

@@ -365,7 +365,6 @@ where
 
 #[derive(Clone, Debug, Decode, Encode, TypeInfo, thiserror::Error)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 pub enum BalancesError {
     #[error("insufficient balance")]
     Insufficient(#[from] UnderflowError),

@@ -25,7 +25,7 @@ use awesome_sails_test_client::{
 };
 use sails_rs::{
     ActorId, U256,
-    client::{Actor, GearEnv, GtestEnv, GtestError},
+    client::{Actor, GearEnv, GtestEnv},
     gtest::System,
     prelude::*,
 };

@@ -326,7 +326,10 @@ async fn transfer() {
         );
 
         let res = vft_service.balance_of(ALICE).await;
-        assert_ok!(res.unwrap(), U256::exp10(MAGIC - 1) + U256::exp10(MAGIC - 2));
+        assert_ok!(
+            res.unwrap(),
+            U256::exp10(MAGIC - 1) + U256::exp10(MAGIC - 2)
+        );
 
         let res = vft_service.balance_of(BOB).await;
         assert_ok!(
@@ -727,7 +730,10 @@ async fn transfer_from() {
         assert_ok!(res.unwrap(), None);
 
         let res = vft_service.balance_of(CHARLIE).await;
-        assert_ok!(res.unwrap(), U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2));
+        assert_ok!(
+            res.unwrap(),
+            U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2)
+        );
 
         let res = vft_service.balance_of(DAVE).await;
         assert_ok!(res.unwrap(), U256::exp10(MAGIC) + U256::exp10(MAGIC - 2));

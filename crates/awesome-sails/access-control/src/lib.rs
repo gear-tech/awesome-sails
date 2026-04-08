@@ -73,7 +73,6 @@ pub struct RoleData {
 /// Pagination parameters for listing roles or members.
 #[derive(Encode, Decode, TypeInfo, Debug, Clone, Copy, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 #[reflect_hash(crate = sails_rs)]
 pub struct Pagination {
     /// The number of items to skip.
@@ -581,7 +580,6 @@ impl<'a, S: InfallibleStorageMut<Item = RolesStorage>> AccessControl<'a, S> {
 #[event]
 #[derive(Clone, Debug, PartialEq, Encode, TypeInfo, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 #[reflect_hash(crate = sails_rs)]
 pub enum Event {
     /// Emitted when `target_account` is granted `role_id`.
@@ -610,16 +608,14 @@ pub mod error {
     use crate::RoleId;
     pub use awesome_sails_utils::error::{BadOrigin, EmitError, Error};
     use sails_rs::{
-        ActorId, ReflectHash,
+        ActorId, ReflectHash, TypeInfo,
         scale_codec::{Decode, Encode},
-        scale_info::TypeInfo,
     };
 
     /// Error indicating access was denied due to missing role permissions.
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Access denied: account {account_id:?} does not have role {role_id:?}")]
-    #[scale_info(crate = sails_rs::scale_info)]
     #[reflect_hash(crate = sails_rs)]
     pub struct AccessDenied {
         pub account_id: ActorId,
@@ -630,7 +626,6 @@ pub mod error {
     #[derive(Clone, Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
     #[error("Not account owner: account {account_id:?}, message source {message_source:?}")]
-    #[scale_info(crate = sails_rs::scale_info)]
     #[reflect_hash(crate = sails_rs)]
     pub struct NotAccountOwner {
         pub account_id: ActorId,

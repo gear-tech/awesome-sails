@@ -1,7 +1,7 @@
 use msg_tracker_test_client::{MsgTrackerTestClientCtors, MsgTrackerTestClientProgram};
 use sails_rs::{
     ActorId,
-    client::{Actor, GearEnv, GtestEnv, GtestError},
+    client::{Actor, GearEnv, GtestEnv},
     gtest::System,
     prelude::*,
 };

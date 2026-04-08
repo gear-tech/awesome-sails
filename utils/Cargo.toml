@@ -13,7 +13,7 @@ description = "Utilities for Awesome Sails services"
 primitive-types = { workspace = true }
 gprimitives = { workspace = true, optional = true }
 parity-scale-codec = { workspace = true, features = ["derive"] }
-scale-info = { workspace = true, features = ["derive"] }
+sails-type-registry = { workspace = true }
 derive_more = { workspace = true, features = [
     "display",
     "from",

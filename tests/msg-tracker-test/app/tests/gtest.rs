@@ -14,7 +14,7 @@ async fn test_fixed_counter_overflow_panic() {
     let mut fixed_counter = program.fixed_counter();
 
     for _ in 0..5 {
-        fixed_counter.request_increment().await.unwrap();
+        let _ = fixed_counter.request_increment().await.unwrap();
     }
 
     let res = fixed_counter.request_increment().await.unwrap();

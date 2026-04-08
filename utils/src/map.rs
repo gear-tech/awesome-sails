@@ -28,7 +28,7 @@ use alloc::vec::Vec;
 use core::{hash::Hash, mem};
 use hashbrown::HashMap;
 use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
+use sails_type_registry::TypeInfo;
 
 /// A sharded hash map implementation.
 ///
@@ -349,7 +349,6 @@ impl ShardIdx {
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Decode, Encode, TypeInfo, thiserror::Error,
 )]
 #[codec(crate = parity_scale_codec)]
-#[scale_info(crate = scale_info)]
 pub enum ShardedMapError {
     /// Indicates that the operation failed because the map (or shard) is at full capacity.
     #[error("capacity overflow")]

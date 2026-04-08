@@ -95,7 +95,6 @@ impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
 /// Represents the metadata of a VFT: name, symbol, and decimals.
 #[derive(Debug, Clone, Encode, Decode, TypeInfo, ReflectHash, PartialEq, Eq, PartialOrd, Ord)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 #[reflect_hash(crate = sails_rs)]
 pub struct Metadata {
     name: String,

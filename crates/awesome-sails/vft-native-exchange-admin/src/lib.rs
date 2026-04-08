@@ -120,11 +120,10 @@ where
     }
 }
 
-/// Events emitted by the VFT native exchange admin service.
+/// Events emitted by the VFT Native Exchange Admin service.
 #[event]
 #[derive(Clone, Debug, PartialEq, Encode, TypeInfo, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 #[reflect_hash(crate = sails_rs)]
 pub enum Event {
     /// Emitted when re-minting tokens after a failed transfer fails.

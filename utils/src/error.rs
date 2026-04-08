@@ -26,14 +26,13 @@ use alloc::string::{String, ToString};
 use core::fmt;
 use parity_scale_codec::{Decode, Encode};
 use sails_reflect_hash::ReflectHash;
-use scale_info::TypeInfo;
+use sails_type_registry::TypeInfo;
 
 /// Represents a generic error type within the `awesome-sails` ecosystem.
 ///
 /// This struct wraps a string message providing details about the error.
 #[derive(Clone, Decode, Encode, TypeInfo, ReflectHash, derive_more::Display)]
 #[codec(crate = parity_scale_codec)]
-#[scale_info(crate = scale_info)]
 #[display("{}", _0)]
 pub struct Error(String);
 
@@ -70,7 +69,6 @@ impl<E: core::error::Error> From<E> for Error {
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect input argument")]
-#[scale_info(crate = scale_info)]
 pub struct BadInput;
 
 /// Indicates an operation was attempted by an incorrect origin.
@@ -80,7 +78,6 @@ pub struct BadInput;
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect message origin")]
-#[scale_info(crate = scale_info)]
 pub struct BadOrigin;
 
 /// Indicates an incorrect value was attached to the message.
@@ -89,7 +86,6 @@ pub struct BadOrigin;
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("incorrect message value")]
-#[scale_info(crate = scale_info)]
 pub struct BadValue;
 
 /// Indicates a failure occurred while attempting to emit an event.
@@ -98,5 +94,4 @@ pub struct BadValue;
 #[derive(Clone, Debug, Decode, Default, Encode, TypeInfo, ReflectHash, thiserror::Error)]
 #[codec(crate = parity_scale_codec)]
 #[error("emit event error")]
-#[scale_info(crate = scale_info)]
 pub struct EmitError;

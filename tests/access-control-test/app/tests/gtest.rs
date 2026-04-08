@@ -20,9 +20,7 @@ mod common;
 
 use access_control_test_client::{
     AccessControlTestClient,
-    access_control::{
-        AccessControl, Error as AccessControlError, Pagination, events::AccessControlEvents,
-    },
+    access_control::{AccessControl, Pagination, events::AccessControlEvents},
 };
 use awesome_sails::access_control::{DEFAULT_ADMIN_ROLE, RoleId};
 use awesome_sails_utils::assert_ok;
@@ -613,7 +611,7 @@ async fn enumeration_pagination_logic() {
 
     // 1. Grant 10 roles to Bob (Total roles: 1 admin + 10 new = 11)
     let roles: Vec<RoleId> = (1..=10).map(|i| [i as u8; 32]).collect();
-    access_control_service
+    let _ = access_control_service
         .grant_roles_batch(roles, BOB)
         .with_actor_id(ALICE)
         .await
