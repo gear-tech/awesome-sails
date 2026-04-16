@@ -30,6 +30,11 @@ use gprimitives::MessageId;
 use gtest::System;
 
 #[cfg(feature = "gtest")]
+mod trace;
+#[cfg(feature = "gtest")]
+pub use trace::{GasTrace, GasTraceNode, GasTraceTree, MethodInfo, MethodRegistry};
+
+#[cfg(feature = "gtest")]
 const RELEASE_MODE_ERROR: &str =
     "Benchmarks MUST be run in --release mode to get accurate gas measurements.";
 

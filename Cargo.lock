@@ -483,6 +483,8 @@ dependencies = [
  "anyhow",
  "clap",
  "cli-table",
+ "gear-core",
+ "gear-core-errors",
  "gprimitives",
  "gtest",
  "sails-rs",
