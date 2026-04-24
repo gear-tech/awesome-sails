@@ -27,7 +27,11 @@ use bnum::BUintD8;
 use core::cmp::Ordering;
 use derive_more::Deref;
 use parity_scale_codec::{Decode, Encode};
-use sails_type_registry::{TypeInfo, ty::Type};
+use sails_type_registry::{
+    TypeBuilder, TypeInfo,
+    ast::{PrimitiveType, Type, TypeDecl},
+    const_suffixed_name,
+};
 
 pub use primitive_types::{H160, H256, U256};
 
@@ -385,15 +389,40 @@ impl<const N: usize> Decode for LeBytes<N> {
 
 impl<const N: usize> TypeInfo for LeBytes<N> {
     type Identity = Self;
-    fn type_info(registry: &mut sails_type_registry::Registry) -> Type {
-        let u8_slice = registry.register_type::<[u8]>();
-        Type::builder()
-            .module_path(module_path!())
-            .name("LeBytes")
-            .composite()
-            .unnamed()
-            .ty(u8_slice)
-            .build()
+
+    fn module_path() -> &'static str {
+        module_path!()
+    }
+
+    fn type_decl(registry: &mut sails_type_registry::Registry) -> TypeDecl {
+        let base_name = const_suffixed_name(
+            "LeBytes",
+            alloc::vec![(alloc::string::String::from("N"), alloc::format!("{N}"))],
+        );
+        registry.register_named_type_with_dependencies(
+            Self::META,
+            base_name,
+            alloc::vec![],
+            |_registry| {},
+        )
+    }
+
+    fn type_def(_registry: &mut sails_type_registry::Registry) -> Option<Type> {
+        let base_name = const_suffixed_name(
+            "LeBytes",
+            alloc::vec![(alloc::string::String::from("N"), alloc::format!("{N}"))],
+        );
+        Some(
+            TypeBuilder::new()
+                .name(base_name)
+                .composite()
+                .unnamed()
+                .ty(TypeDecl::Array {
+                    item: alloc::boxed::Box::new(TypeDecl::Primitive(PrimitiveType::U8)),
+                    len: N as u32,
+                })
+                .build(),
+        )
     }
 }
 

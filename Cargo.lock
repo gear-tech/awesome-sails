@@ -4923,23 +4923,34 @@ dependencies = [
 
 [[package]]
 name = "sails-client-gen-v2"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f587aedf29cac0c52e0899a067e2ee427414b1938b097ac6cdb317fe8648b99f"
+checksum = "0f12a60b032c071833789ed31f780772f9ecf474441d7970ee1bc5599e542121"
 dependencies = [
  "anyhow",
  "convert_case 0.11.0",
  "genco",
  "parity-scale-codec",
- "sails-idl-meta",
+ "sails-idl-ast",
  "sails-idl-parser-v2",
 ]
 
 [[package]]
-name = "sails-idl-embed"
-version = "1.0.0-beta.3"
+name = "sails-idl-ast"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9089d57344b21ff35ba65da739bb1b65de42714ed1635e14cd14cbee98a55283"
+checksum = "7308cfeff21a1051a1ea0dcfb32a74ab0ab4cc4b03740a92ecfaa14373e14f22"
+dependencies = [
+ "askama",
+ "keccak-const",
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "sails-idl-embed"
+version = "1.0.0-beta.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d81c034dac4db5cda952e0cd71732c2fe8816b034827e7f54a077ffa7c82208d"
 dependencies = [
  "flate2",
  "tempfile",
@@ -4950,14 +4961,15 @@ dependencies = [
 
 [[package]]
 name = "sails-idl-gen"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc7554e5f81b8e153f70b17992faa055b000da43069b88ede943725e8de3af0"
+checksum = "05a133060ffcb37ee145a9446df43655b92ddac182653db8d2a935a4fd27b9dc"
 dependencies = [
  "askama",
  "convert_case 0.11.0",
  "gprimitives",
  "quote",
+ "sails-idl-ast",
  "sails-idl-meta",
  "sails-type-registry",
  "syn 2.0.117",
@@ -4966,35 +4978,34 @@ dependencies = [
 
 [[package]]
 name = "sails-idl-meta"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8809a36d36dbe616b970c56a6064f10f9e69cff4306bbaa102bb828d8bf28b63"
+checksum = "7b16893a428b4554ba6103e2218ce53d12c70c83e0e16d131725a985bfeeab77"
 dependencies = [
- "askama",
- "keccak-const",
  "parity-scale-codec",
+ "sails-idl-ast",
  "sails-type-registry",
 ]
 
 [[package]]
 name = "sails-idl-parser-v2"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd15edebbd1cf6c621d34ec24b79b9d93cb5cd4fb37645b3a5b697a91379a975"
+checksum = "dff0f9cc6d8cfbcbad69242d9dcce4872eb245d662582f59dcbbe9a62e4ddc9f"
 dependencies = [
  "paste",
  "pest",
  "pest_derive",
- "sails-idl-meta",
+ "sails-idl-ast",
  "tempfile",
  "thiserror 2.0.17",
 ]
 
 [[package]]
 name = "sails-macros"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "318693d72143e65964a95f8c503083f3e23cb5e2869e3e5e47aa885f1af9500d"
+checksum = "7b981a96832ecbf69c4c26587fa65b619d9f05ca92aae6ad620dcca69bf038d0"
 dependencies = [
  "proc-macro-error",
  "sails-macros-core",
@@ -5002,9 +5013,9 @@ dependencies = [
 
 [[package]]
 name = "sails-macros-core"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa7fc06d034aa78c171f882b203c6d3732b0cccd08e7c1a3bb8e674e27d75d33"
+checksum = "531083b4084a52025a798845fd0effc1a81c1b2fd354d7a63d8321d4cf639434"
 dependencies = [
  "convert_case 0.11.0",
  "parity-scale-codec",
@@ -5016,9 +5027,9 @@ dependencies = [
 
 [[package]]
 name = "sails-reflect-hash"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dff0f90793e06898b6a31ad4f3ace4dcf9e66cdf44cd7a3c605d72cf55e4116"
+checksum = "5b537e2c8fe25ecf6d5f3352dbeb8de9e46a044047a8fe17cf87eafbf371389c"
 dependencies = [
  "gprimitives",
  "keccak-const",
@@ -5027,9 +5038,9 @@ dependencies = [
 
 [[package]]
 name = "sails-reflect-hash-derive"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32dc237766ceee804d95d6057d5cbdab1616f5a9b6fe20e5a5e33b258950b061"
+checksum = "8b8bf9ae1ca0e1badcd92e14e2c4bd60c4d3b5be362dd4a9c702e08576d83e95"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",
@@ -5039,9 +5050,9 @@ dependencies = [
 
 [[package]]
 name = "sails-rs"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "880a26b5571cde5571cafde37800894f2f8adfc5923315d1657b0cfe104e8f2e"
+checksum = "39dc71a2522a68001409ed160b055110b60854c1a362f4031be9b251affd7620"
 dependencies = [
  "convert_case 0.11.0",
  "futures",
@@ -5075,19 +5086,20 @@ dependencies = [
 
 [[package]]
 name = "sails-type-registry"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "843edb1b6a19b2456eaaab53ddff6b5d4ad6aa9c47b4043ada0454d6e1464e5d"
+checksum = "dd97c9b2f81607f2144a6b938683eada4cad1de6fba682e9313df6f6e74589ed"
 dependencies = [
  "gprimitives",
+ "sails-idl-ast",
  "sails-type-registry-derive",
 ]
 
 [[package]]
 name = "sails-type-registry-derive"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2348e472249c2464644c2739cc3008f433126188cf694e6213642a06a58a512"
+checksum = "058a51dcd59bcbd16cdc6d8619dcbb4a46e252806889260c685086ac4cc12a66"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",

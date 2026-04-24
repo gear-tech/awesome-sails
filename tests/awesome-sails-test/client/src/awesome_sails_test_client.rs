@@ -105,10 +105,8 @@ pub mod test {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
 
     pub trait Test {
@@ -152,16 +150,12 @@ pub mod access_control {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
     /// Pagination parameters for listing roles or members.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Pagination {
         /// The number of items to skip.
         pub offset: u32,
@@ -456,9 +450,8 @@ pub mod access_control {
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
-        #[codec(crate = sails_rs::scale_codec)]
-        #[reflect_hash(crate = sails_rs)]
+        #[sails_rs::sails_type(crate = sails_rs)]
+        #[derive(PartialEq, Debug)]
         pub enum AccessControlEvents {
             /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
             #[codec(index = 0)]
@@ -520,10 +513,8 @@ pub mod vft {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
 
     pub trait Vft {
@@ -681,9 +672,8 @@ pub mod vft {
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
-        #[codec(crate = sails_rs::scale_codec)]
-        #[reflect_hash(crate = sails_rs)]
+        #[sails_rs::sails_type(crate = sails_rs)]
+        #[derive(PartialEq, Debug)]
         pub enum VftEvents {
             /// Emitted when an approval is granted or updated.
             #[codec(index = 0)]
@@ -736,10 +726,8 @@ pub mod vft_admin {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
 
     pub trait VftAdmin {
@@ -926,9 +914,8 @@ pub mod vft_admin {
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
-        #[codec(crate = sails_rs::scale_codec)]
-        #[reflect_hash(crate = sails_rs)]
+        #[sails_rs::sails_type(crate = sails_rs)]
+        #[derive(PartialEq, Debug)]
         pub enum VftAdminEvents {
             /// Emitted when a burn operation occurs.
             #[codec(index = 0)]
@@ -989,10 +976,8 @@ pub mod vft_extension {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
 
     pub trait VftExtension {
@@ -1279,10 +1264,8 @@ pub mod vft_native_exchange {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
 
     pub trait VftNativeExchange {
@@ -1347,10 +1330,8 @@ pub mod vft_native_exchange_admin {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
 
     pub trait VftNativeExchangeAdmin {
@@ -1403,9 +1384,8 @@ pub mod vft_native_exchange_admin {
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
-        #[codec(crate = sails_rs::scale_codec)]
-        #[reflect_hash(crate = sails_rs)]
+        #[sails_rs::sails_type(crate = sails_rs)]
+        #[derive(PartialEq, Debug)]
         pub enum VftNativeExchangeAdminEvents {
             /// Emitted when re-minting tokens after a failed transfer fails.
             #[codec(index = 0)]

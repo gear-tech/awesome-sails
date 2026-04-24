@@ -57,16 +57,12 @@ pub mod access_control {
     /// Represents a generic error type within the `awesome-sails` ecosystem.
     ///
     /// This struct wraps a string message providing details about the error.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Error(pub String);
     /// Pagination parameters for listing roles or members.
-    #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo, ReflectHash)]
-    #[codec(crate = sails_rs::scale_codec)]
-    #[type_info(crate = sails_rs::type_info)]
-    #[reflect_hash(crate = sails_rs)]
+    #[sails_rs::sails_type(crate = sails_rs)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct Pagination {
         /// The number of items to skip.
         pub offset: u32,
@@ -361,9 +357,8 @@ pub mod access_control {
     #[cfg(not(target_arch = "wasm32"))]
     pub mod events {
         use super::*;
-        #[derive(PartialEq, Debug, Encode, Decode, ReflectHash)]
-        #[codec(crate = sails_rs::scale_codec)]
-        #[reflect_hash(crate = sails_rs)]
+        #[sails_rs::sails_type(crate = sails_rs)]
+        #[derive(PartialEq, Debug)]
         pub enum AccessControlEvents {
             /// Emitted when `new_admin_role_id` is set as the admin role for `role_id`.
             #[codec(index = 0)]
