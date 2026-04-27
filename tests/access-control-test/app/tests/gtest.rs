@@ -715,6 +715,11 @@ async fn roles_capacity_exceeded() {
             .unwrap();
     }
 
+    assert_eq!(
+        access_control_service.get_role_count().await.unwrap(),
+        ROLES_LIMIT as u32
+    );
+
     // Try to add one more role beyond the limit
     let mut extra_rid = [0u8; 32];
     extra_rid[0..4].copy_from_slice(&(ROLES_LIMIT as u32 + 1).to_le_bytes());
@@ -771,4 +776,66 @@ async fn members_capacity_exceeded() {
         .expect("grant_role should return service result");
 
     assert_eq!(res.unwrap_err(), Error("Capacity exceeded".into()));
+}
+
+/// Tests that require_role works correctly for default_admin_role.
+///
+/// This verifies that:
+/// 1. Super-admin (default admin) can grant roles (fast-path: has_member(admin))
+/// 2. Super-admin can set_role_admin (internal require_role(default_admin_role(), ...))
+/// 3. Non-admin cannot grant roles (internal require_role fails)
+#[tokio::test]
+async fn require_role_admin_path_works() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+    let listener = access_control_service.listener();
+    let mut events = listener.listen().await.unwrap();
+
+    let _ = access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    events.next().await.unwrap();
+
+    let res = access_control_service
+        .grant_role(MODERATOR_ROLE, CHARLIE)
+        .with_actor_id(BOB)
+        .await
+        .unwrap();
+    assert_eq!(
+        res.unwrap_err(),
+        Error(format!(
+            "Access denied: account {:?} does not have role {:?}",
+            BOB,
+            default_admin_role()
+        ))
+    );
+
+    let _ = access_control_service
+        .grant_role(MODERATOR_ROLE, DAVE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    events.next().await.unwrap();
+
+    let _ = access_control_service
+        .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    events.next().await.unwrap();
+
+    let _ = access_control_service
+        .grant_role(MINTER_ROLE, CHARLIE)
+        .with_actor_id(DAVE)
+        .await
+        .unwrap();
+    events.next().await.unwrap();
+
+    let has_role = access_control_service
+        .has_role(MINTER_ROLE, CHARLIE)
+        .await
+        .unwrap();
+    assert!(has_role);
 }

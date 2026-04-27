@@ -23,7 +23,7 @@
 //!
 //! # Role Hierarchy
 //!
-//! * **Super Admin (`DEFAULT_ADMIN_ROLE`)**:
+//! * **Super Admin (`default_admin_role()`)**:
 //!     * Acts as a **Master Key**: an account with this role passes any `require_role` check,
 //!       regardless of the specific role requested.
 //!     * Is the default administrator for all new roles.
@@ -86,6 +86,7 @@ pub struct AccessControlStorage<
     /// Sorted descriptors for efficient role lookup.
     pub descriptors: SmallVec<[RoleDescriptor; RS]>,
     /// Indexed data slots for roles (appended on creation).
+    /// Uses RS inline slots (no heap allocation if role count <= RS).
     pub role_data: SmallVec<[RoleData<M, MS>; RS]>,
 }
 
@@ -131,6 +132,10 @@ where
     [RoleData<M, MS>; RS]: Array<Item = RoleData<M, MS>>,
     [ActorId; MS]: Array<Item = ActorId>,
 {
+    // data_idx is u16 — N must fit to avoid silent overflow on `len() as u16`
+    const _DATA_IDX_OVERFLOW_CHECK: () =
+        assert!(N <= u16::MAX as usize, "N must fit in u16 for data_idx");
+
     fn find_descriptor_idx(&self, role_id: &RoleId) -> Result<usize, usize> {
         self.descriptors
             .binary_search_by(|d| d.role_id.cmp(role_id))
@@ -172,7 +177,7 @@ where
     ///
     /// # Returns
     ///
-    /// The `RoleId` of the administrator role. Returns `DEFAULT_ADMIN_ROLE` if not explicitly set.
+    /// The `RoleId` of the administrator role. Returns `default_admin_role()` if not explicitly set.
     pub fn get_role_admin(&self, role_id: RoleId) -> RoleId {
         self.get_role_data(&role_id)
             .map_or(default_admin_role(), |data| data.admin_role_id)
@@ -267,7 +272,7 @@ where
             .collect()
     }
 
-    /// Grants the `DEFAULT_ADMIN_ROLE` to the specified account.
+    /// Grants the `default_admin_role()` to the specified account.
     ///
     /// Typically used during initialization.
     ///
@@ -275,9 +280,10 @@ where
     ///
     /// * `deployer` - The account to grant the super-admin role to.
     pub fn grant_initial_admin(&mut self, deployer: ActorId) {
-        if let Ok(role) = self.ensure_role_mut(default_admin_role()) {
-            let _ = role.add_member(deployer);
-        }
+        let role = self
+            .ensure_role_mut(default_admin_role())
+            .expect("grant_initial_admin: N must be >= 1 to create default admin role");
+        let _ = role.add_member(deployer);
     }
 
     fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleData<M, MS>, Error> {
@@ -696,6 +702,9 @@ where
     }
 
     /// Sets `new_admin_role_id` as the admin role for `role_id`.
+    ///
+    /// **Side-effect:** if `role_id` does not exist, it is created with
+    /// an empty members list and `default_admin_role()` as initial admin.
     ///
     /// Emits a `RoleAdminChanged` event.
     ///

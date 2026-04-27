@@ -53,7 +53,7 @@ impl Program {
     }
 
     // Expose the Access Control service
-pub fn access_control(
+    pub fn access_control(
         &self,
     ) -> AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT, ROLES_STACK, MEMBERS_STACK> {
         AccessControl::new(StorageRefCell::new(&self.roles))

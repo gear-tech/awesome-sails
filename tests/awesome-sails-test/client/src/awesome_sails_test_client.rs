@@ -314,6 +314,9 @@ pub mod access_control {
         ) -> sails_rs::client::PendingCall<io::RevokeRolesBatch, Self::Env>;
         /// Sets `new_admin_role_id` as the admin role for `role_id`.
         ///
+        /// **Side-effect:** if `role_id` does not exist, it is created with
+        /// an empty members list and `default_admin_role()` as initial admin.
+        ///
         /// Emits a `RoleAdminChanged` event.
         ///
         /// # Requirements
