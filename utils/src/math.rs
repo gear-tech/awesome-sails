@@ -396,6 +396,23 @@ impl<const N: usize> TypeInfo for LeBytes<N> {
             alloc::vec![],
         )
     }
+
+    fn type_def(
+        _registry: &mut sails_type_registry::Registry,
+    ) -> Option<sails_type_registry::ast::Type> {
+        Some(
+            sails_type_registry::builder::TypeBuilder::new()
+                .name("LeBytes")
+                .param("N")
+                .composite()
+                .unnamed()
+                .ty(TypeDecl::named_with_generics(
+                    "BUintD8",
+                    alloc::vec![TypeDecl::generic("N")],
+                ))
+                .build(),
+        )
+    }
 }
 
 // --- Converisons ---
