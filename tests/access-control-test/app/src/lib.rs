@@ -18,20 +18,30 @@
 
 #![no_std]
 
-use awesome_sails::access_control::{AccessControl, RolesStorage};
+use awesome_sails::access_control;
 use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
-#[derive(Default)]
+pub const ROLES_LIMIT: usize = 33;
+pub const MEMBERS_LIMIT: usize = 101;
+
+type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
+
 pub struct Program {
     roles: RefCell<RolesStorage>,
+}
+
+impl Default for Program {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[program]
 impl Program {
     pub fn new() -> Self {
-        let mut storage = RolesStorage::default();
         let deployer = Syscall::message_source();
+        let mut storage = RolesStorage::default();
 
         storage.grant_initial_admin(deployer);
 
@@ -40,7 +50,9 @@ impl Program {
         }
     }
 
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
-        AccessControl::new(StorageRefCell::new(&self.roles))
+    pub fn access_control(
+        &self,
+    ) -> access_control::AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT, 5, 17> {
+        access_control::AccessControl::new(StorageRefCell::new(&self.roles))
     }
 }

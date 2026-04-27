@@ -471,6 +471,7 @@ dependencies = [
  "awesome-sails-storage",
  "awesome-sails-utils",
  "sails-rs",
+ "smallvec",
  "thiserror 2.0.17",
 ]
 

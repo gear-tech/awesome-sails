@@ -22,9 +22,16 @@ To use the Access Control service in your Sails program, you need to include its
 ```rust
 #![no_std]
 
-use awesome_sails_access_control::{AccessControl, RolesStorage};
+use awesome_sails_access_control::{AccessControl, AccessControlStorage};
 use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
+
+const ROLES_LIMIT: usize = 33;
+const MEMBERS_LIMIT: usize = 101;
+const ROLES_STACK: usize = 5;
+const MEMBERS_STACK: usize = 17;
+
+type RolesStorage = AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT, ROLES_STACK, MEMBERS_STACK>;
 
 #[derive(Default)]
 pub struct Program {
@@ -46,11 +53,17 @@ impl Program {
     }
 
     // Expose the Access Control service
-    pub fn access_control(&self) -> AccessControl<'_> {
+pub fn access_control(
+        &self,
+    ) -> AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT, ROLES_STACK, MEMBERS_STACK> {
         AccessControl::new(StorageRefCell::new(&self.roles))
     }
 }
 ```
+
+`ROLES_STACK` and `MEMBERS_STACK` are SmallVec inline capacities, not business limits.
+In practice they are usually chosen as `desired_user_roles + 1` and `desired_user_members + 1`
+because the storage starts with a default admin role and an initial deployer/admin member.
 
 ### Testing (Off-Chain Interaction via Gtest)
 

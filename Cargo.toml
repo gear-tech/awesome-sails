@@ -55,6 +55,7 @@ mockall = { version = "=0.14", default-features = false }
 parity-scale-codec = { version = "3.7.5", default-features = false }
 primitive-types = { version = "0.12.2", default-features = false }
 scale-info = { version = "2.11.6", default-features = false }
+smallvec = { version = "1.15.1", default-features = false }
 thiserror = { version = "=2.0.17", default-features = false }
 tokio = { version = "=1.48", default-features = false }
 keccak-const = { version = "0.2", default-features = false }

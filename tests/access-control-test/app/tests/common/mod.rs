@@ -81,7 +81,7 @@ pub async fn deploy_program() -> (
         .deploy::<AccessControlTestClientProgram>(code_id, b"salt".to_vec())
         .new()
         .await
-        .unwrap();
+        .expect("failed to deploy program");
 
     let program_id = program.id();
 

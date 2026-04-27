@@ -91,7 +91,7 @@ pub async fn deploy_with_data(
         .deploy::<AwesomeSailsTestClientProgram>(code_id, b"salt".to_vec())
         .new()
         .await
-        .unwrap();
+        .expect("failed to deploy program");
 
     let program_id = program.id();
 
@@ -111,12 +111,11 @@ pub async fn deploy_with_data(
         .unwrap()
     {}
 
-    program
+    let _ = program
         .test()
         .set(allowances, balances, expiry_period)
         .await
-        .expect("failed to set data")
-        .unwrap();
+        .expect("failed to set data");
 
     (program, env, program_id)
 }

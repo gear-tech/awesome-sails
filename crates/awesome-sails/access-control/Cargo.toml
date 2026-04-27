@@ -17,3 +17,4 @@ sails-rs = { workspace = true }
 awesome-sails-utils = { workspace = true }
 awesome-sails-storage = { workspace = true }
 thiserror = { workspace = true }
+smallvec = { workspace = true }
