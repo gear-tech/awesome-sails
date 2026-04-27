@@ -58,15 +58,13 @@ pub const fn default_admin_role() -> RoleId {
     [0u8; ROLE_ID_SIZE]
 }
 
-/// System-wide stack capacity for roles storage.
+/// SmallVec inline capacity for roles storage.
 ///
-/// This capacity usually needs to account for the default admin role, so in practice it is often
-/// chosen as `desired_user_roles + 1`.
+/// The `+ 1` accounts for the initial admin role.
 pub const DEFAULT_ROLES_STACK: usize = 5;
-/// System-wide stack capacity for members storage.
+/// SmallVec inline capacity for members storage.
 ///
-/// This capacity usually needs to account for the initial deployer/admin member, so in practice it
-/// is often chosen as `desired_user_members + 1`.
+/// The `+ 1` accounts for the initial deployer/admin member.
 pub const DEFAULT_MEMBERS_STACK: usize = 17;
 
 /// Internal storage structure for managing roles and their members.

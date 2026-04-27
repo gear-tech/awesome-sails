@@ -61,9 +61,7 @@ pub fn access_control(
 }
 ```
 
-`ROLES_STACK` and `MEMBERS_STACK` are SmallVec inline capacities, not business limits.
-In practice they are usually chosen as `desired_user_roles + 1` and `desired_user_members + 1`
-because the storage starts with a default admin role and an initial deployer/admin member.
+`ROLES_STACK` and `MEMBERS_STACK` are SmallVec inline capacities.
 
 ### Testing (Off-Chain Interaction via Gtest)
 
