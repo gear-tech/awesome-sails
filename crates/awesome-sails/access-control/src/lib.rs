@@ -137,6 +137,9 @@ where
         assert!(N <= u16::MAX as usize, "N must fit in u16 for data_idx");
 
     fn find_descriptor_idx(&self, role_id: &RoleId) -> Result<usize, usize> {
+        if !self.descriptors.is_empty() && &self.descriptors[0].role_id == role_id {
+            return Ok(0);
+        }
         self.descriptors
             .binary_search_by(|d| d.role_id.cmp(role_id))
     }
@@ -435,17 +438,7 @@ where
         let storage = self.storage.get();
         let admin = default_admin_role();
 
-        if !storage.descriptors.is_empty() {
-            // Optimization: The default admin role ([0u8; 32]) will always be at index 0 in a sorted array
-            let first_desc = &storage.descriptors[0];
-            if first_desc.role_id == admin
-                && storage.role_data[first_desc.data_idx as usize].has_member(account_id)
-            {
-                return Ok(());
-            }
-        }
-
-        if role_id != admin && storage.has_role(role_id, account_id) {
+        if storage.has_role(admin, account_id) || storage.has_role(role_id, account_id) {
             return Ok(());
         }
 
