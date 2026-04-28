@@ -152,7 +152,7 @@ impl<
     /// Appends a new shard to the allowances storage map.
     ///
     /// # Requirements
-    /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+    /// * Caller must have `default_admin_role()`.
     ///
     /// # Arguments
     /// * `capacity` - The capacity of the new shard.
@@ -171,7 +171,7 @@ impl<
     /// Appends a new shard to the balances storage map.
     ///
     /// # Requirements
-    /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+    /// * Caller must have `default_admin_role()`.
     ///
     /// # Arguments
     /// * `capacity` - The capacity of the new shard.
@@ -192,7 +192,7 @@ impl<
     /// This is an admin function allowing the admin to set approvals arbitrarily.
     ///
     /// # Requirements
-    /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+    /// * Caller must have `default_admin_role()`.
     ///
     /// # Arguments
     /// * `owner` - The account owning the tokens.
@@ -269,7 +269,7 @@ impl<
     /// Terminates the program and sends value to `inheritor`.
     ///
     /// # Requirements
-    /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+    /// * Caller must have `default_admin_role()`.
     /// * Program must be paused.
     #[export(unwrap_result)]
     pub fn exit(&mut self, inheritor: ActorId) -> Result<(), Error> {
@@ -341,7 +341,7 @@ impl<
     /// Sets the expiry period for allowances.
     ///
     /// # Requirements
-    /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+    /// * Caller must have `default_admin_role()`.
     ///
     /// # Arguments
     /// * `period` - The new expiry period in blocks.

@@ -316,6 +316,7 @@ pub mod access_control {
         ///
         /// **Side-effect:** if `role_id` does not exist, it is created with
         /// an empty members list and `default_admin_role()` as initial admin.
+        /// This consumes one role slot from the global capacity `N`.
         ///
         /// Emits a `RoleAdminChanged` event.
         ///
@@ -738,7 +739,7 @@ pub mod vft_admin {
         /// Appends a new shard to the allowances storage map.
         ///
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         ///
         /// # Arguments
         /// * `capacity` - The capacity of the new shard.
@@ -749,7 +750,7 @@ pub mod vft_admin {
         /// Appends a new shard to the balances storage map.
         ///
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         ///
         /// # Arguments
         /// * `capacity` - The capacity of the new shard.
@@ -762,7 +763,7 @@ pub mod vft_admin {
         /// This is an admin function allowing the admin to set approvals arbitrarily.
         ///
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         ///
         /// # Arguments
         /// * `owner` - The account owning the tokens.
@@ -790,7 +791,7 @@ pub mod vft_admin {
         /// Terminates the program and sends value to `inheritor`.
         ///
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         /// * Program must be paused.
         fn exit(
             &mut self,
@@ -824,7 +825,7 @@ pub mod vft_admin {
         /// Sets the expiry period for allowances.
         ///
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         ///
         /// # Arguments
         /// * `period` - The new expiry period in blocks.

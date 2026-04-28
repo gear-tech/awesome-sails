@@ -40,13 +40,13 @@ async fn initial_admin_role_granted() {
     let (program, _env, _pid) = deploy_program().await;
     let access_control_service = program.access_control();
 
-    // Alice should have DEFAULT_ADMIN_ROLE
+    // Alice should have default_admin_role()
     let has_role = access_control_service
         .has_role(default_admin_role(), ALICE)
         .await;
     assert_ok!(has_role, true);
 
-    // Bob should not have DEFAULT_ADMIN_ROLE
+    // Bob should not have default_admin_role()
     let has_role = access_control_service
         .has_role(default_admin_role(), BOB)
         .await;
@@ -238,7 +238,7 @@ async fn set_role_admin_success() {
     let listener = access_control_service.listener();
     let mut events = listener.listen().await.unwrap();
 
-    // Initial admin for MINTER_ROLE is DEFAULT_ADMIN_ROLE (Alice)
+    // Initial admin for MINTER_ROLE is default_admin_role() (Alice)
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
     assert_ok!(admin_role, default_admin_role());
 
@@ -296,7 +296,7 @@ async fn set_role_admin_success() {
     let has_role = access_control_service.has_role(MINTER_ROLE, CHARLIE).await;
     assert_ok!(has_role, true);
 
-    // Revert admin role to DEFAULT_ADMIN_ROLE
+    // Revert admin role to default_admin_role()
     let _ = access_control_service
         .set_role_admin(MINTER_ROLE, default_admin_role())
         .with_actor_id(DAVE) // Dave is MODERATOR_ROLE, which is admin for MINTER_ROLE
@@ -320,7 +320,7 @@ async fn set_role_admin_fail_unauthorized() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
 
-    // Charlie tries to set admin for MINTER_ROLE (unauthorized, only DEFAULT_ADMIN_ROLE can do it initially)
+    // Charlie tries to set admin for MINTER_ROLE (unauthorized, only default_admin_role() can do it initially)
     let res = access_control_service
         .set_role_admin(MINTER_ROLE, MODERATOR_ROLE)
         .with_actor_id(CHARLIE)
@@ -335,7 +335,7 @@ async fn set_role_admin_fail_unauthorized() {
         ))
     );
 
-    // Admin for MINTER_ROLE should still be DEFAULT_ADMIN_ROLE
+    // Admin for MINTER_ROLE should still be default_admin_role()
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
     assert_ok!(admin_role, default_admin_role());
 }
@@ -708,11 +708,12 @@ async fn roles_capacity_exceeded() {
     for i in 1..ROLES_LIMIT {
         let mut rid = [0u8; 32];
         rid[0..4].copy_from_slice(&(i as u32).to_le_bytes());
-        let _ = access_control_service
+        access_control_service
             .grant_role(rid, BOB)
             .with_actor_id(ALICE)
             .await
-            .unwrap();
+            .unwrap()
+            .expect("Failed to grant a valid role");
     }
 
     assert_eq!(

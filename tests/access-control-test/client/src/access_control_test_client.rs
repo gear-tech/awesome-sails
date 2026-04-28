@@ -223,6 +223,7 @@ pub mod access_control {
         ///
         /// **Side-effect:** if `role_id` does not exist, it is created with
         /// an empty members list and `default_admin_role()` as initial admin.
+        /// This consumes one role slot from the global capacity `N`.
         ///
         /// Emits a `RoleAdminChanged` event.
         ///
