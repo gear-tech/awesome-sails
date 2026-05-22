@@ -57,8 +57,7 @@ async fn initial_admin_role_granted() {
 async fn grant_and_revoke_role_success() {
     let (program, _env, pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     // Alice (default_admin_role()) grants MINTER_ROLE to Bob
     let _ = access_control_service
@@ -166,8 +165,7 @@ async fn revoke_role_fail_unauthorized() {
 async fn renounce_role_success() {
     let (program, _env, pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     // Alice grants PAUSER_ROLE to Charlie
     let _ = access_control_service
@@ -235,8 +233,7 @@ async fn renounce_role_fail_other_account() {
 async fn set_role_admin_success() {
     let (program, _env, pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     // Initial admin for MINTER_ROLE is default_admin_role() (Alice)
     let admin_role = access_control_service.get_role_admin(MINTER_ROLE).await;
@@ -344,8 +341,7 @@ async fn set_role_admin_fail_unauthorized() {
 async fn multiple_roles() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     // Alice grants MINTER_ROLE to Bob
     let _ = access_control_service
@@ -414,8 +410,7 @@ async fn self_admin_role_success() {
 async fn batch_grant_success() {
     let (program, _env, pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     let roles = vec![MINTER_ROLE, MODERATOR_ROLE, PAUSER_ROLE];
 
@@ -737,8 +732,7 @@ async fn roles_capacity_exceeded() {
 async fn members_capacity_exceeded() {
     let (program, _env, pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     for i in 1..=MEMBERS_LIMIT {
         let mut id = [0u8; 32];
@@ -789,8 +783,7 @@ async fn members_capacity_exceeded() {
 async fn require_role_admin_path_works() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();
-    let listener = access_control_service.listener();
-    let mut events = listener.listen().await.unwrap();
+    let mut events = access_control_service.listen().await.unwrap();
 
     let _ = access_control_service
         .grant_role(MINTER_ROLE, BOB)

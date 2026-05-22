@@ -72,8 +72,7 @@ async fn approve() {
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
+    let mut vft_events = vft_service.listen().await.unwrap();
 
     // # Test case #1.
     // Allowance from Alice to Bob doesn't exist and created.
@@ -233,8 +232,7 @@ async fn transfer() {
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
+    let mut vft_events = vft_service.listen().await.unwrap();
 
     // # Test case #1.
     // Alice transfers to Bob, when Alice has no balance.
@@ -468,8 +466,7 @@ async fn transfer_from() {
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
+    let mut vft_events = vft_service.listen().await.unwrap();
 
     // # Test case #1.
     // Bob doesn't need approve to transfer from self to Alice.

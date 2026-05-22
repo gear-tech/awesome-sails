@@ -134,7 +134,9 @@ impl Program {
         }
     }
 
-    pub fn handle_reply(&mut self) {
+    #[handle_reply]
+    #[allow(unused)]
+    fn handle_reply(&self) {
         self.vft_native_exchange_admin().handle_reply();
     }
 
