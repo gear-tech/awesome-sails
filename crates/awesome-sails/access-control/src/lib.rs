@@ -321,6 +321,52 @@ where
             }
         }
     }
+
+    /// Grants `role_id` to `target_account` without an authorization check.
+    ///
+    /// Returns `true` if the membership changed.
+    fn grant_role_inner(
+        &mut self,
+        role_id: RoleId,
+        target_account: ActorId,
+    ) -> Result<bool, Error> {
+        self.ensure_role_mut(role_id)?.add_member(target_account)
+    }
+
+    /// Revokes `role_id` from `target_account` without an authorization check.
+    ///
+    /// Rejects removing the last member of `default_admin_role()` so the
+    /// contract can never be left without a super admin.
+    ///
+    /// Returns `true` if the membership changed.
+    fn revoke_role_inner(
+        &mut self,
+        role_id: RoleId,
+        target_account: ActorId,
+    ) -> Result<bool, Error> {
+        let Some(data) = self.get_role_data_mut(&role_id) else {
+            return Ok(false);
+        };
+
+        if role_id == default_admin_role()
+            && data.has_member(target_account)
+            && data.members.len() == 1
+        {
+            return Err(LastDefaultAdminRoleMember.into());
+        }
+
+        Ok(data.remove_member(target_account))
+    }
+
+    /// Sets `admin_role_id` as the admin role for `role_id` without an authorization check.
+    fn set_role_admin_inner(
+        &mut self,
+        role_id: RoleId,
+        admin_role_id: RoleId,
+    ) -> Result<(), Error> {
+        self.ensure_role_mut(role_id)?.admin_role_id = admin_role_id;
+        Ok(())
+    }
 }
 
 impl<const M: usize, const MS: usize> RoleData<M, MS>
@@ -401,47 +447,6 @@ where
             storage,
             _phantom: PhantomData,
         }
-    }
-
-    fn grant_role_unchecked(
-        &mut self,
-        role_id: RoleId,
-        target_account: ActorId,
-    ) -> Result<bool, Error> {
-        self.storage
-            .get_mut()
-            .ensure_role_mut(role_id)?
-            .add_member(target_account)
-    }
-
-    fn revoke_role_unchecked(
-        &mut self,
-        role_id: RoleId,
-        target_account: ActorId,
-    ) -> Result<bool, Error> {
-        let default_admin = default_admin_role();
-        let mut storage = self.storage.get_mut();
-        let Some(data) = storage.get_role_data_mut(&role_id) else {
-            return Ok(false);
-        };
-
-        if role_id == default_admin && data.has_member(target_account) && data.members.len() == 1 {
-            return Err(LastDefaultAdminRoleMember.into());
-        }
-
-        Ok(data.remove_member(target_account))
-    }
-
-    fn set_role_admin_unchecked(
-        &mut self,
-        role_id: RoleId,
-        admin_role_id: RoleId,
-    ) -> Result<(), Error> {
-        self.storage
-            .get_mut()
-            .ensure_role_mut(role_id)?
-            .admin_role_id = admin_role_id;
-        Ok(())
     }
 
     /// Ensures that `account_id` has `role_id` or is a super admin.
@@ -596,7 +601,7 @@ where
         self.perform_role_action(
             role_id,
             target_account,
-            |svc, r, t| svc.grant_role_unchecked(r, t),
+            |state, r, t| state.grant_role_inner(r, t),
             |r, t, s| Event::RoleGranted {
                 role_id: r,
                 target_account: t,
@@ -622,7 +627,7 @@ where
         self.process_batch(
             role_ids,
             target_account,
-            |svc, r, t| svc.grant_role_unchecked(r, t),
+            |state, r, t| state.grant_role_inner(r, t),
             |r, t, s| Event::RoleGranted {
                 role_id: r,
                 target_account: t,
@@ -643,7 +648,7 @@ where
         self.perform_role_action(
             role_id,
             target_account,
-            |svc, r, t| svc.revoke_role_unchecked(r, t),
+            |state, r, t| state.revoke_role_inner(r, t),
             |r, t, s| Event::RoleRevoked {
                 role_id: r,
                 target_account: t,
@@ -669,7 +674,7 @@ where
         self.process_batch(
             role_ids,
             target_account,
-            |svc, r, t| svc.revoke_role_unchecked(r, t),
+            |state, r, t| state.revoke_role_inner(r, t),
             |r, t, s| Event::RoleRevoked {
                 role_id: r,
                 target_account: t,
@@ -701,7 +706,7 @@ where
             }
         );
 
-        if self.revoke_role_unchecked(role_id, account_id)? {
+        if self.storage.get_mut().revoke_role_inner(role_id, account_id)? {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,
@@ -734,7 +739,9 @@ where
         let current_admin_role_id = self.get_role_admin(role_id);
         self.require_role(current_admin_role_id, message_source)?;
 
-        self.set_role_admin_unchecked(role_id, new_admin_role_id)?;
+        self.storage
+            .get_mut()
+            .set_role_admin_inner(role_id, new_admin_role_id)?;
 
         self.emit_event(Event::RoleAdminChanged {
             role_id,
@@ -755,14 +762,14 @@ where
         event_fn: E,
     ) -> Result<(), Error>
     where
-        F: FnMut(&mut Self, RoleId, ActorId) -> Result<bool, Error>,
+        F: FnMut(&mut AccessControlState<N, M, RS, MS>, RoleId, ActorId) -> Result<bool, Error>,
         E: FnOnce(RoleId, ActorId, ActorId) -> Event,
     {
         let message_source = Syscall::message_source();
         let admin_role = self.get_role_admin(role_id);
         self.require_role(admin_role, message_source)?;
 
-        if action_fn(self, role_id, target)? {
+        if action_fn(&mut self.storage.get_mut(), role_id, target)? {
             let event = event_fn(role_id, target, message_source);
             self.emit_event(event).map_err(|_| EmitError)?;
         }
@@ -777,7 +784,7 @@ where
         mut event_builder: E,
     ) -> Result<(), Error>
     where
-        F: FnMut(&mut Self, RoleId, ActorId) -> Result<bool, Error>,
+        F: FnMut(&mut AccessControlState<N, M, RS, MS>, RoleId, ActorId) -> Result<bool, Error>,
         E: FnMut(RoleId, ActorId, ActorId) -> Event,
     {
         let message_source = Syscall::message_source();
@@ -787,12 +794,16 @@ where
             self.require_role(admin_role, message_source)?;
         }
 
+        // A failure partway through the batch panics out of the `unwrap_result`
+        // export; Gear then reverts all storage changes and discards the events
+        // emitted for this message, so the batch is atomic without extra work here.
         for role_id in role_ids {
-            if action(self, role_id, target)? {
+            if action(&mut self.storage.get_mut(), role_id, target)? {
                 let event = event_builder(role_id, target, message_source);
                 self.emit_event(event).map_err(|_| EmitError)?;
             }
         }
+
         Ok(())
     }
 }
