@@ -19,7 +19,7 @@
 mod common;
 
 use awesome_sails::vft::utils::{Allowance, Balance};
-use awesome_sails::vft_admin::PAUSER_ROLE;
+use awesome_sails::vft_admin::{BURNER_ROLE, MINTER_ROLE, PAUSER_ROLE};
 use awesome_sails_test_client::{
     AwesomeSailsTestClient,
     access_control::AccessControl,
@@ -805,4 +805,35 @@ async fn pause() {
             awesome_sails_test_client::vft::Error("storage is paused".into())
         );
     }
+}
+
+#[tokio::test]
+async fn built_in_admin_roles_are_reserved() {
+    let (program, _env, _pid) = deploy_with_data(Default::default(), Default::default(), 0).await;
+    let mut access_control_service = program.access_control();
+
+    for role_id in [[1; 32], [2; 32], [3; 32]] {
+        let _ = access_control_service
+            .set_role_admin(role_id, role_id)
+            .with_actor_id(ALICE)
+            .await;
+    }
+
+    let res = access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res.unwrap(), ());
+
+    let res = access_control_service
+        .grant_role(BURNER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res.unwrap(), ());
+
+    let res = access_control_service
+        .grant_role(PAUSER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res.unwrap(), ());
 }

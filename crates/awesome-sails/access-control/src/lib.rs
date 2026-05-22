@@ -83,16 +83,16 @@ pub struct AccessControlState<
     [ActorId; MS]: Array<Item = ActorId>,
 {
     /// Sorted descriptors for efficient role lookup.
-    pub descriptors: SmallVec<[RoleDescriptor; RS]>,
+    descriptors: SmallVec<[RoleDescriptor; RS]>,
     /// Indexed data slots for roles (appended on creation).
     /// Uses RS inline slots (no heap allocation if role count <= RS).
-    pub role_data: SmallVec<[RoleData<M, MS>; RS]>,
+    role_data: SmallVec<[RoleData<M, MS>; RS]>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct RoleDescriptor {
-    pub role_id: RoleId,
-    pub data_idx: u16,
+    role_id: RoleId,
+    data_idx: u16,
 }
 
 /// Internal structure holding data for a specific role.
@@ -101,8 +101,8 @@ pub struct RoleData<const M: usize, const MS: usize>
 where
     [ActorId; MS]: Array<Item = ActorId>,
 {
-    pub admin_role_id: RoleId,
-    pub members: SmallVec<[ActorId; MS]>,
+    admin_role_id: RoleId,
+    members: SmallVec<[ActorId; MS]>,
 }
 
 /// Pagination parameters for listing roles or members.
@@ -131,10 +131,6 @@ where
     [RoleData<M, MS>; RS]: Array<Item = RoleData<M, MS>>,
     [ActorId; MS]: Array<Item = ActorId>,
 {
-    // data_idx is u16 — N must fit to avoid silent overflow on `len() as u16`
-    const _DATA_IDX_OVERFLOW_CHECK: () =
-        assert!(N <= u16::MAX as usize, "N must fit in u16 for data_idx");
-
     fn find_descriptor_idx(&self, role_id: &RoleId) -> Result<usize, usize> {
         if !self.descriptors.is_empty() && &self.descriptors[0].role_id == role_id {
             return Ok(0);
@@ -146,12 +142,12 @@ where
     fn get_role_data(&self, role_id: &RoleId) -> Option<&RoleData<M, MS>> {
         self.find_descriptor_idx(role_id)
             .ok()
-            .map(|idx| &self.role_data[self.descriptors[idx].data_idx as usize])
+            .map(|idx| &self.role_data[usize::from(self.descriptors[idx].data_idx)])
     }
 
     fn get_role_data_mut(&mut self, role_id: &RoleId) -> Option<&mut RoleData<M, MS>> {
         self.find_descriptor_idx(role_id).ok().map(|idx| {
-            let data_idx = self.descriptors[idx].data_idx as usize;
+            let data_idx = usize::from(self.descriptors[idx].data_idx);
             &mut self.role_data[data_idx]
         })
     }
@@ -249,7 +245,7 @@ where
     pub fn get_member_role_count(&self, member_id: ActorId) -> u32 {
         self.descriptors
             .iter()
-            .filter(|d| self.role_data[d.data_idx as usize].has_member(member_id))
+            .filter(|d| self.role_data[usize::from(d.data_idx)].has_member(member_id))
             .count() as u32
     }
 
@@ -267,7 +263,7 @@ where
         let (offset, limit) = Pagination::range(query);
         self.descriptors
             .iter()
-            .filter(|d| self.role_data[d.data_idx as usize].has_member(member_id))
+            .filter(|d| self.role_data[usize::from(d.data_idx)].has_member(member_id))
             .map(|d| d.role_id)
             .skip(offset)
             .take(limit)
@@ -288,10 +284,22 @@ where
         let _ = role.add_member(deployer);
     }
 
+    /// Reserves a role descriptor without assigning members.
+    ///
+    /// Returns `true` if the role was created and `false` if it already existed.
+    pub fn reserve_role(&mut self, role_id: RoleId) -> Result<bool, Error> {
+        if self.find_descriptor_idx(&role_id).is_ok() {
+            return Ok(false);
+        }
+
+        self.ensure_role_mut(role_id)?;
+        Ok(true)
+    }
+
     fn ensure_role_mut(&mut self, role_id: RoleId) -> Result<&mut RoleData<M, MS>, Error> {
         match self.find_descriptor_idx(&role_id) {
             Ok(idx) => {
-                let data_idx = self.descriptors[idx].data_idx as usize;
+                let data_idx = usize::from(self.descriptors[idx].data_idx);
                 Ok(&mut self.role_data[data_idx])
             }
             Err(idx) => {
@@ -299,7 +307,7 @@ where
                     return Err(CapacityExceeded.into());
                 }
 
-                let data_idx = self.role_data.len() as u16;
+                let data_idx = u16::try_from(self.role_data.len()).map_err(|_| CapacityExceeded)?;
                 self.descriptors
                     .insert(idx, RoleDescriptor { role_id, data_idx });
                 self.role_data.push(RoleData {
@@ -307,7 +315,7 @@ where
                     members: SmallVec::new(),
                 });
 
-                Ok(&mut self.role_data[data_idx as usize])
+                Ok(&mut self.role_data[usize::from(data_idx)])
             }
         }
     }
@@ -801,6 +809,40 @@ pub enum Event {
         new_admin_role_id: RoleId,
         sender: ActorId,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn role_id(id: usize) -> RoleId {
+        let mut bytes = [0; ROLE_ID_SIZE];
+        bytes[..core::mem::size_of::<usize>()].copy_from_slice(&id.to_le_bytes());
+        bytes
+    }
+
+    #[test]
+    fn role_data_index_overflow_returns_capacity_exceeded() {
+        type State = AccessControlState<{ u16::MAX as usize + 2 }, 1, 1, 1>;
+
+        let mut state = State::default();
+
+        for id in 0..=u16::MAX as usize {
+            state.ensure_role_mut(role_id(id)).unwrap();
+        }
+
+        let err = match state.ensure_role_mut(role_id(u16::MAX as usize + 1)) {
+            Ok(_) => panic!("role index overflow must fail"),
+            Err(err) => err,
+        };
+
+        assert_eq!(err.to_string(), CapacityExceeded.to_string());
+        assert!(
+            state
+                .get_role_data(&role_id(u16::MAX as usize + 1))
+                .is_none()
+        );
+    }
 }
 
 /// Errors occurring within the Access Control service.

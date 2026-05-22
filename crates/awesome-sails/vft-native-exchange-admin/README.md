@@ -23,7 +23,7 @@ To use the Native Exchange Admin service, instantiate it with the VFT Admin serv
 #![no_std]
 
 use awesome_sails_vft_native_exchange_admin::VftNativeExchangeAdmin;
-use awesome_sails_vft_admin::{VftAdmin, RolesStorage, AccessControl};
+use awesome_sails_vft_admin::{init_roles_storage, VftAdmin, RolesStorage, AccessControl};
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_utils::pause::{PausableRef, Pause};
@@ -57,7 +57,8 @@ impl Program {
         let mut access_control_roles = RolesStorage::default();
         let deployer = Syscall::message_source();
 
-        access_control_roles.grant_initial_admin(deployer);
+        init_roles_storage(&mut access_control_roles, deployer)
+            .expect("roles storage capacity must fit built-in roles");
 
         Self {
             access_control_roles: RefCell::new(access_control_roles),

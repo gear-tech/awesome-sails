@@ -61,6 +61,15 @@ pub const PAUSER_ROLE: RoleId = keccak_const::Keccak256::new()
     .update(b"PAUSER_ROLE")
     .finalize();
 
+/// Initializes VFT admin roles and reserves all built-in role descriptors.
+pub fn init_roles_storage(storage: &mut RolesStorage, deployer: ActorId) -> Result<(), Error> {
+    storage.grant_initial_admin(deployer);
+    storage.reserve_role(MINTER_ROLE)?;
+    storage.reserve_role(BURNER_ROLE)?;
+    storage.reserve_role(PAUSER_ROLE)?;
+    Ok(())
+}
+
 /// The VFT Admin service struct.
 ///
 /// Combines access control, VFT storage (allowances and balances), and pause state

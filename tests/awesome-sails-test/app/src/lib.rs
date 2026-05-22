@@ -122,7 +122,8 @@ impl Program {
         let mut access_control = RolesStorage::default();
         let deployer = Syscall::message_source();
 
-        access_control.grant_initial_admin(deployer);
+        vft_admin::init_roles_storage(&mut access_control, deployer)
+            .expect("roles storage capacity must fit built-in roles");
 
         Self {
             access_control: RefCell::new(access_control),
