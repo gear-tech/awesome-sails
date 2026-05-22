@@ -43,7 +43,9 @@
 
 pub use awesome_sails_utils::ensure;
 
-use crate::error::{AccessDenied, CapacityExceeded, EmitError, Error, NotAccountOwner};
+use crate::error::{
+    AccessDenied, CapacityExceeded, EmitError, Error, LastDefaultAdminRoleMember, NotAccountOwner,
+};
 use core::{cell::RefCell, marker::PhantomData};
 use sails_rs::prelude::*;
 use smallvec::{Array, SmallVec};
@@ -412,11 +414,22 @@ where
             .add_member(target_account)
     }
 
-    fn revoke_role_unchecked(&mut self, role_id: RoleId, target_account: ActorId) -> bool {
-        self.storage
-            .get_mut()
-            .get_role_data_mut(&role_id)
-            .is_some_and(|data| data.remove_member(target_account))
+    fn revoke_role_unchecked(
+        &mut self,
+        role_id: RoleId,
+        target_account: ActorId,
+    ) -> Result<bool, Error> {
+        let default_admin = default_admin_role();
+        let mut storage = self.storage.get_mut();
+        let Some(data) = storage.get_role_data_mut(&role_id) else {
+            return Ok(false);
+        };
+
+        if role_id == default_admin && data.has_member(target_account) && data.members.len() == 1 {
+            return Err(LastDefaultAdminRoleMember.into());
+        }
+
+        Ok(data.remove_member(target_account))
     }
 
     fn set_role_admin_unchecked(
@@ -630,7 +643,7 @@ where
         self.perform_role_action(
             role_id,
             target_account,
-            |svc, r, t| Ok(svc.revoke_role_unchecked(r, t)),
+            |svc, r, t| svc.revoke_role_unchecked(r, t),
             |r, t, s| Event::RoleRevoked {
                 role_id: r,
                 target_account: t,
@@ -656,7 +669,7 @@ where
         self.process_batch(
             role_ids,
             target_account,
-            |svc, r, t| Ok(svc.revoke_role_unchecked(r, t)),
+            |svc, r, t| svc.revoke_role_unchecked(r, t),
             |r, t, s| Event::RoleRevoked {
                 role_id: r,
                 target_account: t,
@@ -688,7 +701,7 @@ where
             }
         );
 
-        if self.revoke_role_unchecked(role_id, account_id) {
+        if self.revoke_role_unchecked(role_id, account_id)? {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,
@@ -880,4 +893,11 @@ pub mod error {
     #[error("Capacity exceeded")]
     #[reflect_hash(crate = sails_rs)]
     pub struct CapacityExceeded;
+
+    /// Error indicating that the last member of the default admin role cannot be removed.
+    #[derive(Clone, Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
+    #[codec(crate = sails_rs::scale_codec)]
+    #[error("Cannot remove last default admin role member")]
+    #[reflect_hash(crate = sails_rs)]
+    pub struct LastDefaultAdminRoleMember;
 }

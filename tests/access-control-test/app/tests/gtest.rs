@@ -105,6 +105,48 @@ async fn grant_and_revoke_role_success() {
 }
 
 #[tokio::test]
+async fn revoke_last_default_admin_fails() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let res = access_control_service
+        .revoke_role(default_admin_role(), ALICE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    assert_eq!(
+        res.unwrap_err(),
+        Error("Cannot remove last default admin role member".into())
+    );
+
+    let has_role = access_control_service
+        .has_role(default_admin_role(), ALICE)
+        .await;
+    assert_ok!(has_role, true);
+}
+
+#[tokio::test]
+async fn renounce_last_default_admin_fails() {
+    let (program, _env, _pid) = deploy_program().await;
+    let mut access_control_service = program.access_control();
+
+    let res = access_control_service
+        .renounce_role(default_admin_role(), ALICE)
+        .with_actor_id(ALICE)
+        .await
+        .unwrap();
+    assert_eq!(
+        res.unwrap_err(),
+        Error("Cannot remove last default admin role member".into())
+    );
+
+    let has_role = access_control_service
+        .has_role(default_admin_role(), ALICE)
+        .await;
+    assert_ok!(has_role, true);
+}
+
+#[tokio::test]
 async fn grant_role_fail_unauthorized() {
     let (program, _env, _pid) = deploy_program().await;
     let mut access_control_service = program.access_control();

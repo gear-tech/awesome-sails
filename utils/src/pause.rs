@@ -36,56 +36,31 @@ use sails_type_registry::TypeInfo;
 ///
 /// When paused, mutating operations on the storage will fail with `PausableError::Paused`.
 /// Read-only operations are typically still allowed.
-pub struct Pausable<S: StateMut, P: State<Item = Pause, Error = Infallible>> {
+#[derive(Clone)]
+pub struct Pausable<'a, S: StateMut> {
     storage: S,
-    pause: P,
+    pause: &'a Pause,
 }
 
 /// A convenience type alias for a `Pausable` utilizing reference cells for storage and pause state.
-pub type PausableRef<'a, T> = Pausable<&'a RefCell<T>, PauseRef<'a>>;
+pub type PausableRef<'a, T> = Pausable<'a, &'a RefCell<T>>;
 
-impl<S, P> Clone for Pausable<S, P>
-where
-    S: StateMut + Clone,
-    P: State<Item = Pause, Error = Infallible> + Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            pause: self.pause.clone(),
-        }
-    }
-}
-
-impl<S: StateMut, P: State<Item = Pause, Error = Infallible>> Pausable<S, P> {
+impl<'a, S: StateMut> Pausable<'a, S> {
     /// Creates a new `Pausable` wrapper.
     ///
     /// # Arguments
     ///
     /// * `pause` - The storage component holding the pause state.
     /// * `storage` - The underlying storage component to be wrapped.
-    pub fn new(pause: P, storage: S) -> Self {
+    pub fn new(pause: &'a Pause, storage: S) -> Self {
         Self { pause, storage }
-    }
-
-    /// Creates a new `Pausable` wrapper with default storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `pause` - The storage component holding the pause state.
-    pub fn default(pause: P) -> Self
-    where
-        S: Default,
-    {
-        Self::new(pause, Default::default())
     }
 }
 
-impl<S, P> State for Pausable<S, P>
+impl<S> State for Pausable<'_, S>
 where
     S: StateMut,
     S::Error: 'static,
-    P: State<Item = Pause, Error = Infallible>,
 {
     type Item = S::Item;
     type Error = PausableError<S::Error>;
@@ -95,14 +70,13 @@ where
     }
 }
 
-impl<S, P> StateMut for Pausable<S, P>
+impl<S> StateMut for Pausable<'_, S>
 where
     S: StateMut,
     S::Error: 'static,
-    P: State<Item = Pause, Error = Infallible>,
 {
     fn write(&mut self) -> Result<impl DerefMut<Target = Self::Item>, Self::Error> {
-        ensure!(!self.pause.get().is_paused(), PausableError::Paused);
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.write().map_err(Into::into)
     }
@@ -111,7 +85,7 @@ where
     where
         S::Item: Sized,
     {
-        ensure!(!self.pause.get().is_paused(), PausableError::Paused);
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace(value).map_err(Into::into)
     }
@@ -123,26 +97,9 @@ where
     where
         S::Item: Sized,
     {
-        ensure!(!self.pause.get().is_paused(), PausableError::Paused);
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace_with(f).map_err(Into::into)
-    }
-}
-
-/// A trait for storage types that support checking their pause state.
-pub trait PausableState: StateMut {
-    /// Returns `true` if the storage is currently paused.
-    fn is_paused(&self) -> bool;
-}
-
-impl<S, P> PausableState for Pausable<S, P>
-where
-    S: StateMut,
-    S::Error: 'static,
-    P: State<Item = Pause, Error = Infallible>,
-{
-    fn is_paused(&self) -> bool {
-        self.pause.get().is_paused()
     }
 }
 
@@ -151,9 +108,6 @@ where
 /// Wraps a `Cell<bool>` to allow interior mutability for the pause state.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Pause(Cell<bool>);
-
-/// A type alias for a reference to a `Pause` instance.
-pub type PauseRef<'a> = &'a Pause;
 
 impl Pause {
     /// Creates a new `Pause` instance.
@@ -190,15 +144,6 @@ impl Pause {
     /// `true` if currently paused, `false` otherwise.
     pub fn is_paused(&self) -> bool {
         self.0.get()
-    }
-}
-
-impl State for Pause {
-    type Item = Pause;
-    type Error = Infallible;
-
-    fn read(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
-        Ok(self)
     }
 }
 
