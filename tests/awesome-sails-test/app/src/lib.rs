@@ -27,7 +27,6 @@ use awesome_sails::{
     vft_metadata::{self, Metadata},
     vft_native_exchange, vft_native_exchange_admin,
 };
-use awesome_sails_storage::{StorageMut, StorageRefCell};
 use awesome_sails_utils::{
     error::Error,
     pause::{PausableRef, Pause},
@@ -52,7 +51,7 @@ impl TestService<'_> {
         expiry_period: u32,
     ) -> Result<(), Error> {
         {
-            let mut a = self.allowances.get_mut()?;
+            let mut a = self.allowances.write()?;
 
             a.set_expiry_period(expiry_period);
 
@@ -69,7 +68,7 @@ impl TestService<'_> {
             }
         }
 
-        let mut b = self.balances.get_mut()?;
+        let mut b = self.balances.write()?;
 
         b.set_unused_value(U256::zero());
 
@@ -104,15 +103,15 @@ pub struct Program {
 
 impl Program {
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
+        PausableRef::new(&self.pause, &self.allowances)
     }
 
     pub fn balances(&self) -> PausableRef<'_, Balances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
+        PausableRef::new(&self.pause, &self.balances)
     }
 
-    pub fn access_control_storage(&self) -> StorageRefCell<'_, RolesStorage> {
-        StorageRefCell::new(&self.access_control)
+    pub fn access_control_storage(&self) -> &RefCell<RolesStorage> {
+        &self.access_control
     }
 }
 
@@ -147,7 +146,7 @@ impl Program {
         }
     }
 
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
+    pub fn access_control(&self) -> AccessControl<'_, &RefCell<RolesStorage>> {
         AccessControl::new(self.access_control_storage())
     }
 
@@ -159,7 +158,7 @@ impl Program {
         &self,
     ) -> vft_admin::VftAdmin<
         '_,
-        StorageRefCell<'_, RolesStorage>, // ACS generic
+        &RefCell<RolesStorage>,
         PausableRef<'_, Allowances>,
         PausableRef<'_, Balances>,
     > {
@@ -194,7 +193,7 @@ impl Program {
         &self,
     ) -> vft_native_exchange_admin::VftNativeExchangeAdmin<
         '_,
-        StorageRefCell<'_, RolesStorage>, // ACS generic for vft-admin
+        &RefCell<RolesStorage>,
         PausableRef<'_, Allowances>,
         PausableRef<'_, Balances>,
     > {

@@ -19,13 +19,12 @@
 #![no_std]
 
 use awesome_sails::access_control;
-use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
 pub const ROLES_LIMIT: usize = 33;
 pub const MEMBERS_LIMIT: usize = 101;
 
-type RolesStorage = access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT>;
+type RolesStorage = access_control::AccessControlState<ROLES_LIMIT, MEMBERS_LIMIT>;
 
 pub struct Program {
     roles: RefCell<RolesStorage>,
@@ -53,6 +52,6 @@ impl Program {
     pub fn access_control(
         &self,
     ) -> access_control::AccessControl<'_, ROLES_LIMIT, MEMBERS_LIMIT, 5, 17> {
-        access_control::AccessControl::new(StorageRefCell::new(&self.roles))
+        access_control::AccessControl::new(&self.roles)
     }
 }

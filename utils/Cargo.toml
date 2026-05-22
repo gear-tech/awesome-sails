@@ -14,6 +14,7 @@ primitive-types = { workspace = true }
 gprimitives = { workspace = true, optional = true }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 sails-type-registry = { workspace = true }
+sails-rs = { workspace = true }
 derive_more = { workspace = true, features = [
     "display",
     "from",
@@ -23,7 +24,6 @@ derive_more = { workspace = true, features = [
 ] }
 thiserror = { workspace = true }
 sails-reflect-hash = { workspace = true }
-awesome-sails-storage = { workspace = true }
 hashbrown = { workspace = true, features = ["ahash"] }
 bnum = { version = "0.13.0", default-features = false }
 

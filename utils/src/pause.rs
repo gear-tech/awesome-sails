@@ -23,31 +23,31 @@
 //! in smart contracts.
 
 use crate::ensure;
-use awesome_sails_storage::{InfallibleStorage, Storage, StorageMut, StorageRefCell};
 use core::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     error,
     ops::{Deref, DerefMut},
 };
 use parity_scale_codec::{Decode, Encode};
+use sails_rs::prelude::*;
 use sails_type_registry::TypeInfo;
 
 /// A wrapper around a storage type that adds pause functionality.
 ///
 /// When paused, mutating operations on the storage will fail with `PausableError::Paused`.
 /// Read-only operations are typically still allowed.
-pub struct Pausable<S: StorageMut, P: InfallibleStorage<Item = Pause>> {
+pub struct Pausable<S: StateMut, P: State<Item = Pause, Error = Infallible>> {
     storage: S,
     pause: P,
 }
 
 /// A convenience type alias for a `Pausable` utilizing reference cells for storage and pause state.
-pub type PausableRef<'a, T> = Pausable<StorageRefCell<'a, T>, PauseRef<'a>>;
+pub type PausableRef<'a, T> = Pausable<&'a RefCell<T>, PauseRef<'a>>;
 
 impl<S, P> Clone for Pausable<S, P>
 where
-    S: StorageMut + Clone,
-    P: InfallibleStorage<Item = Pause> + Clone,
+    S: StateMut + Clone,
+    P: State<Item = Pause, Error = Infallible> + Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> Pausable<S, P> {
+impl<S: StateMut, P: State<Item = Pause, Error = Infallible>> Pausable<S, P> {
     /// Creates a new `Pausable` wrapper.
     ///
     /// # Arguments
@@ -81,26 +81,30 @@ impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> Pausable<S, P> {
     }
 }
 
-impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> Storage for Pausable<S, P>
+impl<S, P> State for Pausable<S, P>
 where
+    S: StateMut,
     S::Error: 'static,
+    P: State<Item = Pause, Error = Infallible>,
 {
     type Item = S::Item;
     type Error = PausableError<S::Error>;
 
-    fn get(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
-        self.storage.get().map_err(Into::into)
+    fn read(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
+        self.storage.read().map_err(Into::into)
     }
 }
 
-impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> StorageMut for Pausable<S, P>
+impl<S, P> StateMut for Pausable<S, P>
 where
+    S: StateMut,
     S::Error: 'static,
+    P: State<Item = Pause, Error = Infallible>,
 {
-    fn get_mut(&mut self) -> Result<impl DerefMut<Target = Self::Item>, Self::Error> {
+    fn write(&mut self) -> Result<impl DerefMut<Target = Self::Item>, Self::Error> {
         ensure!(!self.pause.get().is_paused(), PausableError::Paused);
 
-        self.storage.get_mut().map_err(Into::into)
+        self.storage.write().map_err(Into::into)
     }
 
     fn replace(&mut self, value: Self::Item) -> Result<Self::Item, Self::Error>
@@ -126,16 +130,16 @@ where
 }
 
 /// A trait for storage types that support checking their pause state.
-pub trait PausableStorage: StorageMut {
+pub trait PausableState: StateMut {
     /// Returns `true` if the storage is currently paused.
     fn is_paused(&self) -> bool;
 }
 
-impl<S, P> PausableStorage for Pausable<S, P>
+impl<S, P> PausableState for Pausable<S, P>
 where
-    S: StorageMut,
+    S: StateMut,
     S::Error: 'static,
-    P: InfallibleStorage<Item = Pause>,
+    P: State<Item = Pause, Error = Infallible>,
 {
     fn is_paused(&self) -> bool {
         self.pause.get().is_paused()
@@ -186,6 +190,15 @@ impl Pause {
     /// `true` if currently paused, `false` otherwise.
     pub fn is_paused(&self) -> bool {
         self.0.get()
+    }
+}
+
+impl State for Pause {
+    type Item = Pause;
+    type Error = Infallible;
+
+    fn read(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
+        Ok(self)
     }
 }
 

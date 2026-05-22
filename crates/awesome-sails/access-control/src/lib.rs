@@ -44,9 +44,8 @@
 pub use awesome_sails_utils::ensure;
 
 use crate::error::{AccessDenied, CapacityExceeded, EmitError, Error, NotAccountOwner};
-use awesome_sails_storage::{InfallibleStorageMut, StorageRefCell};
-use core::marker::PhantomData;
-use sails_rs::{ReflectHash, TypeInfo, prelude::*};
+use core::{cell::RefCell, marker::PhantomData};
+use sails_rs::prelude::*;
 use smallvec::{Array, SmallVec};
 
 /// Type alias for role identifiers (32-byte array).
@@ -69,7 +68,7 @@ pub const DEFAULT_MEMBERS_STACK: usize = 17;
 
 /// Internal storage structure for managing roles and their members.
 #[derive(Clone, Debug, Default)]
-pub struct AccessControlStorage<
+pub struct AccessControlState<
     // Maximum global number of roles (total capacity).
     const N: usize,
     // Maximum global number of members per role (total capacity).
@@ -126,7 +125,7 @@ impl Pagination {
 }
 
 impl<const N: usize, const M: usize, const RS: usize, const MS: usize>
-    AccessControlStorage<N, M, RS, MS>
+    AccessControlState<N, M, RS, MS>
 where
     [RoleDescriptor; RS]: Array<Item = RoleDescriptor>,
     [RoleData<M, MS>; RS]: Array<Item = RoleData<M, MS>>,
@@ -357,9 +356,8 @@ pub struct AccessControl<
     const M: usize,
     const RS: usize = DEFAULT_ROLES_STACK,
     const MS: usize = DEFAULT_MEMBERS_STACK,
-    S: InfallibleStorageMut<Item = AccessControlStorage<N, M, RS, MS>> = StorageRefCell<
-        'a,
-        AccessControlStorage<N, M, RS, MS>,
+    S: StateMut<Item = AccessControlState<N, M, RS, MS>, Error = Infallible> = &'a RefCell<
+        AccessControlState<N, M, RS, MS>,
     >,
 > where
     [RoleDescriptor; RS]: Array<Item = RoleDescriptor>,
@@ -376,7 +374,7 @@ impl<
     const M: usize,
     const RS: usize,
     const MS: usize,
-    S: InfallibleStorageMut<Item = AccessControlStorage<N, M, RS, MS>>,
+    S: StateMut<Item = AccessControlState<N, M, RS, MS>, Error = Infallible>,
 > AccessControl<'a, N, M, RS, MS, S>
 where
     [RoleDescriptor; RS]: Array<Item = RoleDescriptor>,
@@ -470,7 +468,7 @@ impl<
     const M: usize,
     const RS: usize,
     const MS: usize,
-    S: InfallibleStorageMut<Item = AccessControlStorage<N, M, RS, MS>>,
+    S: StateMut<Item = AccessControlState<N, M, RS, MS>, Error = Infallible>,
 > AccessControl<'a, N, M, RS, MS, S>
 where
     [RoleDescriptor; RS]: Array<Item = RoleDescriptor>,

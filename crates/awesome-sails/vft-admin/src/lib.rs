@@ -27,7 +27,6 @@ use awesome_sails_access_control::{
     self as access_control, RoleId, default_admin_role, ensure,
     error::{EmitError, Error},
 };
-use awesome_sails_storage::{InfallibleStorageMut, StorageMut, StorageRefCell};
 use awesome_sails_utils::{
     math::{Max, NonZero, Zero},
     ok_if,
@@ -37,13 +36,14 @@ use awesome_sails_vft::{
     self as vft,
     utils::{Allowance, Allowances, Balance, Balances},
 };
+use core::cell::RefCell;
 use sails_rs::prelude::*;
 
 pub const ROLES_LIMIT: usize = 4;
 pub const MEMBERS_LIMIT: usize = 17;
 
 pub type RolesStorage =
-    access_control::AccessControlStorage<ROLES_LIMIT, MEMBERS_LIMIT, ROLES_LIMIT, MEMBERS_LIMIT>;
+    access_control::AccessControlState<ROLES_LIMIT, MEMBERS_LIMIT, ROLES_LIMIT, MEMBERS_LIMIT>;
 pub type AccessControl<'a, ACS> =
     access_control::AccessControl<'a, ROLES_LIMIT, MEMBERS_LIMIT, ROLES_LIMIT, MEMBERS_LIMIT, ACS>;
 
@@ -67,9 +67,9 @@ pub const PAUSER_ROLE: RoleId = keccak_const::Keccak256::new()
 /// to provide administrative actions.
 pub struct VftAdmin<
     'a,
-    ACS: InfallibleStorageMut<Item = RolesStorage> = StorageRefCell<'a, RolesStorage>,
-    A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
-    B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
+    ACS: StateMut<Item = RolesStorage, Error = Infallible> = &'a RefCell<RolesStorage>,
+    A: StateMut<Item = Allowances> = PausableRef<'a, Allowances>,
+    B: StateMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
     access_control: access_control::AccessControlExposure<AccessControl<'a, ACS>>,
     allowances: A,
@@ -80,9 +80,9 @@ pub struct VftAdmin<
 
 impl<
     'a,
-    ACS: InfallibleStorageMut<Item = RolesStorage>,
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    ACS: StateMut<Item = RolesStorage, Error = Infallible>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 > VftAdmin<'a, ACS, A, B>
 {
     /// Creates a new instance of the VFT Admin service.
@@ -118,7 +118,7 @@ impl<
         ok_if!(value.is_zero());
 
         self.balances
-            .get_mut()?
+            .write()?
             .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
         self.vft
@@ -136,9 +136,9 @@ impl<
 #[service(events = Event)]
 impl<
     'a,
-    ACS: InfallibleStorageMut<Item = RolesStorage>,
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    ACS: StateMut<Item = RolesStorage, Error = Infallible>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 > VftAdmin<'a, ACS, A, B>
 {
     /// Mints VFTs to the specified address (exposed as unsafe to allow internal reuse).
@@ -162,7 +162,7 @@ impl<
             .require_role(default_admin_role(), Syscall::message_source())?;
 
         self.allowances
-            .get_mut()?
+            .write()?
             .try_append_shard(capacity as usize)?;
 
         Ok(())
@@ -180,9 +180,7 @@ impl<
         self.access_control
             .require_role(default_admin_role(), Syscall::message_source())?;
 
-        self.balances
-            .get_mut()?
-            .try_append_shard(capacity as usize)?;
+        self.balances.write()?.try_append_shard(capacity as usize)?;
 
         Ok(())
     }
@@ -213,7 +211,7 @@ impl<
         let approval = Allowance::try_from(value).unwrap_or(Allowance::MAX);
         let value = if approval.is_max() { U256::MAX } else { value };
 
-        let previous = self.allowances.get_mut()?.set(
+        let previous = self.allowances.write()?.set(
             owner.try_into()?,
             spender.try_into()?,
             approval,
@@ -249,7 +247,7 @@ impl<
             .require_role(BURNER_ROLE, Syscall::message_source())?;
 
         self.balances
-            .get_mut()?
+            .write()?
             .burn(from.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
         self.emit_event(Event::BurnerTookPlace)
@@ -350,7 +348,7 @@ impl<
         self.access_control
             .require_role(default_admin_role(), Syscall::message_source())?;
 
-        self.allowances.get_mut()?.set_expiry_period(period);
+        self.allowances.write()?.set_expiry_period(period);
 
         self.emit_event(Event::ExpiryPeriodChanged(period))
             .map_err(|_| EmitError)?;

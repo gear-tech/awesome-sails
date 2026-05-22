@@ -25,7 +25,6 @@
 #![no_std]
 
 use awesome_sails_access_control::error::Error;
-use awesome_sails_storage::{InfallibleStorageMut, StorageMut};
 use awesome_sails_utils::ok_if;
 use awesome_sails_vft::utils::{Allowances, Balances};
 use awesome_sails_vft_admin::{self as vft_admin};
@@ -35,18 +34,18 @@ use vft_admin::RolesStorage;
 /// The VFT Native Exchange Admin service struct.
 pub struct VftNativeExchangeAdmin<'a, ACS, A, B>
 where
-    ACS: InfallibleStorageMut<Item = RolesStorage>,
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    ACS: StateMut<Item = RolesStorage, Error = Infallible>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 {
     vft_admin: vft_admin::VftAdminExposure<vft_admin::VftAdmin<'a, ACS, A, B>>,
 }
 
 impl<'a, ACS, A, B> VftNativeExchangeAdmin<'a, ACS, A, B>
 where
-    ACS: InfallibleStorageMut<Item = RolesStorage>,
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    ACS: StateMut<Item = RolesStorage, Error = Infallible>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 {
     /// Creates a new instance of the VFT Native Exchange Admin service.
     ///
@@ -61,9 +60,9 @@ where
 #[service(events = Event)]
 impl<'a, ACS, A, B> VftNativeExchangeAdmin<'a, ACS, A, B>
 where
-    ACS: InfallibleStorageMut<Item = RolesStorage>,
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    ACS: StateMut<Item = RolesStorage, Error = Infallible>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 {
     /// Handles reply messages from failed token transfers.
     ///

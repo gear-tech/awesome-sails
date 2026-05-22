@@ -26,7 +26,6 @@ use awesome_sails_vft_native_exchange_admin::VftNativeExchangeAdmin;
 use awesome_sails_vft_admin::{VftAdmin, RolesStorage, AccessControl};
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_storage::StorageRefCell;
 use awesome_sails_utils::pause::{PausableRef, Pause};
 use sails_rs::{cell::RefCell, prelude::*};
 
@@ -40,15 +39,15 @@ pub struct Program {
 
 impl Program {
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
+        PausableRef::new(&self.pause, &self.allowances)
     }
 
     pub fn balances(&self) -> PausableRef<'_, Balances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
+        PausableRef::new(&self.pause, &self.balances)
     }
 
-    pub fn access_control_storage(&self) -> StorageRefCell<'_, RolesStorage> {
-        StorageRefCell::new(&self.access_control_roles)
+    pub fn access_control_storage(&self) -> &RefCell<RolesStorage> {
+        &self.access_control_roles
     }
 }
 
@@ -68,7 +67,7 @@ impl Program {
         }
     }
 
-    pub fn access_control(&self) -> AccessControl<'_, StorageRefCell<'_, RolesStorage>> {
+    pub fn access_control(&self) -> AccessControl<'_, &RefCell<RolesStorage>> {
         AccessControl::new(self.access_control_storage())
     }
 
@@ -80,7 +79,7 @@ impl Program {
         &self,
     ) -> VftAdmin<
         '_,
-        StorageRefCell<'_, RolesStorage>,
+        &RefCell<RolesStorage>,
         PausableRef<'_, Allowances>,
         PausableRef<'_, Balances>,
     > {
@@ -97,7 +96,7 @@ impl Program {
         &self,
     ) -> VftNativeExchangeAdmin<
         '_,
-        StorageRefCell<'_, RolesStorage>,
+        &RefCell<RolesStorage>,
         PausableRef<'_, Allowances>,
         PausableRef<'_, Balances>,
     > {
