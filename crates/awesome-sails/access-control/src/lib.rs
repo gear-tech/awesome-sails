@@ -706,7 +706,11 @@ where
             }
         );
 
-        if self.storage.get_mut().revoke_role_inner(role_id, account_id)? {
+        if self
+            .storage
+            .get_mut()
+            .revoke_role_inner(role_id, account_id)?
+        {
             self.emit_event(Event::RoleRevoked {
                 role_id,
                 target_account: account_id,

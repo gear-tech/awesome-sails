@@ -42,6 +42,10 @@ use sails_rs::prelude::*;
 pub const ROLES_LIMIT: usize = 4;
 pub const MEMBERS_LIMIT: usize = 17;
 
+// The SmallVec stack capacities (3rd/4th params) are deliberately set equal to the
+// total capacities (`ROLES_LIMIT`/`MEMBERS_LIMIT`). These limits are small and fixed,
+// so sizing the inline storage to the maximum keeps all roles and members on the
+// stack — the storage never spills to the heap.
 pub type RolesStorage =
     access_control::AccessControlState<ROLES_LIMIT, MEMBERS_LIMIT, ROLES_LIMIT, MEMBERS_LIMIT>;
 pub type AccessControl<'a, ACS> =
