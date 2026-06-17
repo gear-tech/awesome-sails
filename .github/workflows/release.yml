@@ -12,7 +12,6 @@ env:
   RELEASE_PROGRAMS: "awesome-sails-test-app access-control-test-app msg-tracker-test-app"
   PUBLISH_CRATES: |
     awesome-sails-benchmarks
-    awesome-sails-storage
     awesome-sails-msg-tracker
     awesome-sails-utils
     awesome-sails-access-control
