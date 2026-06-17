@@ -1,5 +1,5 @@
 
-!@sails: 1.0.0-beta.3
+!@sails: 1.0.1
 
 service Test@0x279e57efe3de371d {
     functions {
@@ -149,6 +149,10 @@ service AccessControl@0x26662bab76fe8d0f {
         RevokeRolesBatch(role_ids: [[u8; 32]], target_account: ActorId) throws Error;
         /// Sets `new_admin_role_id` as the admin role for `role_id`.
         /// 
+        /// **Side-effect:** if `role_id` does not exist, it is created with
+        /// an empty members list and `default_admin_role()` as initial admin.
+        /// This consumes one role slot from the global capacity `N`.
+        /// 
         /// Emits a `RoleAdminChanged` event.
         /// 
         /// # Requirements
@@ -287,7 +291,7 @@ service VftAdmin@0x6110108dc67c8d4f {
         /// Appends a new shard to the allowances storage map.
         /// 
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         /// 
         /// # Arguments
         /// * `capacity` - The capacity of the new shard.
@@ -295,7 +299,7 @@ service VftAdmin@0x6110108dc67c8d4f {
         /// Appends a new shard to the balances storage map.
         /// 
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         /// 
         /// # Arguments
         /// * `capacity` - The capacity of the new shard.
@@ -305,7 +309,7 @@ service VftAdmin@0x6110108dc67c8d4f {
         /// This is an admin function allowing the admin to set approvals arbitrarily.
         /// 
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         /// 
         /// # Arguments
         /// * `owner` - The account owning the tokens.
@@ -324,7 +328,7 @@ service VftAdmin@0x6110108dc67c8d4f {
         /// Terminates the program and sends value to `inheritor`.
         /// 
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         /// * Program must be paused.
         Exit(inheritor: ActorId) throws Error;
         /// Returns `true` if the contract is paused.
@@ -352,7 +356,7 @@ service VftAdmin@0x6110108dc67c8d4f {
         /// Sets the expiry period for allowances.
         /// 
         /// # Requirements
-        /// * Caller must have `DEFAULT_ADMIN_ROLE`.
+        /// * Caller must have `default_admin_role()`.
         /// 
         /// # Arguments
         /// * `period` - The new expiry period in blocks.

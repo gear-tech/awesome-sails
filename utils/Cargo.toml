@@ -10,21 +10,18 @@ rust-version.workspace = true
 description = "Utilities for Awesome Sails services"
 
 [dependencies]
-primitive-types = { workspace = true }
+# Gear & Sails
 gprimitives = { workspace = true, optional = true }
-parity-scale-codec = { workspace = true, features = ["derive"] }
 sails-type-registry = { workspace = true }
-derive_more = { workspace = true, features = [
-    "display",
-    "from",
-    "into",
-    "as_ref",
-    "deref",
-] }
-thiserror = { workspace = true }
+sails-rs = { workspace = true }
 sails-reflect-hash = { workspace = true }
-awesome-sails-storage = { workspace = true }
-hashbrown = { workspace = true, features = ["ahash"] }
+
+# External
+primitive-types = { workspace = true }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+derive_more = { workspace = true, features = ["display", "from", "into", "as_ref", "deref"] }
+thiserror = { workspace = true }
+hashbrown = { workspace = true }
 bnum = { version = "0.13.0", default-features = false }
 
 [features]

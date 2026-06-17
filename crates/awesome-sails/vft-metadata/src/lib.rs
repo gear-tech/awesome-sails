@@ -25,7 +25,6 @@
 
 #![no_std]
 
-use awesome_sails_storage::InfallibleStorage;
 use core::ops::Deref;
 use sails_rs::prelude::*;
 
@@ -48,7 +47,7 @@ impl<M> VftMetadata<M> {
     }
 }
 
-impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
+impl<M: State<Item = Metadata, Error = Infallible>> VftMetadata<M> {
     /// Retrieves a reference to the inner metadata object from storage.
     ///
     /// # Returns
@@ -60,7 +59,7 @@ impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
 }
 
 #[service]
-impl<M: InfallibleStorage<Item = Metadata>> VftMetadata<M> {
+impl<M: State<Item = Metadata, Error = Infallible>> VftMetadata<M> {
     /// Returns the name of the VFT.
     ///
     /// # Returns
@@ -131,6 +130,15 @@ impl Metadata {
     /// Returns the number of decimals of the VFT.
     pub fn decimals(&self) -> u8 {
         self.decimals
+    }
+}
+
+impl State for Metadata {
+    type Item = Metadata;
+    type Error = Infallible;
+
+    fn read(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
+        Ok(self)
     }
 }
 

@@ -19,7 +19,7 @@
 mod common;
 
 use awesome_sails::vft::utils::{Allowance, Balance};
-use awesome_sails::vft_admin::PAUSER_ROLE;
+use awesome_sails::vft_admin::{BURNER_ROLE, MINTER_ROLE, PAUSER_ROLE};
 use awesome_sails_test_client::{
     AwesomeSailsTestClient,
     access_control::AccessControl,
@@ -72,8 +72,7 @@ async fn approve() {
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
+    let mut vft_events = vft_service.listen().await.unwrap();
 
     // # Test case #1.
     // Allowance from Alice to Bob doesn't exist and created.
@@ -103,7 +102,7 @@ async fn approve() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible")
+            .unwrap()
             .unwrap();
 
         let res = vft_service.approve(BOB, U256::exp10(MAGIC - 1)).await;
@@ -125,7 +124,7 @@ async fn approve() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible")
+            .unwrap()
             .unwrap();
 
         assert_eq!(res, U256::exp10(MAGIC - 1));
@@ -233,8 +232,7 @@ async fn transfer() {
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
+    let mut vft_events = vft_service.listen().await.unwrap();
 
     // # Test case #1.
     // Alice transfers to Bob, when Alice has no balance.
@@ -242,10 +240,13 @@ async fn transfer() {
         let res = vft_service
             .transfer(BOB, U256::exp10(MAGIC - 1))
             .with_actor_id(ALICE)
-            .await;
+            .await
+            .unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("insufficient balance"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("insufficient balance".into())
+        );
     }
 
     // # Test case #2.
@@ -254,10 +255,13 @@ async fn transfer() {
         let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC) + U256::one())
             .with_actor_id(BOB)
-            .await;
+            .await
+            .unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("insufficient balance"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("insufficient balance".into())
+        );
     }
 
     // # Test case #3.
@@ -270,10 +274,13 @@ async fn transfer() {
                 U256::from(Balance::MAX) - U256::exp10(MAGIC) + U256::one(),
             )
             .with_actor_id(DAVE)
-            .await;
+            .await
+            .unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("balance or supply overflow"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("balance or supply overflow".into())
+        );
     }
 
     // # Test case #4.
@@ -282,9 +289,10 @@ async fn transfer() {
         let res = vft_service
             .transfer(ALICE, U256::exp10(MAGIC - 1))
             .with_actor_id(BOB)
-            .await;
+            .await
+            .unwrap();
 
-        assert_ok!(res.unwrap(), true);
+        assert_ok!(res, true);
 
         let (actor, event) = vft_events.next().await.unwrap();
         assert_eq!(actor, pid);
@@ -333,8 +341,8 @@ async fn transfer() {
 
         let res = vft_service.balance_of(BOB).await;
         assert_ok!(
-            res.unwrap(),
-            U256::exp10(MAGIC) - U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2)
+            res,
+            Ok(U256::exp10(MAGIC) - U256::exp10(MAGIC - 1) - U256::exp10(MAGIC - 2))
         );
     }
 
@@ -458,8 +466,7 @@ async fn transfer_from() {
     let mut vft_service = program.vft();
     let vft_extension_service = program.vft_extension();
 
-    let listener_binding = program.vft().listener();
-    let mut vft_events = listener_binding.listen().await.unwrap();
+    let mut vft_events = vft_service.listen().await.unwrap();
 
     // # Test case #1.
     // Bob doesn't need approve to transfer from self to Alice.
@@ -531,10 +538,13 @@ async fn transfer_from() {
         let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC))
             .with_actor_id(BOB)
-            .await;
+            .await
+            .unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("insufficient allowance"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("insufficient allowance".into())
+        );
     }
 
     // # Test case #5.
@@ -561,10 +571,13 @@ async fn transfer_from() {
         let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC))
             .with_actor_id(BOB)
-            .await;
+            .await
+            .unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("insufficient allowance"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("insufficient allowance".into())
+        );
     }
 
     // # Test case #6.
@@ -591,10 +604,13 @@ async fn transfer_from() {
         let res = vft_service
             .transfer_from(ALICE, CHARLIE, U256::exp10(MAGIC) + U256::one())
             .with_actor_id(BOB)
-            .await;
+            .await
+            .unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("insufficient balance"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("insufficient balance".into())
+        );
     }
 
     // # Test case #7.
@@ -604,7 +620,7 @@ async fn transfer_from() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible")
+            .unwrap()
             .unwrap();
 
         let res = vft_service
@@ -635,7 +651,7 @@ async fn transfer_from() {
             .allowance_of(ALICE, BOB)
             .await
             .expect("infallible")
-            .expect("infallible")
+            .unwrap()
             .unwrap();
 
         assert_eq!(res, U256::MAX);
@@ -668,7 +684,7 @@ async fn transfer_from() {
             .allowance_of(CHARLIE, ALICE)
             .await
             .expect("infallible")
-            .expect("infallible")
+            .unwrap()
             .unwrap();
 
         let res = vft_service
@@ -693,7 +709,7 @@ async fn transfer_from() {
             .allowance_of(CHARLIE, ALICE)
             .await
             .expect("infallible")
-            .expect("infallible")
+            .unwrap()
             .unwrap();
 
         assert_eq!(res, U256::exp10(MAGIC - 2) - U256::exp10(MAGIC - 3));
@@ -753,12 +769,11 @@ async fn pause() {
     let vft_extension_service = program.vft_extension();
 
     // Alice grants PAUSER_ROLE to herself (she already has DEFAULT_ADMIN_ROLE)
-    access_control_service
+    let _ = access_control_service
         .grant_role(PAUSER_ROLE, ALICE)
         .with_actor_id(ALICE)
         .await
-        .expect("Alice failed to grant PAUSER_ROLE to herself")
-        .unwrap();
+        .expect("Alice failed to grant PAUSER_ROLE to herself");
 
     // Call not paused.
     {
@@ -771,11 +786,10 @@ async fn pause() {
 
     // Pause (Alice has PAUSER_ROLE)
     {
-        vft_admin_service
+        let _ = vft_admin_service
             .pause()
             .with_actor_id(ALICE)
             .await
-            .unwrap()
             .unwrap(); // Call from Alice
 
         let paused = vft_admin_service.is_paused().await.unwrap();
@@ -784,9 +798,42 @@ async fn pause() {
 
     // Call paused.
     {
-        let res = vft_service.transfer(BOB, U256::exp10(10)).await;
+        let res = vft_service.transfer(BOB, U256::exp10(10)).await.unwrap();
 
-        let err = res.unwrap().unwrap_err();
-        assert!(err.0.contains("storage is paused"));
+        assert_eq!(
+            res.unwrap_err(),
+            awesome_sails_test_client::vft::Error("storage is paused".into())
+        );
     }
+}
+
+#[tokio::test]
+async fn built_in_admin_roles_are_reserved() {
+    let (program, _env, _pid) = deploy_with_data(Default::default(), Default::default(), 0).await;
+    let mut access_control_service = program.access_control();
+
+    for role_id in [[1; 32], [2; 32], [3; 32]] {
+        let _ = access_control_service
+            .set_role_admin(role_id, role_id)
+            .with_actor_id(ALICE)
+            .await;
+    }
+
+    let res = access_control_service
+        .grant_role(MINTER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res.unwrap(), ());
+
+    let res = access_control_service
+        .grant_role(BURNER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res.unwrap(), ());
+
+    let res = access_control_service
+        .grant_role(PAUSER_ROLE, BOB)
+        .with_actor_id(ALICE)
+        .await;
+    assert_ok!(res.unwrap(), ());
 }

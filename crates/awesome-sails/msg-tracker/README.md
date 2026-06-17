@@ -23,7 +23,6 @@ To use the Message Tracker in your Sails program, you need to include its storag
 #![no_std]
 
 use awesome_sails::msg_tracker::{MsgTracker, storage::BTreeMap};
-use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Clone, Encode, Decode, TypeInfo, PartialEq, Debug)]
@@ -45,13 +44,13 @@ impl Program {
 
     pub fn my_service(&self) -> MyService<'_> {
         MyService {
-            tracker: MsgTracker::new(StorageRefCell::new(&self.tracker_data)),
+            tracker: MsgTracker::new(&self.tracker_data),
         }
     }
 }
 
 pub struct MyService<'a> {
-    tracker: MsgTracker<OpStatus, StorageRefCell<'a, BTreeMap<MessageId, OpStatus>>>,
+    tracker: MsgTracker<OpStatus, &'a RefCell<BTreeMap<MessageId, OpStatus>>>,
 }
 
 #[service]

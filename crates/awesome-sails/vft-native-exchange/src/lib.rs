@@ -24,7 +24,6 @@
 
 #![no_std]
 
-use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
     error::{BadValue, EmitError, Error},
     math::Zero,
@@ -39,8 +38,8 @@ use sails_rs::prelude::*;
 /// The VFT Native Exchange service struct.
 pub struct VftNativeExchange<'a, A, B>
 where
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 {
     balances: B,
     vft: vft::VftExposure<vft::Vft<'a, A, B>>,
@@ -48,8 +47,8 @@ where
 
 impl<'a, A, B> VftNativeExchange<'a, A, B>
 where
-    A: StorageMut<Item = Allowances>,
-    B: StorageMut<Item = Balances>,
+    A: StateMut<Item = Allowances>,
+    B: StateMut<Item = Balances>,
 {
     /// Creates a new instance of the VFT Native Exchange service.
     ///
@@ -63,9 +62,7 @@ where
 }
 
 #[service]
-impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
-    VftNativeExchange<'a, A, B>
-{
+impl<'a, A: StateMut<Item = Allowances>, B: StateMut<Item = Balances>> VftNativeExchange<'a, A, B> {
     /// Burns `value` amount of VFT tokens and returns the equivalent amount of native value to the caller.
     ///
     /// # Arguments
@@ -82,7 +79,7 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
         let from = Syscall::message_source();
 
         self.balances
-            .get_mut()?
+            .write()?
             .burn(from.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
         self.vft
@@ -105,7 +102,7 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
     pub fn burn_all(&mut self) -> Result<CommandReply<()>, Error> {
         let from = Syscall::message_source();
 
-        let value = self.balances.get_mut()?.burn_all(from.try_into()?);
+        let value = self.balances.write()?.burn_all(from.try_into()?);
 
         ok_if!(value.is_zero());
 
@@ -136,7 +133,7 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>>
         let to = Syscall::message_source();
 
         self.balances
-            .get_mut()?
+            .write()?
             .mint(to.try_into()?, Balance::try_from(value)?.try_into()?)?;
 
         self.vft

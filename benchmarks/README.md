@@ -130,8 +130,9 @@ cargo install awesome-sails-benchmarks --features cli
 
 #### Comparison Modes
 
-- **Regression Check (Default)**: Fails if any metric _increases_ beyond the `--threshold`.
-- **Strict Mode (`--strict`)**: Fails if any metric _deviates_ (increases OR decreases) by more than the threshold. Useful for ensuring benchmark stability.
+- **Informational (Default)**: Generates a report but always exits with code 0.
+- **Regression Check (`--fail-on-regression`)**: Exits with code 1 if a significant regression (based on `--threshold`) is detected.
+- **Strict Mode (`--strict`)**: Exits with code 1 if ANY metric deviates from baseline by more than the threshold (including improvements).
 
 #### Usage
 
@@ -140,6 +141,7 @@ bench-analyzer \
   --current benchmarks/bench_data.json \
   --other benchmarks/baseline.json \
   --threshold 5.0 \
+  --fail-on-regression \
   --output report.md
 ```
 
@@ -151,10 +153,11 @@ A CLI tool to compare two benchmark JSON files and detect performance regression
 Usage: bench-analyzer [OPTIONS] --current <CURRENT> --other <OTHER>
 
 Options:
-      --current <CURRENT>      Path to the current benchmark results
-      --other <OTHER>          Path to the baseline benchmark results
+      --current <CURRENT>      Path to the current benchmark results (the ones you just generated)
+      --other <OTHER>          Path to the baseline benchmark results (the reference file to compare against)
       --output <OUTPUT>        Path to save the comparison report in Markdown format
       --threshold <THRESHOLD>  Custom regression threshold percentage (e.g. 5.0)
-      --strict                 Enable strict mode: fail if ANY metric deviates from baseline
+      --fail-on-regression     Exit with code 1 if a significant regression is detected
+      --strict                 Enable strict mode: the tool will fail if ANY metric deviates from baseline by more than the threshold (including improvements). Useful for CI self-checks to ensure benchmark stability
   -h, --help                   Print help
 ```

@@ -11,5 +11,4 @@ description = "Message tracking and status management for Sails-based programs"
 
 [dependencies]
 sails-rs = { workspace = true }
-awesome-sails-storage = { workspace = true }
 thiserror = { workspace = true }

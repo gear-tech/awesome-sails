@@ -23,91 +23,69 @@
 //! in smart contracts.
 
 use crate::ensure;
-use awesome_sails_storage::{InfallibleStorage, Storage, StorageMut, StorageRefCell};
 use core::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     error,
     ops::{Deref, DerefMut},
 };
 use parity_scale_codec::{Decode, Encode};
+use sails_rs::prelude::*;
 use sails_type_registry::TypeInfo;
 
 /// A wrapper around a storage type that adds pause functionality.
 ///
 /// When paused, mutating operations on the storage will fail with `PausableError::Paused`.
 /// Read-only operations are typically still allowed.
-pub struct Pausable<S: StorageMut, P: InfallibleStorage<Item = Pause>> {
+#[derive(Clone)]
+pub struct Pausable<'a, S: StateMut> {
     storage: S,
-    pause: P,
+    pause: &'a Pause,
 }
 
 /// A convenience type alias for a `Pausable` utilizing reference cells for storage and pause state.
-pub type PausableRef<'a, T> = Pausable<StorageRefCell<'a, T>, PauseRef<'a>>;
+pub type PausableRef<'a, T> = Pausable<'a, &'a RefCell<T>>;
 
-impl<S, P> Clone for Pausable<S, P>
-where
-    S: StorageMut + Clone,
-    P: InfallibleStorage<Item = Pause> + Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            pause: self.pause.clone(),
-        }
-    }
-}
-
-impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> Pausable<S, P> {
+impl<'a, S: StateMut> Pausable<'a, S> {
     /// Creates a new `Pausable` wrapper.
     ///
     /// # Arguments
     ///
     /// * `pause` - The storage component holding the pause state.
     /// * `storage` - The underlying storage component to be wrapped.
-    pub fn new(pause: P, storage: S) -> Self {
+    pub fn new(pause: &'a Pause, storage: S) -> Self {
         Self { pause, storage }
-    }
-
-    /// Creates a new `Pausable` wrapper with default storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `pause` - The storage component holding the pause state.
-    pub fn default(pause: P) -> Self
-    where
-        S: Default,
-    {
-        Self::new(pause, Default::default())
     }
 }
 
-impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> Storage for Pausable<S, P>
+impl<S> State for Pausable<'_, S>
 where
+    S: StateMut,
     S::Error: 'static,
 {
     type Item = S::Item;
     type Error = PausableError<S::Error>;
 
-    fn get(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
-        self.storage.get().map_err(Into::into)
+    fn read(&self) -> Result<impl Deref<Target = Self::Item>, Self::Error> {
+        self.storage.read().map_err(Into::into)
     }
 }
 
-impl<S: StorageMut, P: InfallibleStorage<Item = Pause>> StorageMut for Pausable<S, P>
+impl<S> StateMut for Pausable<'_, S>
 where
+    S: StateMut,
     S::Error: 'static,
 {
-    fn get_mut(&mut self) -> Result<impl DerefMut<Target = Self::Item>, Self::Error> {
-        ensure!(!self.pause.get().is_paused(), PausableError::Paused);
+    fn write(&mut self) -> Result<impl DerefMut<Target = Self::Item>, Self::Error> {
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
 
-        self.storage.get_mut().map_err(Into::into)
+        self.storage.write().map_err(Into::into)
     }
 
     fn replace(&mut self, value: Self::Item) -> Result<Self::Item, Self::Error>
     where
         S::Item: Sized,
     {
-        ensure!(!self.pause.get().is_paused(), PausableError::Paused);
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace(value).map_err(Into::into)
     }
@@ -119,26 +97,9 @@ where
     where
         S::Item: Sized,
     {
-        ensure!(!self.pause.get().is_paused(), PausableError::Paused);
+        ensure!(!self.pause.is_paused(), PausableError::Paused);
 
         self.storage.replace_with(f).map_err(Into::into)
-    }
-}
-
-/// A trait for storage types that support checking their pause state.
-pub trait PausableStorage: StorageMut {
-    /// Returns `true` if the storage is currently paused.
-    fn is_paused(&self) -> bool;
-}
-
-impl<S, P> PausableStorage for Pausable<S, P>
-where
-    S: StorageMut,
-    S::Error: 'static,
-    P: InfallibleStorage<Item = Pause>,
-{
-    fn is_paused(&self) -> bool {
-        self.pause.get().is_paused()
     }
 }
 
@@ -147,9 +108,6 @@ where
 /// Wraps a `Cell<bool>` to allow interior mutability for the pause state.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Pause(Cell<bool>);
-
-/// A type alias for a reference to a `Pause` instance.
-pub type PauseRef<'a> = &'a Pause;
 
 impl Pause {
     /// Creates a new `Pause` instance.

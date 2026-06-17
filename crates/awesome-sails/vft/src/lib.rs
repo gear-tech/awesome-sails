@@ -23,7 +23,6 @@
 
 #![no_std]
 
-use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
     error::{EmitError, Error},
     math::{Max, NonZero, Zero},
@@ -64,7 +63,7 @@ impl<A, B> Vft<'_, A, B> {
 }
 
 #[service(events = Event)]
-impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A, B> {
+impl<A: StateMut<Item = Allowances>, B: StateMut<Item = Balances>> Vft<'_, A, B> {
     /// Approves `spender` to spend `value` amount of tokens on behalf of the caller.
     ///
     /// If `value` is `U256::MAX`, the allowance is treated as infinite.
@@ -87,7 +86,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
         let approval = Allowance::try_from(value).unwrap_or(Allowance::MAX);
         let value = if approval.is_max() { U256::MAX } else { value };
 
-        let previous = self.allowances.get_mut()?.set(
+        let previous = self.allowances.write()?.set(
             owner.try_into()?,
             spender.try_into()?,
             approval,
@@ -126,7 +125,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
 
         ok_if!(from == to || value.is_zero(), false);
 
-        self.balances.get_mut()?.transfer(
+        self.balances.write()?.transfer(
             from.try_into()?,
             to,
             Balance::try_from(value)?.try_into()?,
@@ -171,14 +170,14 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
         let _spender = spender.try_into()?;
         let _value: NonZero<_> = Balance::try_from(value)?.try_into()?;
 
-        self.allowances.get_mut()?.decrease(
+        self.allowances.write()?.decrease(
             _from,
             _spender,
             _value.non_zero_cast(),
             Syscall::block_height(),
         )?;
 
-        self.balances.get_mut()?.transfer(_from, to, _value)?;
+        self.balances.write()?.transfer(_from, to, _value)?;
 
         self.emit_event(Event::Transfer { from, to, value })
             .map_err(|_| EmitError)?;
@@ -200,7 +199,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
     pub fn allowance(&self, owner: ActorId, spender: ActorId) -> Result<U256, Error> {
         let allowance = self
             .allowances
-            .get()?
+            .read()?
             .get(owner.try_into()?, spender.try_into()?);
 
         let allowance = if allowance.is_max() {
@@ -223,7 +222,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
     /// The balance as `U256`.
     #[export(unwrap_result)]
     pub fn balance_of(&self, account: ActorId) -> Result<U256, Error> {
-        Ok(self.balances.get()?.get(account.try_into()?).into())
+        Ok(self.balances.read()?.get(account.try_into()?).into())
     }
 
     /// Returns the total supply of tokens.
@@ -233,7 +232,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> Vft<'_, A
     /// The total supply as `U256`.
     #[export(unwrap_result)]
     pub fn total_supply(&self) -> Result<U256, Error> {
-        Ok(self.balances.get()?.total_supply())
+        Ok(self.balances.read()?.total_supply())
     }
 }
 

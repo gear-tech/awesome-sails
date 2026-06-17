@@ -1,5 +1,5 @@
 
-!@sails: 1.0.0-beta.3
+!@sails: 1.0.1
 
 service AccessControl@0x26662bab76fe8d0f {
     events {
@@ -136,6 +136,10 @@ service AccessControl@0x26662bab76fe8d0f {
         /// * The caller must have the admin role for all specified `role_ids`.
         RevokeRolesBatch(role_ids: [[u8; 32]], target_account: ActorId) throws Error;
         /// Sets `new_admin_role_id` as the admin role for `role_id`.
+        /// 
+        /// **Side-effect:** if `role_id` does not exist, it is created with
+        /// an empty members list and `default_admin_role()` as initial admin.
+        /// This consumes one role slot from the global capacity `N`.
         /// 
         /// Emits a `RoleAdminChanged` event.
         /// 

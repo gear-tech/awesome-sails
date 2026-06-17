@@ -19,7 +19,6 @@ awesome-sails-vft-metadata = { workspace = true, optional = true }
 awesome-sails-vft-native-exchange = { workspace = true, optional = true }
 awesome-sails-vft-native-exchange-admin = { workspace = true, optional = true }
 awesome-sails-access-control = { workspace = true, optional = true }
-awesome-sails-storage = { workspace = true, optional = true }
 awesome-sails-msg-tracker = { workspace = true, optional = true }
 
 [features]
@@ -34,22 +33,20 @@ all = [
     "vft-native-exchange",
     "vft-native-exchange-admin",
     "access-control",
-    "storage",
     "msg-tracker",
 ]
 
 test = ["awesome-sails-vft-utils/test"]
 
-vft = ["dep:awesome-sails-vft", "vft-utils", "storage"]
+vft = ["dep:awesome-sails-vft", "vft-utils"]
 vft-utils = ["dep:awesome-sails-vft-utils"]
 vft-admin = ["dep:awesome-sails-vft-admin", "vft", "access-control"]
 vft-extension = ["dep:awesome-sails-vft-extension", "vft"]
-vft-metadata = ["dep:awesome-sails-vft-metadata", "storage"]
+vft-metadata = ["dep:awesome-sails-vft-metadata"]
 vft-native-exchange = ["dep:awesome-sails-vft-native-exchange", "vft"]
 vft-native-exchange-admin = [
     "dep:awesome-sails-vft-native-exchange-admin",
     "vft-admin",
 ]
-access-control = ["dep:awesome-sails-access-control", "storage"]
-storage = ["dep:awesome-sails-storage"]
-msg-tracker = ["dep:awesome-sails-msg-tracker", "storage"]
+access-control = ["dep:awesome-sails-access-control"]
+msg-tracker = ["dep:awesome-sails-msg-tracker"]

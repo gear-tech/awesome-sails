@@ -17,7 +17,6 @@ awesome-sails = { version = "x.y.z", features = ["all"] }
 
 | Service Name              | Crate Name                                | Feature Flag                | Description                                              |
 | ------------------------- | ----------------------------------------- | --------------------------- | -------------------------------------------------------- |
-| Storage                   | `awesome-sails-storage`                   | `storage`                   | Storage abstractions and traits for different backends.  |
 | Access Control            | `awesome-sails-access-control`            | `access-control`            | Role-Based Access Control (RBAC) service.                |
 | VFT                       | `awesome-sails-vft`                       | `vft`                       | Core Vara Fungible Token implementation.                 |
 | VFT Admin                 | `awesome-sails-vft-admin`                 | `vft-admin`                 | Administrative functionality (mint, burn, pause).        |
