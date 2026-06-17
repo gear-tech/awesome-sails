@@ -71,7 +71,52 @@ async fn bench_my_service() {
 }
 ```
 
-### 2. Analysis
+### 2. Gas Trace Tree (Qualitative Profiling)
+
+While `MeasureGas` answers "how much gas?", `GasTrace` answers "**where** did the
+gas go?" — it reconstructs a reply-linked message tree from one or more
+`BlockRunResult`s, decorates each node with its gas cost, and resolves
+`(interface_id, entry_id)` pairs back to `Service::method` names via a
+`MethodRegistry`. Output is a human-readable ASCII tree.
+
+```rust
+use awesome_sails_benchmarks::{GasTrace, MethodRegistry};
+
+let block = system.run_next_block();
+
+let registry = MethodRegistry::new()
+    .register_service::<MyServiceMeta>("MyService");
+
+let tree = GasTrace::new(&block)
+    .with_registry(&registry)
+    .with_actor_name(user_id, "alice")
+    .build();
+
+println!("{}", tree);
+```
+
+Example output:
+
+```
+[0x1001..abcd] alice -> MyProgram::MyService::increment  12,400 gas
+  `-- [0x1002..9876] [reply] Ok  - gas
+[event] MyProgram
+Total: 12,400 gas | 3 messages | depth 1
+```
+
+**Limitations (gtest runtime constraints, not tool design):**
+
+- The tree is built from `reply_to` linkage. Cross-program sub-calls (A → B → C)
+  appear as separate roots because `gtest::CoreLog` doesn't expose
+  parent-message causality.
+- `block.log()` surfaces replies and events but not the originating request.
+  `GasTrace` synthesizes a root for any `gas_burned` entry whose id isn't
+  represented elsewhere in the tree and nests its reply under it — this
+  recovers gas attribution but the synthesized root has no payload, so its
+  method is shown as `[raw]` unless a future gtest revision exposes the full
+  request.
+
+### 3. Analysis
 
 The `bench-analyzer` utility compares generated results with a baseline.
 

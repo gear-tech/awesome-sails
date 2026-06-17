@@ -111,11 +111,12 @@ pub async fn deploy_with_data(
         .unwrap()
     {}
 
-    let _ = program
+    program
         .test()
         .set(allowances, balances, expiry_period)
         .await
-        .expect("failed to set data");
+        .expect("failed to set data")
+        .unwrap();
 
     (program, env, program_id)
 }
