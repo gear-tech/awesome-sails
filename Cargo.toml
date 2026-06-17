@@ -5,7 +5,7 @@ edition = "2024"
 homepage = "https://gear-tech.io"
 license = "GPL-3.0"
 repository = "https://github.com/gear-tech/gear"
-rust-version = "1.91"
+rust-version = "1.93"
 
 [workspace]
 resolver = "3"
@@ -39,24 +39,23 @@ members = [
 
 
 [workspace.dependencies]
-sails-rs = { version = "1.0.0", default-features = false, features = ["gstd"] }
-sails-reflect-hash = { version = "1.0.0", default-features = false }
-sails-type-registry = { version = "1.0.0", default-features = false, features = ["derive"] }
+sails-rs = { version = "1.0.1", default-features = false, features = ["gstd"] }
+sails-reflect-hash = { version = "1.0.1", default-features = false }
+sails-type-registry = { version = "1.0.1", default-features = false, features = ["derive"] }
 awesome-sails-utils = { path = "utils", version = "0.2.0", default-features = false }
-gtest = "=1.10.0"
+gtest = "1.10"
 gprimitives = { version = "1.10.0", default-features = false }
 
 # External dependencies
-hashbrown = { version = "0.14.5", default-features = false }
+hashbrown = { version = "=0.17.1", default-features = false }
 derive_more = { version = "2.1.0", default-features = false }
 futures = { version = "=0.3.31", default-features = false }
 mockall = { version = "=0.14", default-features = false }
 parity-scale-codec = { version = "3.7.5", default-features = false }
-primitive-types = { version = "0.12.2", default-features = false }
-scale-info = { version = "2.11.6", default-features = false }
+primitive-types = { version = "=0.12.2", default-features = false }
 smallvec = { version = "1.15.1", default-features = false }
-thiserror = { version = "=2.0.17", default-features = false }
-tokio = { version = "=1.48", default-features = false }
+thiserror = { version = "2.0", default-features = false }
+tokio = { version = "=1.52", default-features = false }
 keccak-const = { version = "0.2", default-features = false }
 
 
