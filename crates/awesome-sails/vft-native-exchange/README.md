@@ -25,7 +25,7 @@ To use the Native Exchange service, instantiate it with references to the balanc
 use awesome_sails_vft_native_exchange::VftNativeExchange;
 use awesome_sails_vft::Vft;
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
+use awesome_sails_utils::pause::{PausableRef, Pause};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
@@ -37,11 +37,11 @@ pub struct Program {
 
 impl Program {
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
+        PausableRef::new(&self.pause, &self.allowances)
     }
 
     pub fn balances(&self) -> PausableRef<'_, Balances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
+        PausableRef::new(&self.pause, &self.balances)
     }
 
     pub fn vft(&self) -> Vft<'_> {

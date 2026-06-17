@@ -15,7 +15,6 @@ sails-rs = { workspace = true, features = ["gstd"] }
 
 # Local dependencies.
 awesome-sails-utils = { workspace = true }
-awesome-sails-storage = { workspace = true }
 awesome-sails-vft-utils.workspace = true
 
 [features]

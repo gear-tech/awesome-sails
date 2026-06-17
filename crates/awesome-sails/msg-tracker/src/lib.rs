@@ -22,7 +22,6 @@
 
 #![no_std]
 
-use awesome_sails_storage::InfallibleStorageMut;
 use core::marker::PhantomData;
 use sails_rs::prelude::*;
 
@@ -67,7 +66,7 @@ pub trait MessageStorage<T> {
 /// Tracker for asynchronous messages and their statuses.
 pub struct MsgTracker<T, S>
 where
-    S: InfallibleStorageMut,
+    S: StateMut<Error = Infallible>,
     S::Item: MessageStorage<T>,
 {
     storage: S,
@@ -75,9 +74,9 @@ where
 }
 
 /// Pagination parameters for listing tracked messages.
-#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo)]
+#[derive(Clone, Copy, Debug, Decode, Encode, TypeInfo, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub struct Pagination {
     /// The number of items to skip.
     pub offset: u32,
@@ -87,7 +86,7 @@ pub struct Pagination {
 
 impl<T, S, E> MsgTracker<T, S>
 where
-    S: InfallibleStorageMut,
+    S: StateMut<Error = Infallible>,
     S::Item: MessageStorage<T, Error = E>,
 {
     /// Creates a new `MsgTracker` instance.

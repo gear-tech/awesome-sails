@@ -23,39 +23,67 @@ To use the Native Exchange Admin service, instantiate it with the VFT Admin serv
 #![no_std]
 
 use awesome_sails_vft_native_exchange_admin::VftNativeExchangeAdmin;
-use awesome_sails_vft_admin::VftAdmin;
+use awesome_sails_vft_admin::{init_roles_storage, VftAdmin, RolesStorage, AccessControl};
 use awesome_sails_vft::Vft;
-use awesome_sails_access_control::{AccessControl, RolesStorage};
 use awesome_sails_vft::utils::{Allowances, Balances};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
+use awesome_sails_utils::pause::{PausableRef, Pause};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
 pub struct Program {
-    access_control: RefCell<RolesStorage>,
+    access_control_roles: RefCell<RolesStorage>,
     allowances: RefCell<Allowances>,
     balances: RefCell<Balances>,
     pause: Pause,
 }
 
 impl Program {
-    pub fn access_control(&self) -> AccessControl<'_> {
-        AccessControl::new(StorageRefCell::new(&self.access_control))
-    }
-
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
+        PausableRef::new(&self.pause, &self.allowances)
     }
 
     pub fn balances(&self) -> PausableRef<'_, Balances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
+        PausableRef::new(&self.pause, &self.balances)
+    }
+
+    pub fn access_control_storage(&self) -> &RefCell<RolesStorage> {
+        &self.access_control_roles
+    }
+}
+
+#[program]
+impl Program {
+    pub fn new() -> Self {
+        let mut access_control_roles = RolesStorage::default();
+        let deployer = Syscall::message_source();
+
+        init_roles_storage(&mut access_control_roles, deployer)
+            .expect("roles storage capacity must fit built-in roles");
+
+        Self {
+            access_control_roles: RefCell::new(access_control_roles),
+            allowances: Default::default(),
+            balances: Default::default(),
+            pause: Default::default(),
+        }
+    }
+
+    pub fn access_control(&self) -> AccessControl<'_, &RefCell<RolesStorage>> {
+        AccessControl::new(self.access_control_storage())
     }
 
     pub fn vft(&self) -> Vft<'_> {
         Vft::new(self.allowances(), self.balances())
     }
 
-    pub fn vft_admin(&self) -> VftAdmin<'_> {
+    pub fn vft_admin(
+        &self,
+    ) -> VftAdmin<
+        '_,
+        &RefCell<RolesStorage>,
+        PausableRef<'_, Allowances>,
+        PausableRef<'_, Balances>,
+    > {
         VftAdmin::new(
             self.access_control(),
             self.allowances(),
@@ -65,15 +93,15 @@ impl Program {
         )
     }
 
-    pub fn vft_native_exchange_admin(&self) -> VftNativeExchangeAdmin<'_> {
+    pub fn vft_native_exchange_admin(
+        &self,
+    ) -> VftNativeExchangeAdmin<
+        '_,
+        &RefCell<RolesStorage>,
+        PausableRef<'_, Allowances>,
+        PausableRef<'_, Balances>,
+    > {
         VftNativeExchangeAdmin::new(self.vft_admin())
-    }
-}
-
-#[program]
-impl Program {
-    pub fn new() -> Self {
-        Self::default()
     }
 
     pub fn handle_reply(&mut self) {

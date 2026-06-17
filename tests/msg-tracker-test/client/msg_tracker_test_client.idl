@@ -1,38 +1,77 @@
-type OpStatus = enum {
-  Pending,
-  Completed,
-};
 
-/// Pagination parameters for listing tracked messages.
-type Pagination = struct {
-  /// The number of items to skip.
-  offset: u32,
-  /// The maximum number of items to return.
-  limit: u32,
-};
+!@sails: 1.0.1
 
-constructor {
-  New : ();
-};
+service DynamicCounter@0xd4734c64d557b419 {
+    functions {
+        ClearDynamic();
+        ConfirmIncrement(id: MessageId) throws CounterError;
+        @query
+        GetStatus(id: MessageId) -> Option<OpStatus>;
+        @query
+        GetStatuses(query: Option<Pagination>) -> [(MessageId, OpStatus)];
+        @query
+        GetVal() -> u32;
+        RequestIncrement() -> MessageId;
+        UpdateDynamic(id: MessageId, status: OpStatus) -> bool;
+    }
+    types {
+        enum CounterError {
+            OperationNotFound,
+            AlreadyCompleted,
+        }
+        enum OpStatus {
+            Pending,
+            Completed,
+        }
+        /// Pagination parameters for listing tracked messages.
+        struct Pagination {
+            /// The number of items to skip.
+            offset: u32,
+            /// The maximum number of items to return.
+            limit: u32,
+        }
+    }
+}
 
-service DynamicCounter {
-  ClearDynamic : () -> null;
-  ConfirmIncrement : (id: message_id) -> null;
-  RequestIncrement : () -> message_id;
-  UpdateDynamic : (id: message_id, status: OpStatus) -> bool;
-  query GetStatus : (id: message_id) -> opt OpStatus;
-  query GetStatuses : (query: opt Pagination) -> vec struct { message_id, OpStatus };
-  query GetVal : () -> u32;
-};
+service FixedCounter@0xcb6f2fb17b6296e6 {
+    functions {
+        ClearFixed();
+        ConfirmIncrement(id: MessageId) -> bool;
+        @query
+        GetStatus(id: MessageId) -> Option<OpStatus>;
+        @query
+        GetStatuses(query: Option<Pagination>) -> [(MessageId, OpStatus)];
+        @query
+        GetVal() -> u32;
+        RemoveFixed(id: MessageId) -> Option<OpStatus>;
+        RequestIncrement() -> MessageId throws TrackerError;
+        UpdateFixed(id: MessageId, status: OpStatus) -> bool;
+    }
+    types {
+        enum OpStatus {
+            Pending,
+            Completed,
+        }
+        /// Pagination parameters for listing tracked messages.
+        struct Pagination {
+            /// The number of items to skip.
+            offset: u32,
+            /// The maximum number of items to return.
+            limit: u32,
+        }
+        enum TrackerError {
+            /// Indicates that the fixed storage capacity has been exceeded.
+            CapacityExceeded,
+        }
+    }
+}
 
-service FixedCounter {
-  ClearFixed : () -> null;
-  ConfirmIncrement : (id: message_id) -> bool;
-  RemoveFixed : (id: message_id) -> opt OpStatus;
-  RequestIncrement : () -> message_id;
-  UpdateFixed : (id: message_id, status: OpStatus) -> bool;
-  query GetStatus : (id: message_id) -> opt OpStatus;
-  query GetStatuses : (query: opt Pagination) -> vec struct { message_id, OpStatus };
-  query GetVal : () -> u32;
-};
-
+program MsgTrackerTestClient {
+    constructors {
+        New();
+    }
+    services {
+        DynamicCounter@0xd4734c64d557b419,
+        FixedCounter@0xcb6f2fb17b6296e6,
+    }
+}

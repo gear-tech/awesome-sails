@@ -27,7 +27,7 @@ use bnum::BUintD8;
 use core::cmp::Ordering;
 use derive_more::Deref;
 use parity_scale_codec::{Decode, Encode};
-use scale_info::{Path, Type, TypeInfo, build::Fields};
+use sails_type_registry::{TypeInfo, ast::TypeDecl, const_suffixed_name};
 
 pub use primitive_types::{H160, H256, U256};
 
@@ -385,11 +385,33 @@ impl<const N: usize> Decode for LeBytes<N> {
 
 impl<const N: usize> TypeInfo for LeBytes<N> {
     type Identity = Self;
-    fn type_info() -> Type {
-        Type::builder()
-            .path(Path::new("LeBytes", module_path!()))
-            .type_params(vec::Vec::new())
-            .composite(Fields::unnamed().field(|f| f.ty::<[u8]>()))
+
+    fn type_decl(registry: &mut sails_type_registry::Registry) -> TypeDecl {
+        registry.register_named_type(
+            Self::META,
+            const_suffixed_name(
+                "LeBytes",
+                alloc::vec![(alloc::string::String::from("N"), alloc::format!("{N}"))],
+            ),
+            alloc::vec![],
+        )
+    }
+
+    fn type_def(
+        _registry: &mut sails_type_registry::Registry,
+    ) -> Option<sails_type_registry::ast::Type> {
+        Some(
+            sails_type_registry::builder::TypeBuilder::new()
+                .name("LeBytes")
+                .param("N")
+                .composite()
+                .unnamed()
+                .ty(TypeDecl::named_with_generics(
+                    "BUintD8",
+                    alloc::vec![TypeDecl::generic("N")],
+                ))
+                .build(),
+        )
     }
 }
 
@@ -491,7 +513,6 @@ impl<const N: usize> TryFrom<LeBytes<N>> for U256 {
 /// A wrapper type that ensures the contained value is not zero.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Decode, Encode, TypeInfo, Hash, Deref)]
 #[codec(crate = parity_scale_codec)]
-#[scale_info(crate = scale_info)]
 pub struct NonZero<T>(T);
 
 impl<T: Zero + PartialEq> NonZero<T> {
@@ -620,7 +641,6 @@ impl<const N: usize> From<NonZero<LeBytes<N>>> for LeBytes<N> {
 )]
 #[codec(crate = parity_scale_codec)]
 #[error(transparent)]
-#[scale_info(crate = scale_info)]
 pub enum MathError {
     /// Indicates an arithmetic overflow occurred.
     Overflow(#[from] OverflowError),
@@ -646,7 +666,6 @@ pub enum MathError {
 )]
 #[codec(crate = parity_scale_codec)]
 #[error("mathematical overflow")]
-#[scale_info(crate = scale_info)]
 pub struct OverflowError;
 
 /// Error type indicating a mathematical underflow.
@@ -665,7 +684,6 @@ pub struct OverflowError;
 )]
 #[codec(crate = parity_scale_codec)]
 #[error("mathematical underflow")]
-#[scale_info(crate = scale_info)]
 pub struct UnderflowError;
 
 /// Error type indicating a zero value where it is not allowed.
@@ -684,5 +702,4 @@ pub struct UnderflowError;
 )]
 #[codec(crate = parity_scale_codec)]
 #[error("zero error")]
-#[scale_info(crate = scale_info)]
 pub struct ZeroError;

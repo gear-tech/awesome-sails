@@ -35,7 +35,6 @@ pub use balances::{Balances, BalancesError};
 // 72 bits = 9 bytes
 #[derive(Clone, Copy, Debug, Default, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 pub struct Allowance(LeBytes<9>);
 
 impl_math_wrapper!(Allowance, LeBytes<9>);
@@ -52,7 +51,6 @@ impl From<Balance> for Allowance {
 // 80 bits = 10 bytes
 #[derive(Clone, Copy, Debug, Default, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 pub struct Balance(LeBytes<10>);
 
 impl_math_wrapper!(Balance, LeBytes<10>);

@@ -6,7 +6,6 @@ publish = false
 [dependencies]
 awesome-sails = { workspace = true, features = ["all", "test"] }
 awesome-sails-utils = { workspace = true }
-awesome-sails-storage = { workspace = true }
 sails-rs = { workspace = true }
 
 [build-dependencies]

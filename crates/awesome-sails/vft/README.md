@@ -23,7 +23,7 @@ To use the VFT service, your program needs to manage storage for allowances and 
 #![no_std]
 
 use awesome_sails_vft::{Vft, utils::{Allowances, Balances}};
-use awesome_sails_utils::{pause::{PausableRef, Pause}, storage::StorageRefCell};
+use awesome_sails_utils::pause::{PausableRef, Pause};
 use sails_rs::{cell::RefCell, prelude::*};
 
 #[derive(Default)]
@@ -35,11 +35,11 @@ pub struct Program {
 
 impl Program {
     pub fn allowances(&self) -> PausableRef<'_, Allowances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.allowances))
+        PausableRef::new(&self.pause, &self.allowances)
     }
 
     pub fn balances(&self) -> PausableRef<'_, Balances> {
-        PausableRef::new(&self.pause, StorageRefCell::new(&self.balances))
+        PausableRef::new(&self.pause, &self.balances)
     }
 }
 

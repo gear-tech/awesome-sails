@@ -26,7 +26,6 @@
 
 #![no_std]
 
-use awesome_sails_storage::StorageMut;
 use awesome_sails_utils::{
     ensure,
     error::{EmitError, Error},
@@ -43,15 +42,15 @@ use sails_rs::prelude::*;
 /// The VFT Extension service struct.
 pub struct VftExtension<
     'a,
-    A: StorageMut<Item = Allowances> = PausableRef<'a, Allowances>,
-    B: StorageMut<Item = Balances> = PausableRef<'a, Balances>,
+    A: StateMut<Item = Allowances> = PausableRef<'a, Allowances>,
+    B: StateMut<Item = Balances> = PausableRef<'a, Balances>,
 > {
     allowances: A,
     balances: B,
     vft: vft::VftExposure<vft::Vft<'a, A, B>>,
 }
 
-impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtension<'a, A, B> {
+impl<'a, A: StateMut<Item = Allowances>, B: StateMut<Item = Balances>> VftExtension<'a, A, B> {
     /// Creates a new instance of the VFT Extension service.
     ///
     /// # Arguments
@@ -69,7 +68,7 @@ impl<'a, A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftEx
 }
 
 #[service]
-impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtension<'_, A, B> {
+impl<A: StateMut<Item = Allowances>, B: StateMut<Item = Balances>> VftExtension<'_, A, B> {
     /// Allocates the next shard for allowances storage.
     ///
     /// Useful when the current shard is full.
@@ -79,7 +78,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
     /// `true` if a new shard was allocated, `false` otherwise.
     #[export(unwrap_result)]
     pub fn allocate_next_allowances_shard(&mut self) -> Result<bool, Error> {
-        Ok(self.allowances.get_mut()?.allocate_next_shard())
+        Ok(self.allowances.write()?.allocate_next_shard())
     }
 
     /// Allocates the next shard for balances storage.
@@ -91,7 +90,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
     /// `true` if a new shard was allocated, `false` otherwise.
     #[export(unwrap_result)]
     pub fn allocate_next_balances_shard(&mut self) -> Result<bool, Error> {
-        Ok(self.balances.get_mut()?.allocate_next_shard())
+        Ok(self.balances.write()?.allocate_next_shard())
     }
 
     /// Removes an expired allowance.
@@ -118,7 +117,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
         let _spender = spender.try_into()?;
 
         {
-            let mut allowances = self.allowances.get_mut()?;
+            let mut allowances = self.allowances.write()?;
 
             let Some((_, (_, expiry))) = (**allowances).get(&(_owner, _spender)) else {
                 return Ok(false);
@@ -158,7 +157,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
 
         let value: U256 = self
             .balances
-            .get_mut()?
+            .write()?
             .transfer_all(from.try_into()?, to.try_into()?)?
             .into();
 
@@ -197,13 +196,13 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
         let _from = from.try_into()?;
         let _to = to.try_into()?;
 
-        let value = self.balances.get_mut()?.transfer_all(_from, _to)?;
+        let value = self.balances.write()?.transfer_all(_from, _to)?;
 
         ok_if!(value.is_zero(), false);
 
         let _value = <NonZero<Balance>>::try_from(value)?;
 
-        self.allowances.get_mut()?.decrease(
+        self.allowances.write()?.decrease(
             _from,
             _spender,
             _value.non_zero_cast(),
@@ -237,7 +236,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
         owner: ActorId,
         spender: ActorId,
     ) -> Result<Option<(U256, u32)>, Error> {
-        Ok((**self.allowances.get()?)
+        Ok((**self.allowances.read()?)
             .get(&(owner.try_into()?, spender.try_into()?))
             .map(|(_, &(v, b))| {
                 let approval = if v.is_max() { U256::MAX } else { (*v).into() };
@@ -265,7 +264,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
     ) -> Result<Vec<((ActorId, ActorId), (U256, u32))>, Error> {
         Ok(self
             .allowances
-            .get()?
+            .read()?
             .iter()
             .skip(cursor as usize)
             .take(len as usize)
@@ -288,7 +287,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
     /// An `Option<U256>` containing the balance.
     #[export(unwrap_result)]
     pub fn balance_of(&self, account: ActorId) -> Result<Option<U256>, Error> {
-        Ok((**self.balances.get()?)
+        Ok((**self.balances.read()?)
             .get(&account.try_into()?)
             .map(|(_, &v)| (*v).into()))
     }
@@ -307,7 +306,7 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
     pub fn balances(&self, cursor: u32, len: u32) -> Result<Vec<(ActorId, U256)>, Error> {
         Ok(self
             .balances
-            .get()?
+            .read()?
             .iter()
             .skip(cursor as usize)
             .take(len as usize)
@@ -318,13 +317,13 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
     /// Returns the configured allowance expiry period.
     #[export(unwrap_result)]
     pub fn expiry_period(&self) -> Result<u32, Error> {
-        Ok(self.allowances.get()?.expiry_period())
+        Ok(self.allowances.read()?.expiry_period())
     }
 
     /// Returns the amount of value (tokens) that are currently "unused" or reserved.
     #[export(unwrap_result)]
     pub fn unused_value(&self) -> Result<U256, Error> {
-        Ok(self.balances.get()?.unused_value())
+        Ok(self.balances.read()?.unused_value())
     }
 }
 
@@ -334,5 +333,4 @@ impl<A: StorageMut<Item = Allowances>, B: StorageMut<Item = Balances>> VftExtens
 )]
 #[codec(crate = sails_rs::scale_codec)]
 #[error("allowance is not expired")]
-#[scale_info(crate = sails_rs::scale_info)]
 pub struct AllowanceNotExpiredError;

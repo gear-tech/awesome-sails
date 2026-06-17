@@ -202,7 +202,6 @@ impl<T: Clone + Math> Allowances<T> {
     Clone, Debug, Decode, Encode, PartialEq, Eq, PartialOrd, Ord, TypeInfo, thiserror::Error,
 )]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 pub enum AllowancesError {
     #[error("insufficient allowance")]
     Insufficient(#[from] UnderflowError),

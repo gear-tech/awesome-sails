@@ -66,7 +66,6 @@ impl<T> MessageStorage<T> for BTreeMap<MessageId, T> {
 /// Storage implementation using fixed-size arrays.
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
 pub struct FixedStorage<T, const N: usize> {
     /// Array of tracked message identifiers.
     pub ids: [MessageId; N],
@@ -177,9 +176,9 @@ impl<T, const N: usize> MessageStorage<T> for FixedStorage<T, N> {
 pub mod error {
     use sails_rs::prelude::*;
 
-    #[derive(Debug, Decode, Encode, TypeInfo, thiserror::Error)]
+    #[derive(Debug, Decode, Encode, TypeInfo, ReflectHash, thiserror::Error)]
     #[codec(crate = sails_rs::scale_codec)]
-    #[scale_info(crate = sails_rs::scale_info)]
+    #[reflect_hash(crate = sails_rs)]
     pub enum TrackerError {
         /// Indicates that the fixed storage capacity has been exceeded.
         #[error("Capacity exceeded")]

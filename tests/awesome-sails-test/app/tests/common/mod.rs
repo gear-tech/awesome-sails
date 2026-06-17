@@ -25,7 +25,7 @@ use awesome_sails_test_client::{
 };
 use sails_rs::{
     ActorId, U256,
-    client::{Actor, GearEnv, GtestEnv, GtestError},
+    client::{Actor, GearEnv, GtestEnv},
     gtest::System,
     prelude::*,
 };
@@ -101,35 +101,21 @@ pub async fn deploy_with_data(
         .allocate_next_balances_shard()
         .await
         .expect("failed to allocate next balances shard")
+        .unwrap()
     {}
 
     while vft_extension
         .allocate_next_allowances_shard()
         .await
         .expect("failed to allocate next balances shard")
+        .unwrap()
     {}
 
-    program
+    let _ = program
         .test()
         .set(allowances, balances, expiry_period)
         .await
         .expect("failed to set data");
 
     (program, env, program_id)
-}
-
-#[track_caller]
-pub fn assert_str_panic(e: GtestError, exp: &str) {
-    match e {
-        GtestError::ReplyHasError(
-            ErrorReplyReason::Execution(SimpleExecutionError::UserspacePanic),
-            res,
-        ) => {
-            let actual = String::from_utf8_lossy(&res);
-            let expected =
-                format!("panicked with 'called `Result::unwrap()` on an `Err` value: {exp}'");
-            assert_eq!(actual, expected);
-        }
-        _ => core::panic!("not an expected error reply type: {e:?}"),
-    }
 }

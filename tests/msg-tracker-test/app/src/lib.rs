@@ -4,27 +4,26 @@ use awesome_sails::msg_tracker::{
     MsgTracker, Pagination, TrackerError,
     storage::{BTreeMap, FixedStorage},
 };
-use awesome_sails_storage::StorageRefCell;
 use sails_rs::{cell::RefCell, prelude::*};
 
-#[derive(Clone, Encode, Decode, TypeInfo, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, TypeInfo, PartialEq, Debug, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub enum OpStatus {
     Pending,
     Completed,
 }
 
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq)]
+#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, ReflectHash)]
 #[codec(crate = sails_rs::scale_codec)]
-#[scale_info(crate = sails_rs::scale_info)]
+#[reflect_hash(crate = sails_rs)]
 pub enum CounterError {
     OperationNotFound,
     AlreadyCompleted,
 }
 
 pub struct DynamicCounter<'a> {
-    tracker: MsgTracker<OpStatus, StorageRefCell<'a, BTreeMap<MessageId, OpStatus>>>,
+    tracker: MsgTracker<OpStatus, &'a RefCell<BTreeMap<MessageId, OpStatus>>>,
     counter: &'a RefCell<u32>,
 }
 
@@ -77,7 +76,7 @@ impl DynamicCounter<'_> {
 }
 
 pub struct FixedCounter<'a> {
-    tracker: MsgTracker<OpStatus, StorageRefCell<'a, FixedStorage<OpStatus, 5>>>,
+    tracker: MsgTracker<OpStatus, &'a RefCell<FixedStorage<OpStatus, 5>>>,
     counter: &'a RefCell<u32>,
 }
 
@@ -146,14 +145,14 @@ impl Program {
 
     pub fn dynamic_counter(&self) -> DynamicCounter<'_> {
         DynamicCounter {
-            tracker: MsgTracker::new(StorageRefCell::new(&self.dynamic_tracker_data)),
+            tracker: MsgTracker::new(&self.dynamic_tracker_data),
             counter: &self.counter,
         }
     }
 
     pub fn fixed_counter(&self) -> FixedCounter<'_> {
         FixedCounter {
-            tracker: MsgTracker::new(StorageRefCell::new(&self.fixed_tracker_data)),
+            tracker: MsgTracker::new(&self.fixed_tracker_data),
             counter: &self.counter,
         }
     }

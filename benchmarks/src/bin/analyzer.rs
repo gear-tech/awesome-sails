@@ -37,9 +37,11 @@ struct Cli {
     #[arg(long)]
     output: Option<PathBuf>,
     /// Custom regression threshold percentage (e.g. 5.0).
-    /// If a metric grows beyond this, the tool will exit with an error.
     #[arg(long)]
     threshold: Option<f64>,
+    /// Exit with code 1 if a significant regression is detected.
+    #[arg(long)]
+    fail_on_regression: bool,
     /// Enable strict mode: the tool will fail if ANY metric deviates from baseline
     /// by more than the threshold (including improvements).
     /// Useful for CI self-checks to ensure benchmark stability.
@@ -62,22 +64,25 @@ fn main() -> Result<()> {
 
     let report = ReportBuilder::new(diffs).with_config(config).build();
 
-    // 1. CLI Output (ASCII Table) - Uses the idiomatic Display impl
+    // 1. CLI Output (ASCII Table)
     println!("{}", report.as_ascii());
 
-    // 2. Markdown Output - Uses the idiomatic Display impl
+    // 2. Markdown Output
     if let Some(out_path) = cli.output {
         fs::write(out_path, report.as_markdown().to_string())?;
     }
 
-    let failed = if cli.strict {
-        report.has_any_deviation(cli.threshold.unwrap())
-    } else {
-        report.has_significant_regression()
-    };
+    if cli.fail_on_regression || cli.strict {
+        let failed = if cli.strict {
+            report.has_any_deviation(cli.threshold.unwrap())
+        } else {
+            report.has_significant_regression()
+        };
 
-    if failed {
-        core::panic!("Benchmark failure: deviation exceeds the allowed threshold!");
+        if failed {
+            eprintln!("\nError: Benchmark performance regression detected!");
+            std::process::exit(1);
+        }
     }
 
     Ok(())
