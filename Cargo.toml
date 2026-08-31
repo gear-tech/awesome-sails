@@ -59,7 +59,7 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 # Sails dependencies
-sails-rs = { git = "https://github.com/gear-tech/sails.git", branch = "backport-gear-ap", default-features = false }
+sails-rs = { git = "https://github.com/gear-tech/sails.git", rev = "3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9", default-features = false }
 
 # External dependencies
 derive_more = { version = "2.0.1", default-features = false }
