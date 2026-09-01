@@ -4582,7 +4582,7 @@ dependencies = [
 [[package]]
 name = "sails-client-gen"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "anyhow",
  "convert_case 0.7.1",
@@ -4594,7 +4594,7 @@ dependencies = [
 [[package]]
 name = "sails-idl-gen"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "convert_case 0.7.1",
  "gprimitives",
@@ -4609,7 +4609,7 @@ dependencies = [
 [[package]]
 name = "sails-idl-meta"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "scale-info",
 ]
@@ -4617,7 +4617,7 @@ dependencies = [
 [[package]]
 name = "sails-idl-parser"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "lalrpop",
  "lalrpop-util",
@@ -4628,7 +4628,7 @@ dependencies = [
 [[package]]
 name = "sails-macros"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "proc-macro-error",
  "sails-macros-core",
@@ -4637,7 +4637,7 @@ dependencies = [
 [[package]]
 name = "sails-macros-core"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "convert_case 0.7.1",
  "parity-scale-codec",
@@ -4650,7 +4650,7 @@ dependencies = [
 [[package]]
 name = "sails-rs"
 version = "0.9.2"
-source = "git+https://github.com/gear-tech/sails.git?rev=3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
+source = "git+https://github.com/gear-tech/sails.git?branch=backport-gear-ap#3cd30d98a22ad92f0c3ac3a1bf0c2fb360fb75c9"
 dependencies = [
  "convert_case 0.7.1",
  "futures",
